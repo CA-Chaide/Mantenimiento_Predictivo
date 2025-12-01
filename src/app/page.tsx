@@ -24,13 +24,13 @@ export default async function DashboardPage({
       : availableComponents[0].id
   ) as ComponentId;
 
-  const today = new Date(2025, 10, 15); // Simulated current date: Nov 2025
+  const today = new Date('2025-11-15T00:00:00Z'); // Simulated current date: Nov 15, 2025 UTC
   const defaultFrom = startOfMonth(today);
   const defaultTo = addDays(defaultFrom, 14);
 
   const dateRange: DateRange = {
-    from: searchParams.from ? new Date(searchParams.from as string) : defaultFrom,
-    to: searchParams.to ? new Date(searchParams.to as string) : defaultTo,
+    from: searchParams.from ? new Date(`${searchParams.from as string}T00:00:00Z`) : defaultFrom,
+    to: searchParams.to ? new Date(`${searchParams.to as string}T00:00:00Z`) : defaultTo,
   };
 
   const data = generateMockData(machine, component, dateRange);

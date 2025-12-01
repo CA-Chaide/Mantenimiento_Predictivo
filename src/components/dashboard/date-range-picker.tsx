@@ -20,6 +20,11 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [date, setDate] = React.useState<DateRange | undefined>(initialDate);
+  const [isClient, setIsClient] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleSelect = (range: DateRange | undefined) => {
     setDate(range);
@@ -30,6 +35,8 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
       router.push(`${pathname}?${newParams.toString()}`);
     }
   };
+  
+  const displayDate = isClient ? date : initialDate;
 
   return (
     <div className={cn("grid gap-2", className)}>
@@ -40,17 +47,17 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             variant={"outline"}
             className={cn(
               "w-[300px] justify-start text-left font-normal",
-              !date && "text-muted-foreground"
+              !displayDate && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {date?.from ? (
-              date.to ? (
+            {displayDate?.from ? (
+              displayDate.to ? (
                 <>
-                  {format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}
+                  {format(displayDate.from, "LLL dd, y")} - {format(displayDate.to, "LLL dd, y")}
                 </>
               ) : (
-                format(date.from, "LLL dd, y")
+                format(displayDate.from, "LLL dd, y")
               )
             ) : (
               <span>Pick a date</span>
@@ -61,11 +68,11 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={date?.from || new Date(2025, 10, 1)}
+            defaultMonth={date?.from || new Date('2025-11-01T00:00:00Z')}
             selected={date}
             onSelect={handleSelect}
             numberOfMonths={2}
-            fromDate={new Date(2025, 3, 1)} // Min date April 2025
+            fromDate={new Date('2025-04-01T00:00:00Z')} // Min date April 2025
           />
         </PopoverContent>
       </Popover>
