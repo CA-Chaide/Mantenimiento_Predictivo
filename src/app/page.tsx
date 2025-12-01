@@ -6,6 +6,7 @@ import type { DateRange } from "react-day-picker";
 import { startOfMonth, endOfMonth, addMonths, format, parseISO } from "date-fns";
 import { Bot } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
+import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 
 export default function DashboardPage({
   searchParams,
@@ -75,12 +76,7 @@ export default function DashboardPage({
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="bg-slate-50">
-        <header className="flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur-sm lg:h-[60px] lg:px-6">
-          <SidebarTrigger className="md:hidden"/>
-          <div className="flex-1">
-            <h1 className="text-lg font-semibold md:text-2xl">{headerTitle}</h1>
-          </div>
-        </header>
+        <DashboardHeader title={headerTitle} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           <DashboardClient
             machineComponents={componentsToDisplay}
