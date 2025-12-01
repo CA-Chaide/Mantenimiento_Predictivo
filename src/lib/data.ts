@@ -81,26 +81,61 @@ const generateRandomWalk = (size: number, seed: number, base: number, volatility
   return series;
 };
 
-// Generates a projection based on the last few points of a series
-const generateProjection = (series: number[], projectionLength: number, volatility: number, min: number, max: number, jitter: number) => {
-  if (series.length < 5) return Array(projectionLength).fill(series[series.length - 1] || 0);
-  
-  const lastValues = series.slice(-5);
-  const trend = (lastValues[4] - lastValues[0]) / 4; // Simple linear trend
-  
-  const projection: number[] = [];
-  let lastValue = series[series.length - 1];
-  
-  for (let i = 0; i < projectionLength; i++) {
-    const randomChange = (Math.random() - 0.5) * volatility * 0.5; // Less volatile projection
-    let newValue = lastValue + trend + randomChange;
-    newValue = Math.max(min, Math.min(max, newValue));
-    const finalValue = newValue + (Math.random() - 0.5) * jitter;
-    projection.push(parseFloat(finalValue.toFixed(3)));
-    lastValue = newValue;
+// Generates a projection based on linear regression of the last 30 points
+const generateProjection = (series: number[], projectionLength: number) => {
+  if (series.length < 2) {
+    const lastVal = series.length > 0 ? series[series.length-1] : 0;
+    return Array(projectionLength).fill(lastVal);
   }
-  return projection;
+
+  // Use the last 30 days for trend calculation
+  const history = series.slice(-30);
+  const n = history.length;
+
+  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  for (let i = 0; i < n; i++) {
+    sumX += i;
+    sumY += history[i];
+    sumXY += i * history[i];
+    sumXX += i * i;
+  }
+
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+
+  const projection: number[] = [];
+  let lastValue = history[n - 1];
+
+  for (let i = 0; i < projectionLength; i++) {
+    // Project based on the last known value and the calculated slope
+    let predicted = lastValue + slope * (i + 1);
+
+    // Add some noise to make it look more realistic
+    const noise = (Math.random() - 0.5) * (lastValue * 0.02); // +/- 1% noise
+    predicted += noise;
+    
+    // Cap the prediction to avoid unrealistic values, but give it more room to grow
+    predicted = Math.max(0, predicted);
+
+    projection.push(parseFloat(predicted.toFixed(3)));
+  }
+
+  // The projection starts from the first day *after* the historical data ends.
+  // The first projected value is based on the trend from the last historical point.
+  const finalProjection: number[] = [];
+  let currentVal = history[n-1];
+  for (let i = 0; i < projectionLength; i++) {
+      let nextVal = currentVal + slope;
+      const noise = (Math.random() - 0.5) * (currentVal * 0.02); // +/- 1% noise
+      nextVal += noise;
+      finalProjection.push(parseFloat(Math.max(0, nextVal).toFixed(3)));
+      currentVal = nextVal;
+  }
+
+
+  return finalProjection;
 };
+
 
 const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
     switch (metric) {
@@ -140,7 +175,9 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
         const totalDaysCount = allDays.length;
 
         const fullHistoricalWalk = generateRandomWalk(historicalDaysCount > 0 ? historicalDaysCount : 0, seed, config.base, config.volatility, config.min, config.max, config.jitter);
-        const projectionWalk = generateProjection(fullHistoricalWalk, totalDaysCount - historicalDaysCount > 0 ? totalDaysCount - historicalDaysCount : 0, config.volatility, config.min, config.max, config.jitter);
+        const projectionLength = totalDaysCount - historicalDaysCount > 0 ? totalDaysCount - historicalDaysCount : 0;
+        const projectionWalk = generateProjection(fullHistoricalWalk, projectionLength);
+        
         const aprilWalk = generateRandomWalk(aprilDays.length, seed + 1000, config.base * 0.9, config.volatility * 0.8, config.min, config.max, config.jitter);
         
         aprilDays.forEach((day, index) => {
