@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, startOfMonth, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 
 interface DateRangePickerProps extends React.HTMLAttributes<HTMLDivElement> {
   initialDate?: DateRange;
@@ -29,6 +30,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const [date, setDate] = React.useState<DateRange | undefined>(initialDate);
   const [isClient, setIsClient] = React.useState(false);
   const [timeZone, setTimeZone] = React.useState('UTC');
+  const [popoverOpen, setPopoverOpen] = React.useState(false);
 
   React.useEffect(() => {
       setDate(initialDate);
@@ -39,8 +41,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   }, []);
 
-  const handleSelect = (range: DateRange | undefined) => {
-    setDate(range);
+  const updateURL = (range: DateRange) => {
     if (range?.from) {
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.set("from", format(range.from, "yyyy-MM-dd"));
@@ -48,11 +49,45 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
       newParams.set("to", format(toDate, "yyyy-MM-dd"));
       router.push(`${pathname}?${newParams.toString()}`);
     }
+  }
+
+  const handleSelect = (range: DateRange | undefined) => {
+    setDate(range);
+    if (range?.from && range?.to) {
+        updateURL(range);
+        setPopoverOpen(false);
+    } else if (!range?.to) {
+      // Still selecting end date, don't close
+    } else {
+      setPopoverOpen(false);
+    }
   };
+
+  const handlePreset = (preset: 'thisMonth' | 'last3Months' | 'sinceStart') => {
+    const simulatedToday = new Date('2025-11-15T00:00:00Z');
+    let from: Date;
+    const to = simulatedToday;
+
+    switch (preset) {
+        case 'thisMonth':
+            from = startOfMonth(simulatedToday);
+            break;
+        case 'last3Months':
+            from = subMonths(simulatedToday, 3);
+            break;
+        case 'sinceStart':
+            from = new Date('2025-04-01T00:00:00Z');
+            break;
+    }
+    const newRange = { from, to };
+    setDate(newRange);
+    updateURL(newRange);
+    setPopoverOpen(false);
+  }
 
   return (
     <div className={cn("grid gap-2", className)}>
-      <Popover>
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild>
           <Button
             id="date"
@@ -76,7 +111,12 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 flex" align="start">
+            <div className="flex flex-col gap-1 p-2 border-r">
+                <Button variant="ghost" className="justify-start text-sm" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
+                <Button variant="ghost" className="justify-start text-sm" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
+                <Button variant="ghost" className="justify-start text-sm" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
+            </div>
           <Calendar
             initialFocus
             mode="range"
