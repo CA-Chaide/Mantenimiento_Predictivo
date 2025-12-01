@@ -35,7 +35,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="font-bold">{formattedLabel}</p>
         {payload.map((p: any) => (
           <p key={p.name} style={{ color: p.color }}>
-            {`${p.name}: ${p.value?.toFixed(2)}`}
+            {`${p.name}: ${p.value?.toFixed(3)}`}
           </p>
         ))}
       </div>
@@ -62,7 +62,8 @@ export function MetricChart({
     .filter(d => d.componentId === componentId && d.metric === metric)
     .map(d => ({
         ...d,
-        realValue: d.isProjection ? null : d[valueKey],
+        // Mantener una clave consistente para el valor real y la predicción para el gráfico
+        realValue: d[valueKey] as number | null,
         predictedValue: d.isProjection ? d[predictionKey] : null,
     }));
     

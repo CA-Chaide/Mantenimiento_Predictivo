@@ -34,14 +34,24 @@ export const COMPONENTS: Record<MachineId, Component[]> = {
 };
 
 export type ChartDataPoint = {
-  date: string;          // ISO Date
+  date: string;
   isProjection: boolean;
   componentId: string;
   metric: 'current' | 'unbalance' | 'load_factor';
   
-  realValue: number | null;
-  limitValue: number;
-  refValue: number;
+  // Nombres de claves actualizados para coincidir con la estructura del CSV
+  "Corriente Promedio Suavizado"?: number | null;
+  "Corriente Máxima"?: number;
+  "Referencia Corriente Promedio Suavizado"?: number;
+  
+  "Desbalance Suavizado"?: number | null;
+  "Umbral Desbalance"?: number;
+  "Referencia Desbalance Suavizado"?: number;
+  
+  "Factor De Carga Suavizado"?: number | null;
+  "Umbral Factor Carga"?: number;
+  "Referencia Factor De Carga Suavizado"?: number;
+
   aprilBaseline: number | null;
   predictedValue: number | null;
 };
@@ -63,7 +73,7 @@ const generateRandomWalk = (size: number, seed: number, base: number, volatility
     const change = (random() - 0.5) * volatility;
     let newValue = lastValue + change;
     newValue = Math.max(min, Math.min(max, newValue));
-    series.push(parseFloat(newValue.toFixed(2)));
+    series.push(parseFloat(newValue.toFixed(3))); // Increased precision for smaller values
     lastValue = newValue;
   }
   return series;
@@ -82,7 +92,7 @@ const generateProjection = (series: number[], projectionLength: number, volatili
   for (let i = 0; i < projectionLength; i++) {
     const randomChange = (Math.random() - 0.5) * volatility * 0.5; // Less volatile projection
     let newValue = lastValue + trend + randomChange;
-    projection.push(parseFloat(newValue.toFixed(2)));
+    projection.push(parseFloat(newValue.toFixed(3))); // Increased precision
     lastValue = newValue;
   }
   return projection;
@@ -90,9 +100,10 @@ const generateProjection = (series: number[], projectionLength: number, volatili
 
 const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
     switch (metric) {
-        case 'current': return { base: 10, volatility: 0.5, min: 8, max: 14.5, limit: 15.0, ref: 12.5 };
-        case 'unbalance': return { base: 0.15, volatility: 0.05, min: 0.1, max: 0.45, limit: 0.5, ref: 0.2 };
-        case 'load_factor': return { base: 0.7, volatility: 0.1, min: 0.5, max: 1.05, limit: 1.1, ref: 0.8 };
+        // Valores ajustados a la nueva especificación
+        case 'current': return { base: 15, volatility: 2, min: 10, max: 20, limit: 50, ref: 18 };
+        case 'unbalance': return { base: 0.1, volatility: 0.05, min: 0.05, max: 0.2, limit: 0.2, ref: 0.15 };
+        case 'load_factor': return { base: 0.3, volatility: 0.1, min: 0.2, max: 0.4, limit: 0.6, ref: 0.35 };
     }
 }
 
@@ -124,44 +135,51 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
         const historicalDaysCount = differenceInDays(simulatedToday, dateRange.from as Date) + 1;
         const totalDaysCount = allDays.length;
 
-        // Generate full historical series
         const fullHistoricalWalk = generateRandomWalk(historicalDaysCount > 0 ? historicalDaysCount : 0, seed, config.base, config.volatility, config.min, config.max);
-
-        // Generate projection
-        const projectionLength = totalDaysCount - historicalDaysCount;
-        const projectionWalk = generateProjection(fullHistoricalWalk, projectionLength > 0 ? projectionLength : 0, config.volatility);
-
-        // Generate April baseline data
+        const projectionWalk = generateProjection(fullHistoricalWalk, totalDaysCount - historicalDaysCount > 0 ? totalDaysCount - historicalDaysCount : 0, config.volatility);
         const aprilWalk = generateRandomWalk(aprilDays.length, seed + 1000, config.base * 0.9, config.volatility * 0.8, config.min, config.max);
         
         aprilDays.forEach((day, index) => {
-            aprilData.push({
+            const point: ChartDataPoint = {
                 date: formatISO(day, { representation: 'date' }),
                 isProjection: false,
                 componentId: component.id,
                 metric: metric,
-                realValue: null,
-                limitValue: config.limit,
-                refValue: config.ref,
                 aprilBaseline: aprilWalk[index],
                 predictedValue: null
-            });
+            };
+            aprilData.push(point);
         });
 
         allDays.forEach((day, index) => {
             const isProjection = isBefore(simulatedToday, day);
+            const realValue = !isProjection ? fullHistoricalWalk[index] : null;
+            const predictedValue = isProjection ? projectionWalk[index - historicalDaysCount] : null;
             
-            data.push({
+            const point: ChartDataPoint = {
                 date: formatISO(day, { representation: 'date' }),
                 isProjection,
                 componentId: component.id,
                 metric: metric,
-                realValue: !isProjection ? fullHistoricalWalk[index] : null,
-                limitValue: config.limit,
-                refValue: config.ref,
                 aprilBaseline: null,
-                predictedValue: isProjection ? projectionWalk[index - historicalDaysCount] : null,
-            });
+                predictedValue,
+            };
+
+            if (metric === 'current') {
+                point["Corriente Promedio Suavizado"] = realValue;
+                point["Corriente Máxima"] = config.limit;
+                point["Referencia Corriente Promedio Suavizado"] = config.ref;
+            } else if (metric === 'unbalance') {
+                point["Desbalance Suavizado"] = realValue;
+                point["Umbral Desbalance"] = config.limit;
+                point["Referencia Desbalance Suavizado"] = config.ref;
+            } else if (metric === 'load_factor') {
+                point["Factor De Carga Suavizado"] = realValue;
+                point["Umbral Factor Carga"] = config.limit;
+                point["Referencia Factor De Carga Suavizado"] = config.ref;
+            }
+
+            data.push(point);
         });
     });
   });
