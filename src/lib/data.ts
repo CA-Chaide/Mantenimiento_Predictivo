@@ -102,38 +102,27 @@ const generateProjection = (series: number[], projectionLength: number) => {
 
   const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
   const intercept = (sumY - slope * sumX) / n;
+  
+  const lastKnownRealValue = history[n - 1];
 
   const projection: number[] = [];
-  let lastValue = history[n - 1];
+  let lastValue = lastKnownRealValue;
 
   for (let i = 0; i < projectionLength; i++) {
-    // Project based on the last known value and the calculated slope
-    let predicted = lastValue + slope * (i + 1);
-
-    // Add some noise to make it look more realistic
-    const noise = (Math.random() - 0.5) * (lastValue * 0.02); // +/- 1% noise
+    let predicted = lastValue + slope; // Project one step at a time from the previous value
+    
+    // Adjust noise based on value magnitude
+    const noiseScale = lastValue > 1 ? 0.02 : 0.05; // Smaller noise for smaller values
+    const noise = (Math.random() - 0.5) * (lastValue * noiseScale);
     predicted += noise;
     
-    // Cap the prediction to avoid unrealistic values, but give it more room to grow
     predicted = Math.max(0, predicted);
 
     projection.push(parseFloat(predicted.toFixed(3)));
+    lastValue = predicted;
   }
 
-  // The projection starts from the first day *after* the historical data ends.
-  // The first projected value is based on the trend from the last historical point.
-  const finalProjection: number[] = [];
-  let currentVal = history[n-1];
-  for (let i = 0; i < projectionLength; i++) {
-      let nextVal = currentVal + slope;
-      const noise = (Math.random() - 0.5) * (currentVal * 0.02); // +/- 1% noise
-      nextVal += noise;
-      finalProjection.push(parseFloat(Math.max(0, nextVal).toFixed(3)));
-      currentVal = nextVal;
-  }
-
-
-  return finalProjection;
+  return projection;
 };
 
 
