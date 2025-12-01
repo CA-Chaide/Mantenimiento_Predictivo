@@ -36,95 +36,93 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-1">
-        {machineComponents.map((component) => {
-          const componentData = data.filter(d => d.componentId === component.id);
-          const statusInfo = getComponentStatus(componentData, component.name);
-          
-          return (
-            <React.Fragment key={component.id}>
-              <Card id={`component-${component.id}`}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3">
-                    {component.name} - Corriente
-                    <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
-                      <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <MetricChart
-                    data={data}
-                    aprilData={aprilData}
-                    showApril={showApril}
-                    valueKey="Corriente Promedio Suavizado"
-                    limitKey="Corriente Máxima"
-                    limitLabel="Corriente Max"
-                    refKey="Referencia Corriente Promedio Suavizado"
-                    predictionKey="predictedValue"
-                    aprilKey="aprilBaseline"
-                    yAxisLabel="Amperios"
-                    componentId={component.id}
-                    metric="current"
-                  />
-                </CardContent>
-              </Card>
-              <Card id={`component-${component.id}-unbalance`}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3">
-                    {component.name} - Desbalance
-                    <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
-                      <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <MetricChart
-                    data={data}
-                    aprilData={aprilData}
-                    showApril={showApril}
-                    valueKey="Desbalance Suavizado"
-                    limitKey="Umbral Desbalance"
-                    limitLabel="Umbral Max"
-                    refKey="Referencia Desbalance Suavizado"
-                    predictionKey="predictedValue"
-                    aprilKey="aprilBaseline"
-                    yAxisLabel="%"
-                    componentId={component.id}
-                    metric="unbalance"
-                  />
-                </CardContent>
-              </Card>
-              <Card id={`component-${component.id}-load_factor`}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3">
-                    {component.name} - Factor de Carga
-                     <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
-                      <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <MetricChart
-                    data={data}
-                    aprilData={aprilData}
-                    showApril={showApril}
-                    valueKey="Factor De Carga Suavizado"
-                    limitKey="Umbral Factor Carga"
-                    limitLabel="Umbral Max"
-                    refKey="Referencia Factor De Carga Suavizado"
-                    predictionKey="predictedValue"
-                    aprilKey="aprilBaseline"
-                    yAxisLabel="Factor"
-                    componentId={component.id}
-                    metric="load_factor"
-                  />
-                </CardContent>
-              </Card>
-            </React.Fragment>
-          )
-        })}
-      </div>
+      {machineComponents.map((component) => {
+        const componentData = data.filter(d => d.componentId === component.id);
+        const statusInfo = getComponentStatus(componentData, component.name);
+        
+        return (
+          <div key={component.id} className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <Card id={`component-${component.id}`}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  {component.name} - Corriente
+                  <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
+                    <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <MetricChart
+                  data={data}
+                  aprilData={aprilData}
+                  showApril={showApril}
+                  valueKey="Corriente Promedio Suavizado"
+                  limitKey="Corriente Máxima"
+                  limitLabel="Corriente Max"
+                  refKey="Referencia Corriente Promedio Suavizado"
+                  predictionKey="predictedValue"
+                  aprilKey="aprilBaseline"
+                  yAxisLabel="Amperios"
+                  componentId={component.id}
+                  metric="current"
+                />
+              </CardContent>
+            </Card>
+            <Card id={`component-${component.id}-unbalance`}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  {component.name} - Desbalance
+                  <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
+                    <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <MetricChart
+                  data={data}
+                  aprilData={aprilData}
+                  showApril={showApril}
+                  valueKey="Desbalance Suavizado"
+                  limitKey="Umbral Desbalance"
+                  limitLabel="Umbral Max"
+                  refKey="Referencia Desbalance Suavizado"
+                  predictionKey="predictedValue"
+                  aprilKey="aprilBaseline"
+                  yAxisLabel="%"
+                  componentId={component.id}
+                  metric="unbalance"
+                />
+              </CardContent>
+            </Card>
+            <Card id={`component-${component.id}-load_factor`} className="xl:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  {component.name} - Factor de Carga
+                   <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
+                    <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <MetricChart
+                  data={data}
+                  aprilData={aprilData}
+                  showApril={showApril}
+                  valueKey="Factor De Carga Suavizado"
+                  limitKey="Umbral Factor Carga"
+                  limitLabel="Umbral Max"
+                  refKey="Referencia Factor De Carga Suavizado"
+                  predictionKey="predictedValue"
+                  aprilKey="aprilBaseline"
+                  yAxisLabel="Factor"
+                  componentId={component.id}
+                  metric="load_factor"
+                />
+              </CardContent>
+            </Card>
+          </div>
+        )
+      })}
       
       <AnalysisModal
         isOpen={!!modalStatus}
