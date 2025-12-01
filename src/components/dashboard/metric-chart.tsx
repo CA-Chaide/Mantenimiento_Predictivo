@@ -27,10 +27,8 @@ interface MetricChartProps {
   metric: 'current' | 'unbalance' | 'load_factor';
 }
 
-// Custom Tooltip for better display
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload;
     const formattedLabel = format(parseISO(label), "MMM d, yyyy");
     return (
       <div className="rounded-lg border bg-background p-2 shadow-sm">
@@ -64,7 +62,6 @@ export function MetricChart({
     .filter(d => d.componentId === componentId && d.metric === metric)
     .map(d => ({
         ...d,
-        // Make sure only one value exists per point for real vs prediction
         realValue: d.isProjection ? null : d[valueKey],
         predictedValue: d.isProjection ? d[predictionKey] : null,
     }));
@@ -72,14 +69,13 @@ export function MetricChart({
   const metricAprilData = aprilData
     .filter(d => d.componentId === componentId && d.metric === metric)
     .map((d, index) => ({
-      // Align April data with the main data's timeline for comparison
       date: metricData[index]?.date,
       aprilBaseline: d.aprilBaseline
     }));
 
   const combinedData = metricData.map((item, index) => ({
     ...item,
-    ...metricAprilData[index],
+    ...(metricAprilData[index] || {}),
   }));
   
   return (
@@ -101,7 +97,6 @@ export function MetricChart({
           <Tooltip content={<CustomTooltip />} />
           <Legend />
 
-          {/* Real Data */}
           <Line
             type="monotone"
             dataKey="realValue"
@@ -112,7 +107,6 @@ export function MetricChart({
             connectNulls={false}
           />
 
-          {/* Limit */}
           <Line
             type="monotone"
             dataKey={limitKey as string}
@@ -122,7 +116,6 @@ export function MetricChart({
             dot={false}
           />
           
-          {/* Reference */}
           <Line
             type="monotone"
             dataKey={refKey as string}
@@ -133,7 +126,6 @@ export function MetricChart({
             dot={false}
           />
 
-          {/* AI Projection */}
           <Line
             type="monotone"
             dataKey="predictedValue"
@@ -145,7 +137,6 @@ export function MetricChart({
             connectNulls={false}
           />
 
-          {/* April Baseline */}
           {showApril && (
               <Line
                 type="monotone"

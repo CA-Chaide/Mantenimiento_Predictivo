@@ -5,7 +5,7 @@ export const MACHINES = [
   { id: 'laader', name: 'Laader' },
   { id: 'looper', name: 'Looper' },
   { id: 'mesa_elevadora', name: 'Mesa Elevadora' },
-  { id: 'puente_grua', name: 'Puente Grua' },
+  { id: 'puente_grua', name: 'Puente Grúa' },
   { id: 't8', name: 'T8' },
 ] as const;
 
@@ -19,17 +19,17 @@ export const COMPONENTS: Record<MachineId, Component[]> = {
     { id: 'motor_cuchilla_looper', name: 'Motor Cuchilla Looper' },
   ],
   mesa_elevadora: [
-    { id: 'motor_elevacion_derecha', name: 'Motor Elevacion Derecha' },
-    { id: 'motor_traslacion_der_izq', name: 'Motor Traslacion Der/Izq' },
+    { id: 'motor_elevacion_derecha', name: 'Motor Elevación Derecha' },
+    { id: 'motor_traslacion_der_izq', name: 'Motor Traslación Der/Izq' },
   ],
   puente_grua: [
-    { id: 'motor_elevacion_derecha', name: 'Motor Elevacion Derecha' },
-    { id: 'motor_elevacion_izquierdo', name: 'Motor Elevacion Izquierdo' },
-    { id: 'motor_traslacion_der_izq', name: 'Motor traslacion Der/Izq' },
+    { id: 'motor_elevacion_derecha', name: 'Motor Elevación Derecha' },
+    { id: 'motor_elevacion_izquierdo', name: 'Motor Elevación Izquierdo' },
+    { id: 'motor_traslacion_der_izq', name: 'Motor Traslación Der/Izq' },
   ],
   t8: [
     { id: 'motor_cuchilla_t8', name: 'Motor Cuchilla T8' },
-    { id: 'motor_traslacion_t8', name: 'Motor Traslacion T8' },
+    { id: 'motor_traslacion_t8', name: 'Motor Traslación T8' },
   ],
 };
 

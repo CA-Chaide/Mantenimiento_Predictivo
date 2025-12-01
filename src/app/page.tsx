@@ -17,21 +17,17 @@ export default function DashboardPage({
       : MACHINES[0].id
   ) as MachineId;
 
-  // Use a string literal for the date to ensure it's timezone-agnostic (interpreted as UTC)
   const simulatedToday = parseISO('2025-11-15T00:00:00Z');
   
   const startOfSimulatedMonth = startOfMonth(simulatedToday);
   const endOfSimulatedMonth = endOfMonth(simulatedToday);
 
-  // Default date range is the current simulated month. Dates are parsed from ISO strings to ensure consistency.
   const fromDateString = typeof searchParams.from === 'string' ? searchParams.from : format(startOfSimulatedMonth, "yyyy-MM-dd");
   const toDateString = typeof searchParams.to === 'string' ? searchParams.to : format(endOfSimulatedMonth, "yyyy-MM-dd");
   
-  // Use parseISO to correctly handle dates without timezone causing shifts.
   const fromDate = parseISO(fromDateString);
   const toDate = parseISO(toDateString);
 
-  // Add 3 months for future projection
   const futureProjectionDate = addMonths(toDate, 3);
   
   const fullRange: DateRange = {
@@ -69,7 +65,7 @@ export default function DashboardPage({
         <header className="flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur-sm lg:h-[60px] lg:px-6">
           <SidebarTrigger className="md:hidden"/>
           <div className="flex-1">
-            <h1 className="text-lg font-semibold md:text-2xl capitalize">{MACHINES.find(m => m.id === machine)?.name}</h1>
+            <h1 className="text-lg font-semibold md:text-2xl">{MACHINES.find(m => m.id === machine)?.name}</h1>
           </div>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
