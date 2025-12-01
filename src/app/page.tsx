@@ -12,11 +12,13 @@ export default function DashboardPage({
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const machine = (
+  const machineId = (
     typeof searchParams.machine === 'string' && MACHINES.some(m => m.id === searchParams.machine)
       ? searchParams.machine
       : MACHINES[0].id
   ) as MachineId;
+
+  const componentId = typeof searchParams.component === 'string' ? searchParams.component : undefined;
 
   const simulatedToday = parseISO('2025-11-15T00:00:00Z');
   
@@ -41,9 +43,15 @@ export default function DashboardPage({
     to: toDate,
   }
 
-  const { data, aprilData } = useMaintenanceData(machine, fullRange, simulatedToday);
+  const { data, aprilData } = useMaintenanceData(machineId, fullRange, simulatedToday);
 
-  const machineComponents = COMPONENTS[machine] || [];
+  const allMachineComponents = COMPONENTS[machineId] || [];
+  const selectedComponent = componentId ? allMachineComponents.find(c => c.id === componentId) : undefined;
+  
+  const componentsToDisplay = selectedComponent ? [selectedComponent] : allMachineComponents;
+
+  const machine = MACHINES.find(m => m.id === machineId);
+  const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name;
 
   return (
     <SidebarProvider>
@@ -63,19 +71,19 @@ export default function DashboardPage({
                 <label className="text-xs font-medium text-sidebar-foreground/80 px-2">Rango de Fechas</label>
                 <DateRangePicker initialDate={displayRange} className="w-full" />
             </div>
-          <SidebarNav components={machineComponents} />
+          <SidebarNav allComponents={allMachineComponents} />
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="bg-slate-50">
         <header className="flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur-sm lg:h-[60px] lg:px-6">
           <SidebarTrigger className="md:hidden"/>
           <div className="flex-1">
-            <h1 className="text-lg font-semibold md:text-2xl">{MACHINES.find(m => m.id === machine)?.name}</h1>
+            <h1 className="text-lg font-semibold md:text-2xl">{headerTitle}</h1>
           </div>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           <DashboardClient
-            machineComponents={machineComponents}
+            machineComponents={componentsToDisplay}
             data={data}
             aprilData={aprilData}
           />

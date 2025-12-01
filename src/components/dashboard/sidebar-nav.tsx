@@ -8,23 +8,30 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 interface SidebarNavProps {
-    components: Component[];
+    allComponents: Component[];
 }
 
-export function SidebarNav({ components }: SidebarNavProps) {
+export function SidebarNav({ allComponents }: SidebarNavProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const currentMachine = searchParams.get("machine") || MACHINES[0].id;
+  const currentComponent = searchParams.get("component");
 
   const handleMachineChange = (machineId: string) => {
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.set("machine", machineId);
+    newParams.delete("component"); // Reset component selection when machine changes
     
     router.push(`${pathname}?${newParams.toString()}`);
   };
 
-  const handleComponentScroll = (componentId: string) => {
+  const handleComponentSelect = (componentId: string) => {
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.set("component", componentId);
+    router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
+    
+    // Smooth scroll to the component
     const element = document.getElementById(`component-${componentId}`);
     if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -55,7 +62,10 @@ export function SidebarNav({ components }: SidebarNavProps) {
                 <SidebarMenuSub>
                     {COMPONENTS[machine.id].map(component => (
                         <SidebarMenuItem key={component.id}>
-                            <SidebarMenuSubButton onClick={() => handleComponentScroll(component.id)}>
+                            <SidebarMenuSubButton 
+                                onClick={() => handleComponentSelect(component.id)}
+                                isActive={currentComponent === component.id}
+                            >
                                 <span>{component.name}</span>
                             </SidebarMenuSubButton>
                         </SidebarMenuItem>
