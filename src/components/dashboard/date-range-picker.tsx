@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
@@ -18,7 +19,7 @@ interface DateRangePickerProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const formatInTimeZone = (date: Date, formatString: string, timeZone: string) => {
   const zonedDate = toZonedTime(date, timeZone);
-  return format(zonedDate, formatString);
+  return format(zonedDate, formatString, { locale: es });
 }
 
 export function DateRangePicker({ className, initialDate }: DateRangePickerProps) {
@@ -65,13 +66,13 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             {isClient && date?.from ? (
               date.to && date.from.getTime() !== date.to.getTime() ? (
                 <>
-                  {formatInTimeZone(date.from, "LLL dd, y", timeZone)} - {formatInTimeZone(date.to, "LLL dd, y", timeZone)}
+                  {formatInTimeZone(date.from, "dd MMM, y", timeZone)} - {formatInTimeZone(date.to, "dd MMM, y", timeZone)}
                 </>
               ) : (
-                formatInTimeZone(date.from, "LLL dd, y", timeZone)
+                formatInTimeZone(date.from, "dd MMM, y", timeZone)
               )
             ) : (
-              <span>Seleccione una fecha</span>
+              <span>Seleccione un rango</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -83,7 +84,8 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             selected={date}
             onSelect={handleSelect}
             numberOfMonths={2}
-            fromDate={new Date('2025-04-01T00:00:00Z')} // Min date April 2025
+            fromDate={new Date('2025-04-01T00:00:00Z')}
+            locale={es}
           />
         </PopoverContent>
       </Popover>
