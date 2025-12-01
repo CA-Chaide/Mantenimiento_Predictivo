@@ -1,12 +1,12 @@
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { generateMockData, MACHINES, COMPONENTS, MachineId, ComponentId } from "@/lib/data";
+import { useMaintenanceData, MACHINES, COMPONENTS, MachineId } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
-import { addDays, startOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, format } from "date-fns";
 import { Bot } from "lucide-react";
 
-export default async function DashboardPage({
+export default function DashboardPage({
   searchParams,
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
@@ -17,23 +17,31 @@ export default async function DashboardPage({
       : MACHINES[0].id
   ) as MachineId;
 
-  const availableComponents = COMPONENTS[machine];
-  const component = (
-    typeof searchParams.component === 'string' && availableComponents.some(c => c.id === searchParams.component)
-      ? searchParams.component
-      : availableComponents[0].id
-  ) as ComponentId;
+  // Simulate "today" as Nov 15, 2025, to have historical and future data
+  const simulatedToday = new Date('2025-11-15T00:00:00Z');
+  const startOfSimulatedMonth = startOfMonth(simulatedToday);
+  const endOfSimulatedMonth = endOfMonth(simulatedToday);
 
-  const today = new Date('2025-11-15T00:00:00Z'); // Simulated current date: Nov 15, 2025 UTC
-  const defaultFrom = startOfMonth(today);
-  const defaultTo = addDays(defaultFrom, 14);
+  // Default date range is the current simulated month
+  const fromDate = searchParams.from ? new Date(`${searchParams.from}T00:00:00Z`) : startOfSimulatedMonth;
+  const toDate = searchParams.to ? new Date(`${searchParams.to}T00:00:00Z`) : endOfSimulatedMonth;
 
-  const dateRange: DateRange = {
-    from: searchParams.from ? new Date(`${searchParams.from as string}T00:00:00Z`) : defaultFrom,
-    to: searchParams.to ? new Date(`${searchParams.to as string}T00:00:00Z`) : defaultTo,
+  // Add 3 months for future projection
+  const futureProjectionDate = addMonths(toDate, 3);
+  
+  const fullRange: DateRange = {
+    from: fromDate,
+    to: futureProjectionDate,
   };
 
-  const data = generateMockData(machine, component, dateRange);
+  const displayRange: DateRange = {
+    from: fromDate,
+    to: toDate,
+  }
+
+  const { data, aprilData } = useMaintenanceData(machine, fullRange, simulatedToday);
+
+  const machineComponents = COMPONENTS[machine] || [];
 
   return (
     <SidebarProvider>
@@ -52,7 +60,7 @@ export default async function DashboardPage({
           <SidebarNav />
         </SidebarContent>
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className="bg-slate-50">
         <header className="flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur-sm lg:h-[60px] lg:px-6">
           <SidebarTrigger className="md:hidden"/>
           <div className="flex-1">
@@ -61,10 +69,10 @@ export default async function DashboardPage({
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           <DashboardClient
+            machineComponents={machineComponents}
             data={data}
-            machineId={machine}
-            componentId={component}
-            dateRange={dateRange}
+            aprilData={aprilData}
+            dateRange={displayRange}
           />
         </main>
       </SidebarInset>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -25,13 +25,20 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   React.useEffect(() => {
     setIsClient(true);
   }, []);
+  
+  // When initialDate changes (e.g. on navigation), update the client state
+  React.useEffect(() => {
+      setDate(initialDate);
+  }, [initialDate]);
 
   const handleSelect = (range: DateRange | undefined) => {
     setDate(range);
-    if (range?.from && range?.to) {
+    if (range?.from) {
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.set("from", format(range.from, "yyyy-MM-dd"));
-      newParams.set("to", format(range.to, "yyyy-MM-dd"));
+      // If only `from` is selected, we can default `to` to the end of that month or just from
+      const toDate = range.to || range.from;
+      newParams.set("to", format(toDate, "yyyy-MM-dd"));
       router.push(`${pathname}?${newParams.toString()}`);
     }
   };
@@ -52,7 +59,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {displayDate?.from ? (
-              displayDate.to ? (
+              displayDate.to && displayDate.from.getTime() !== displayDate.to.getTime() ? (
                 <>
                   {format(displayDate.from, "LLL dd, y")} - {format(displayDate.to, "LLL dd, y")}
                 </>

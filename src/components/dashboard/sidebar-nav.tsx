@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { MACHINES, COMPONENTS } from "@/lib/data";
+import { MACHINES } from "@/lib/data";
 import { HardDrive } from "lucide-react";
 
 export function SidebarNav() {
@@ -14,9 +14,10 @@ export function SidebarNav() {
   const handleMachineChange = (machineId: string) => {
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.set("machine", machineId);
-    // Set to first component of the new machine
-    const firstComponentId = COMPONENTS[machineId as keyof typeof COMPONENTS][0].id;
-    newParams.set("component", firstComponentId);
+    
+    // Remove component since it's not selected via sidebar
+    newParams.delete("component"); 
+    
     router.push(`${pathname}?${newParams.toString()}`);
   };
 

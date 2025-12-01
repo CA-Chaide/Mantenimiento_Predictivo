@@ -1,6 +1,6 @@
 "use client";
 
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import {
   LineChart,
   Line,
@@ -11,100 +11,155 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-} from "@/components/ui/chart";
-import { MetricDataPoint } from "@/lib/data";
-
-interface LineConfig {
-  name: string;
-  key: string;
-}
+import { ChartDataPoint } from "@/lib/data";
 
 interface MetricChartProps {
-  data: MetricDataPoint[];
-  metricKey: "current" | "unbalance" | "load_factor";
+  data: ChartDataPoint[];
+  aprilData: ChartDataPoint[];
+  showApril: boolean;
+  valueKey: keyof ChartDataPoint;
+  limitKey: keyof ChartDataPoint;
+  refKey: keyof ChartDataPoint;
+  predictionKey: keyof ChartDataPoint;
+  aprilKey: keyof ChartDataPoint;
   yAxisLabel: string;
-  lineConfig: {
-    real: LineConfig;
-    ref: LineConfig;
-    limit: LineConfig;
-  };
+  componentId: string;
+  metric: 'current' | 'unbalance' | 'load_factor';
 }
 
-export function MetricChart({ data, metricKey, yAxisLabel, lineConfig }: MetricChartProps) {
-  const chartData = data.map(d => ({
-    ...d.metrics[metricKey],
-    timestamp: d.timestamp,
+// Custom Tooltip for better display
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const formattedLabel = format(parseISO(label), "MMM d, yyyy");
+    return (
+      <div className="rounded-lg border bg-background p-2 shadow-sm">
+        <p className="font-bold">{formattedLabel}</p>
+        {payload.map((p: any) => (
+          <p key={p.name} style={{ color: p.color }}>
+            {`${p.name}: ${p.value?.toFixed(2)}`}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+export function MetricChart({
+  data,
+  aprilData,
+  showApril,
+  valueKey,
+  limitKey,
+  refKey,
+  predictionKey,
+  aprilKey,
+  yAxisLabel,
+  componentId,
+  metric
+}: MetricChartProps) {
+  
+  const metricData = data
+    .filter(d => d.componentId === componentId && d.metric === metric)
+    .map(d => ({
+        ...d,
+        // Make sure only one value exists per point for real vs prediction
+        realValue: d.isProjection ? null : d[valueKey],
+        predictedValue: d.isProjection ? d[predictionKey] : null,
+    }));
+    
+  const metricAprilData = aprilData
+    .filter(d => d.componentId === componentId && d.metric === metric)
+    .map((d, index) => ({
+      // Align April data with the main data's timeline for comparison
+      date: metricData[index]?.date,
+      aprilBaseline: d.aprilBaseline
+    }));
+
+  const combinedData = metricData.map((item, index) => ({
+    ...item,
+    ...metricAprilData[index],
   }));
-
-  const chartConfig = {
-    [lineConfig.real.key]: {
-      label: lineConfig.real.name,
-      color: "hsl(var(--primary))",
-    },
-    [lineConfig.ref.key]: {
-      label: lineConfig.ref.name,
-      color: "hsl(var(--muted-foreground))",
-    },
-    [lineConfig.limit.key]: {
-      label: lineConfig.limit.name,
-      color: "hsl(var(--destructive))",
-    },
-  };
-
+  
   return (
-    <ChartContainer config={chartConfig} className="h-[300px] w-full">
+    <div className="h-[350px] w-full">
       <ResponsiveContainer>
-        <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+        <LineChart data={combinedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis
-            dataKey="timestamp"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            tickFormatter={(value) => format(new Date(value), "MMM d")}
+            dataKey="date"
+            tickFormatter={(str) => format(parseISO(str), "MMM d")}
+            tick={{ fill: '#64748b' }}
+            stroke="#e2e8f0"
           />
           <YAxis
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', offset: 10 }}
+            label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b' }}
+            tick={{ fill: '#64748b' }}
+            stroke="#e2e8f0"
           />
-          <Tooltip
-            cursor={false}
-            content={<ChartTooltipContent indicator="dot" />}
-          />
-          <Legend content={<ChartLegendContent />} />
+          <Tooltip content={<CustomTooltip />} />
+          <Legend />
+
+          {/* Real Data */}
           <Line
-            dataKey={lineConfig.real.key}
             type="monotone"
-            stroke="var(--color-val_smooth)"
+            dataKey="realValue"
+            name="Dato Real"
+            stroke="#0284c7"
+            strokeWidth={2}
+            dot={false}
+            connectNulls={false}
+          />
+
+          {/* Limit */}
+          <Line
+            type="monotone"
+            dataKey={limitKey as string}
+            name="Límite"
+            stroke="#dc2626"
             strokeWidth={2}
             dot={false}
           />
+          
+          {/* Reference */}
           <Line
-            dataKey={lineConfig.ref.key}
             type="monotone"
-            stroke="var(--color-ref_smooth)"
+            dataKey={refKey as string}
+            name="Referencia"
+            stroke="#64748b"
             strokeWidth={2}
-            strokeDasharray="3 4"
+            strokeDasharray="3 3"
             dot={false}
           />
+
+          {/* AI Projection */}
           <Line
-            dataKey={lineConfig.limit.key}
             type="monotone"
-            stroke="var(--color-max)" // Assuming max/threshold keys are consistent
+            dataKey="predictedValue"
+            name="Proyección IA"
+            stroke="#9333ea"
             strokeWidth={2}
             strokeDasharray="5 5"
             dot={false}
+            connectNulls={false}
           />
+
+          {/* April Baseline */}
+          {showApril && (
+              <Line
+                type="monotone"
+                dataKey="aprilBaseline"
+                name="Referencia Abril"
+                stroke="#06b6d4"
+                strokeWidth={1.5}
+                strokeOpacity={0.7}
+                dot={false}
+              />
+          )}
+
         </LineChart>
       </ResponsiveContainer>
-    </ChartContainer>
+    </div>
   );
 }
