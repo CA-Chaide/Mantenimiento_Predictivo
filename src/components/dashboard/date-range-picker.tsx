@@ -71,7 +71,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                 formatInTimeZone(date.from, "LLL dd, y", timeZone)
               )
             ) : (
-              <span>Pick a date</span>
+              <span>Seleccione una fecha</span>
             )}
           </Button>
         </PopoverTrigger>
