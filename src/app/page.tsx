@@ -62,12 +62,13 @@ export default function DashboardPage({
         <div className="flex flex-col justify-between h-full">
             <div>
                 <SidebarHeader className="border-b border-sidebar-border">
-                <div className="flex h-12 items-center gap-2 px-2">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Bot className="size-5" />
+                <div className="flex h-16 items-center gap-3 px-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <Bot className="size-6" />
                     </div>
                     <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                    <h2 className="font-semibold text-lg tracking-tight text-sidebar-foreground">Predictive Insight</h2>
+                      <h2 className="font-bold text-xl text-sidebar-foreground">Gemelo Digital</h2>
+                      <p className="text-xs text-blue-200">Mantenimiento Predictivo</p>
                     </div>
                 </div>
                 </SidebarHeader>
