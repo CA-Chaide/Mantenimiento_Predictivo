@@ -20,6 +20,7 @@ interface MetricChartProps {
   showApril: boolean;
   valueKey: keyof ChartDataPoint;
   limitKey: keyof ChartDataPoint;
+  limitLabel: string;
   refKey: keyof ChartDataPoint;
   predictionKey: keyof ChartDataPoint;
   aprilKey: keyof ChartDataPoint;
@@ -51,6 +52,7 @@ export function MetricChart({
   showApril,
   valueKey,
   limitKey,
+  limitLabel,
   refKey,
   predictionKey,
   aprilKey,
@@ -81,8 +83,6 @@ export function MetricChart({
     ...(metricAprilData[index] || {}),
   }));
 
-  const limitLabel = metric === 'current' ? "Corriente Máxima" : "Umbral Max";
-  
   return (
     <div className="h-[350px] w-full">
       <ResponsiveContainer>

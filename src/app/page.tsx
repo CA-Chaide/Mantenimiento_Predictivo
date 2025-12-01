@@ -1,7 +1,7 @@
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useMaintenanceData, MACHINES, COMPONENTS, MachineId } from "@/lib/data";
+import { useMaintenanceData, MACHINES, COMPONENTS, MachineId, Component } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
 import { startOfMonth, endOfMonth, addMonths, format, parseISO } from "date-fns";
 import { Bot } from "lucide-react";
@@ -63,7 +63,7 @@ export default function DashboardPage({
                 <label className="text-xs font-medium text-sidebar-foreground/80 px-2">Rango de Fechas</label>
                 <DateRangePicker initialDate={displayRange} className="w-full" />
             </div>
-          <SidebarNav />
+          <SidebarNav components={machineComponents} />
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="bg-slate-50">

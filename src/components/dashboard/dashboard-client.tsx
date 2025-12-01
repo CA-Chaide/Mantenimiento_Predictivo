@@ -43,7 +43,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
           
           return (
             <React.Fragment key={component.id}>
-              <Card>
+              <Card id={`component-${component.id}`}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3">
                     {component.name} - Corriente
@@ -59,6 +59,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                     showApril={showApril}
                     valueKey="Corriente Promedio Suavizado"
                     limitKey="Corriente Máxima"
+                    limitLabel="Corriente Max"
                     refKey="Referencia Corriente Promedio Suavizado"
                     predictionKey="predictedValue"
                     aprilKey="aprilBaseline"
@@ -68,7 +69,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                   />
                 </CardContent>
               </Card>
-              <Card>
+              <Card id={`component-${component.id}-unbalance`}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3">
                     {component.name} - Desbalance
@@ -84,6 +85,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                     showApril={showApril}
                     valueKey="Desbalance Suavizado"
                     limitKey="Umbral Desbalance"
+                    limitLabel="Umbral Max"
                     refKey="Referencia Desbalance Suavizado"
                     predictionKey="predictedValue"
                     aprilKey="aprilBaseline"
@@ -93,7 +95,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                   />
                 </CardContent>
               </Card>
-              <Card>
+              <Card id={`component-${component.id}-load_factor`}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3">
                     {component.name} - Factor de Carga
@@ -109,6 +111,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                     showApril={showApril}
                     valueKey="Factor De Carga Suavizado"
                     limitKey="Umbral Factor Carga"
+                    limitLabel="Umbral Max"
                     refKey="Referencia Factor De Carga Suavizado"
                     predictionKey="predictedValue"
                     aprilKey="aprilBaseline"
