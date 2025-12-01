@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -20,12 +20,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [date, setDate] = React.useState<DateRange | undefined>(initialDate);
-  const [isClient, setIsClient] = React.useState(false);
 
-  React.useEffect(() => {
-    setIsClient(true);
-  }, []);
-  
   // When initialDate changes (e.g. on navigation), update the client state
   React.useEffect(() => {
       setDate(initialDate);
@@ -42,8 +37,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
       router.push(`${pathname}?${newParams.toString()}`);
     }
   };
-  
-  const displayDate = isClient ? date : initialDate;
 
   return (
     <div className={cn("grid gap-2", className)}>
@@ -54,17 +47,17 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             variant={"outline"}
             className={cn(
               "w-[300px] justify-start text-left font-normal",
-              !displayDate && "text-muted-foreground"
+              !date && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {displayDate?.from ? (
-              displayDate.to && displayDate.from.getTime() !== displayDate.to.getTime() ? (
+            {date?.from ? (
+              date.to && date.from.getTime() !== date.to.getTime() ? (
                 <>
-                  {format(displayDate.from, "LLL dd, y")} - {format(displayDate.to, "LLL dd, y")}
+                  {format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}
                 </>
               ) : (
-                format(displayDate.from, "LLL dd, y")
+                format(date.from, "LLL dd, y")
               )
             ) : (
               <span>Pick a date</span>

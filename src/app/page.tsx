@@ -3,7 +3,7 @@ import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useMaintenanceData, MACHINES, COMPONENTS, MachineId } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
-import { startOfMonth, endOfMonth, addMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, addMonths, format, parseISO } from "date-fns";
 import { Bot } from "lucide-react";
 
 export default function DashboardPage({
@@ -18,13 +18,19 @@ export default function DashboardPage({
   ) as MachineId;
 
   // Simulate "today" as Nov 15, 2025, to have historical and future data
+  // Using string to avoid timezone issues between server and client
   const simulatedToday = new Date('2025-11-15T00:00:00Z');
+  
+  // These dates are now safe because they derive from a Z-suffixed date
   const startOfSimulatedMonth = startOfMonth(simulatedToday);
   const endOfSimulatedMonth = endOfMonth(simulatedToday);
 
   // Default date range is the current simulated month
-  const fromDate = searchParams.from ? new Date(`${searchParams.from}T00:00:00Z`) : startOfSimulatedMonth;
-  const toDate = searchParams.to ? new Date(`${searchParams.to}T00:00:00Z`) : endOfSimulatedMonth;
+  const fromDateString = typeof searchParams.from === 'string' ? searchParams.from : format(startOfSimulatedMonth, "yyyy-MM-dd");
+  const toDateString = typeof searchParams.to === 'string' ? searchParams.to : format(endOfSimulatedMonth, "yyyy-MM-dd");
+  
+  const fromDate = parseISO(fromDateString);
+  const toDate = parseISO(toDateString);
 
   // Add 3 months for future projection
   const futureProjectionDate = addMonths(toDate, 3);
