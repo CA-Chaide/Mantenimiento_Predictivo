@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, subMonths, max } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
 
 interface DateRangePickerProps extends React.HTMLAttributes<HTMLDivElement> {
   initialDate?: DateRange;
@@ -31,6 +30,8 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const [isClient, setIsClient] = React.useState(false);
   const [timeZone, setTimeZone] = React.useState('UTC');
   const [popoverOpen, setPopoverOpen] = React.useState(false);
+
+  const minDate = new Date('2025-04-10T00:00:00Z');
 
   React.useEffect(() => {
       setDate(initialDate);
@@ -70,13 +71,13 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
 
     switch (preset) {
         case 'thisMonth':
-            from = startOfMonth(simulatedToday);
+            from = max([startOfMonth(simulatedToday), minDate]);
             break;
         case 'last3Months':
-            from = subMonths(simulatedToday, 3);
+            from = max([subMonths(simulatedToday, 3), minDate]);
             break;
         case 'sinceStart':
-            from = new Date('2025-04-01T00:00:00Z');
+            from = minDate;
             break;
     }
     const newRange = { from, to };
@@ -101,10 +102,10 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             {isClient && date?.from ? (
               date.to && date.from.getTime() !== date.to.getTime() ? (
                 <>
-                  {formatInTimeZone(date.from, "dd MMM, y", timeZone)} - {formatInTimeZone(date.to, "dd MMM, y", timeZone)}
+                  {formatInTimeZone(date.from, "dd MMM yyyy", timeZone)} - {formatInTimeZone(date.to, "dd MMM yyyy", timeZone)}
                 </>
               ) : (
-                formatInTimeZone(date.from, "dd MMM, y", timeZone)
+                formatInTimeZone(date.from, "dd MMM yyyy", timeZone)
               )
             ) : (
               <span>Seleccione un rango</span>
@@ -124,7 +125,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             selected={date}
             onSelect={handleSelect}
             numberOfMonths={2}
-            fromDate={new Date('2025-04-01T00:00:00Z')}
+            fromDate={minDate}
             locale={es}
           />
         </PopoverContent>
