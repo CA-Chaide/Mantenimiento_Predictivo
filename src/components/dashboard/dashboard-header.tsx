@@ -14,7 +14,11 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ title }: DashboardHeaderProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setLastUpdated(new Date());
+  }, []);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -35,7 +39,7 @@ export function DashboardHeader({ title }: DashboardHeaderProps) {
       </div>
       <div className="flex items-center gap-2">
         <div className="text-xs text-slate-500">
-          Actualizado: {format(lastUpdated, "PPP p", { locale: es })}
+          {lastUpdated ? `Actualizado: ${format(lastUpdated, "PPP p", { locale: es })}` : 'Actualizando...'}
         </div>
         <Button
           variant="ghost"
