@@ -80,6 +80,8 @@ export function MetricChart({
     ...item,
     ...(metricAprilData[index] || {}),
   }));
+
+  const limitLabel = metric === 'current' ? "Corriente Máxima" : "Umbral Max";
   
   return (
     <div className="h-[350px] w-full">
@@ -123,7 +125,7 @@ export function MetricChart({
           <Line
             type="monotone"
             dataKey={limitKey as string}
-            name="Límite"
+            name={limitLabel}
             stroke="#dc2626"
             strokeWidth={2}
             dot={false}
