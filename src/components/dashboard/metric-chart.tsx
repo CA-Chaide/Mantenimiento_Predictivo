@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Area,
 } from "recharts";
 import { ChartDataPoint } from "@/lib/data";
 
@@ -35,7 +36,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="font-bold">{formattedLabel}</p>
         {payload.map((p: any) => (
           <p key={p.name} style={{ color: p.color }}>
-            {`${p.name}: ${p.value?.toFixed(3)}`}
+            {`${p.name}: ${Array.isArray(p.value) ? `${p.value[0]?.toFixed(3)} - ${p.value[1]?.toFixed(3)}` : p.value?.toFixed(3)}`}
           </p>
         ))}
       </div>
@@ -62,9 +63,10 @@ export function MetricChart({
     .filter(d => d.componentId === componentId && d.metric === metric)
     .map(d => ({
         ...d,
-        // Mantener una clave consistente para el valor real y la predicción para el gráfico
         realValue: d[valueKey] as number | null,
         predictedValue: d.isProjection ? d[predictionKey] : null,
+        // The key for the area chart should be a tuple of [min, max]
+        range: d.minValue != null && d.maxValue != null ? [d.minValue, d.maxValue] : null,
     }));
     
   const metricAprilData = aprilData
@@ -97,6 +99,16 @@ export function MetricChart({
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend />
+
+           <Area
+            type="monotone"
+            dataKey="range"
+            name="Fluctuación Diaria"
+            stroke={false}
+            fill="#0284c7"
+            fillOpacity={0.2}
+            connectNulls={false}
+          />
 
           <Line
             type="monotone"

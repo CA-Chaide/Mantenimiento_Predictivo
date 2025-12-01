@@ -39,6 +39,8 @@ export type ChartDataPoint = {
   componentId: string;
   metric: 'current' | 'unbalance' | 'load_factor';
   realValue: number | null;
+  minValue: number | null;
+  maxValue: number | null;
   
   // Nombres de claves actualizados para coincidir con la estructura del CSV
   "Corriente Promedio Suavizado"?: number | null;
@@ -65,31 +67,47 @@ const createSeededRandom = (seed: number) => () => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-// Generates a smooth, random walk time series with jitter
+// Generates a smooth, random walk time series with jitter and min/max values
 const generateRandomWalk = (size: number, seed: number, base: number, volatility: number, min: number, max: number, jitter: number) => {
   const random = createSeededRandom(seed);
-  const series: number[] = [];
+  const series: { realValue: number; minValue: number; maxValue: number }[] = [];
   let lastValue = base;
+
   for (let i = 0; i < size; i++) {
     const change = (random() - 0.5) * volatility;
     let newValue = lastValue + change;
     newValue = Math.max(min, Math.min(max, newValue));
+    
     const finalValue = newValue + (random() - 0.5) * jitter;
-    series.push(parseFloat(finalValue.toFixed(3)));
+    
+    // Simulate min/max range
+    const rangeVolatility = finalValue > 1 ? 0.1 : 0.05;
+    let minValue = finalValue * (1 - (random() * rangeVolatility));
+    let maxValue = finalValue * (1 + (random() * rangeVolatility * 2)); // More likely to have higher peaks
+    
+    minValue = Math.max(min, minValue);
+    maxValue = Math.min(max, maxValue);
+
+    series.push({
+      realValue: parseFloat(finalValue.toFixed(3)),
+      minValue: parseFloat(minValue.toFixed(3)),
+      maxValue: parseFloat(maxValue.toFixed(3)),
+    });
+
     lastValue = newValue;
   }
   return series;
 };
 
 // Generates a projection based on linear regression of the last 30 points
-const generateProjection = (series: number[], projectionLength: number) => {
+const generateProjection = (series: { realValue: number }[], projectionLength: number) => {
   if (series.length < 2) {
-    const lastVal = series.length > 0 ? series[series.length-1] : 0;
+    const lastVal = series.length > 0 ? series[series.length-1].realValue : 0;
     return Array(projectionLength).fill(lastVal);
   }
 
   // Use the last 30 days for trend calculation
-  const history = series.slice(-30);
+  const history = series.slice(-30).map(p => p.realValue);
   const n = history.length;
 
   let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
@@ -100,8 +118,7 @@ const generateProjection = (series: number[], projectionLength: number) => {
     sumXX += i * i;
   }
 
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-  const intercept = (sumY - slope * sumX) / n;
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX) || 0;
   
   const lastKnownRealValue = history[n - 1];
 
@@ -109,10 +126,9 @@ const generateProjection = (series: number[], projectionLength: number) => {
   let lastValue = lastKnownRealValue;
 
   for (let i = 0; i < projectionLength; i++) {
-    let predicted = lastValue + slope; // Project one step at a time from the previous value
+    let predicted = lastValue + slope; 
     
-    // Adjust noise based on value magnitude
-    const noiseScale = lastValue > 1 ? 0.02 : 0.05; // Smaller noise for smaller values
+    const noiseScale = lastValue > 10 ? 0.02 : 0.005; 
     const noise = (Math.random() - 0.5) * (lastValue * noiseScale);
     predicted += noise;
     
@@ -128,7 +144,6 @@ const generateProjection = (series: number[], projectionLength: number) => {
 
 const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
     switch (metric) {
-        // Valores ajustados a la nueva especificación
         case 'current': return { base: 15, volatility: 2, min: 10, max: 20, limit: 50, ref: 18, jitter: 0.4 };
         case 'unbalance': return { base: 0.1, volatility: 0.05, min: 0.05, max: 0.2, limit: 0.2, ref: 0.15, jitter: 0.01 };
         case 'load_factor': return { base: 0.3, volatility: 0.1, min: 0.2, max: 0.4, limit: 0.6, ref: 0.35, jitter: 0.02 };
@@ -175,16 +190,22 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
                 isProjection: false,
                 componentId: component.id,
                 metric: metric,
-                aprilBaseline: aprilWalk[index],
+                aprilBaseline: aprilWalk[index].realValue,
                 predictedValue: null,
-                realValue: null
+                realValue: null,
+                minValue: null,
+                maxValue: null,
             };
             aprilData.push(point);
         });
 
         allDays.forEach((day, index) => {
             const isProjection = isBefore(simulatedToday, day);
-            const realValue = !isProjection ? fullHistoricalWalk[index] : null;
+            const walkPoint = fullHistoricalWalk[index];
+
+            const realValue = !isProjection ? walkPoint?.realValue : null;
+            const minValue = !isProjection ? walkPoint?.minValue : null;
+            const maxValue = !isProjection ? walkPoint?.maxValue : null;
             const predictedValue = isProjection ? projectionWalk[index - historicalDaysCount] : null;
             
             const point: ChartDataPoint = {
@@ -194,7 +215,9 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
                 metric: metric,
                 aprilBaseline: null,
                 predictedValue,
-                realValue
+                realValue,
+                minValue,
+                maxValue
             };
 
             if (metric === 'current') {
