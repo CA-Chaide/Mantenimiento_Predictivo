@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { utcToZonedTime } from 'date-fns-tz';
+import { toZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -16,11 +16,8 @@ interface DateRangePickerProps extends React.HTMLAttributes<HTMLDivElement> {
   initialDate?: DateRange;
 }
 
-const formatInUTC = (date: Date, formatString: string) => {
-  // To avoid hydration mismatches, we format the date in a consistent timezone (UTC)
-  // and then display it. The user's browser timezone is determined on the client.
-  const timeZone = typeof window !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
-  const zonedDate = utcToZonedTime(date, timeZone);
+const formatInTimeZone = (date: Date, formatString: string, timeZone: string) => {
+  const zonedDate = toZonedTime(date, timeZone);
   return format(zonedDate, formatString);
 }
 
@@ -30,14 +27,15 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const searchParams = useSearchParams();
   const [date, setDate] = React.useState<DateRange | undefined>(initialDate);
   const [isClient, setIsClient] = React.useState(false);
+  const [timeZone, setTimeZone] = React.useState('UTC');
 
-  // When initialDate changes (e.g. on navigation), update the client state
   React.useEffect(() => {
       setDate(initialDate);
   }, [initialDate]);
   
   React.useEffect(() => {
     setIsClient(true);
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   }, []);
 
   const handleSelect = (range: DateRange | undefined) => {
@@ -67,10 +65,10 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             {isClient && date?.from ? (
               date.to && date.from.getTime() !== date.to.getTime() ? (
                 <>
-                  {formatInUTC(date.from, "LLL dd, y")} - {formatInUTC(date.to, "LLL dd, y")}
+                  {formatInTimeZone(date.from, "LLL dd, y", timeZone)} - {formatInTimeZone(date.to, "LLL dd, y", timeZone)}
                 </>
               ) : (
-                formatInUTC(date.from, "LLL dd, y")
+                formatInTimeZone(date.from, "LLL dd, y", timeZone)
               )
             ) : (
               <span>Pick a date</span>
