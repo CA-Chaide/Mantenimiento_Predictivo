@@ -38,6 +38,7 @@ export type ChartDataPoint = {
   isProjection: boolean;
   componentId: string;
   metric: 'current' | 'unbalance' | 'load_factor';
+  realValue: number | null;
   
   // Nombres de claves actualizados para coincidir con la estructura del CSV
   "Corriente Promedio Suavizado"?: number | null;
@@ -64,8 +65,8 @@ const createSeededRandom = (seed: number) => () => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-// Generates a smooth, random walk time series
-const generateRandomWalk = (size: number, seed: number, base: number, volatility: number, min: number, max: number) => {
+// Generates a smooth, random walk time series with jitter
+const generateRandomWalk = (size: number, seed: number, base: number, volatility: number, min: number, max: number, jitter: number) => {
   const random = createSeededRandom(seed);
   const series: number[] = [];
   let lastValue = base;
@@ -73,14 +74,15 @@ const generateRandomWalk = (size: number, seed: number, base: number, volatility
     const change = (random() - 0.5) * volatility;
     let newValue = lastValue + change;
     newValue = Math.max(min, Math.min(max, newValue));
-    series.push(parseFloat(newValue.toFixed(3))); // Increased precision for smaller values
+    const finalValue = newValue + (random() - 0.5) * jitter;
+    series.push(parseFloat(finalValue.toFixed(3)));
     lastValue = newValue;
   }
   return series;
 };
 
 // Generates a projection based on the last few points of a series
-const generateProjection = (series: number[], projectionLength: number, volatility: number) => {
+const generateProjection = (series: number[], projectionLength: number, volatility: number, min: number, max: number, jitter: number) => {
   if (series.length < 5) return Array(projectionLength).fill(series[series.length - 1] || 0);
   
   const lastValues = series.slice(-5);
@@ -92,7 +94,9 @@ const generateProjection = (series: number[], projectionLength: number, volatili
   for (let i = 0; i < projectionLength; i++) {
     const randomChange = (Math.random() - 0.5) * volatility * 0.5; // Less volatile projection
     let newValue = lastValue + trend + randomChange;
-    projection.push(parseFloat(newValue.toFixed(3))); // Increased precision
+    newValue = Math.max(min, Math.min(max, newValue));
+    const finalValue = newValue + (Math.random() - 0.5) * jitter;
+    projection.push(parseFloat(finalValue.toFixed(3)));
     lastValue = newValue;
   }
   return projection;
@@ -101,9 +105,9 @@ const generateProjection = (series: number[], projectionLength: number, volatili
 const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
     switch (metric) {
         // Valores ajustados a la nueva especificación
-        case 'current': return { base: 15, volatility: 2, min: 10, max: 20, limit: 50, ref: 18 };
-        case 'unbalance': return { base: 0.1, volatility: 0.05, min: 0.05, max: 0.2, limit: 0.2, ref: 0.15 };
-        case 'load_factor': return { base: 0.3, volatility: 0.1, min: 0.2, max: 0.4, limit: 0.6, ref: 0.35 };
+        case 'current': return { base: 15, volatility: 2, min: 10, max: 20, limit: 50, ref: 18, jitter: 0.4 };
+        case 'unbalance': return { base: 0.1, volatility: 0.05, min: 0.05, max: 0.2, limit: 0.2, ref: 0.15, jitter: 0.01 };
+        case 'load_factor': return { base: 0.3, volatility: 0.1, min: 0.2, max: 0.4, limit: 0.6, ref: 0.35, jitter: 0.02 };
     }
 }
 
@@ -135,9 +139,9 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
         const historicalDaysCount = differenceInDays(simulatedToday, dateRange.from as Date) + 1;
         const totalDaysCount = allDays.length;
 
-        const fullHistoricalWalk = generateRandomWalk(historicalDaysCount > 0 ? historicalDaysCount : 0, seed, config.base, config.volatility, config.min, config.max);
-        const projectionWalk = generateProjection(fullHistoricalWalk, totalDaysCount - historicalDaysCount > 0 ? totalDaysCount - historicalDaysCount : 0, config.volatility);
-        const aprilWalk = generateRandomWalk(aprilDays.length, seed + 1000, config.base * 0.9, config.volatility * 0.8, config.min, config.max);
+        const fullHistoricalWalk = generateRandomWalk(historicalDaysCount > 0 ? historicalDaysCount : 0, seed, config.base, config.volatility, config.min, config.max, config.jitter);
+        const projectionWalk = generateProjection(fullHistoricalWalk, totalDaysCount - historicalDaysCount > 0 ? totalDaysCount - historicalDaysCount : 0, config.volatility, config.min, config.max, config.jitter);
+        const aprilWalk = generateRandomWalk(aprilDays.length, seed + 1000, config.base * 0.9, config.volatility * 0.8, config.min, config.max, config.jitter);
         
         aprilDays.forEach((day, index) => {
             const point: ChartDataPoint = {
@@ -146,7 +150,8 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
                 componentId: component.id,
                 metric: metric,
                 aprilBaseline: aprilWalk[index],
-                predictedValue: null
+                predictedValue: null,
+                realValue: null
             };
             aprilData.push(point);
         });
@@ -163,6 +168,7 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
                 metric: metric,
                 aprilBaseline: null,
                 predictedValue,
+                realValue
             };
 
             if (metric === 'current') {

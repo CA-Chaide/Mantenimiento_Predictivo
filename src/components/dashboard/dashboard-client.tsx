@@ -6,6 +6,7 @@ import { ChartDataPoint, Component } from "@/lib/data";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import React from "react";
+import { StatusIndicator, getComponentStatus } from "./status-indicator";
 
 interface DashboardClientProps {
   machineComponents: Component[];
@@ -26,70 +27,84 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-1">
-        {machineComponents.map((component) => (
-          <React.Fragment key={component.id}>
-            <Card>
-              <CardHeader>
-                <CardTitle>{component.name} - Corriente</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <MetricChart
-                  data={data}
-                  aprilData={aprilData}
-                  showApril={showApril}
-                  valueKey="Corriente Promedio Suavizado"
-                  limitKey="Corriente Máxima"
-                  refKey="Referencia Corriente Promedio Suavizado"
-                  predictionKey="predictedValue"
-                  aprilKey="aprilBaseline"
-                  yAxisLabel="Amperios"
-                  componentId={component.id}
-                  metric="current"
-                />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>{component.name} - Desbalance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <MetricChart
-                  data={data}
-                  aprilData={aprilData}
-                  showApril={showApril}
-                  valueKey="Desbalance Suavizado"
-                  limitKey="Umbral Desbalance"
-                  refKey="Referencia Desbalance Suavizado"
-                  predictionKey="predictedValue"
-                  aprilKey="aprilBaseline"
-                  yAxisLabel="%"
-                  componentId={component.id}
-                  metric="unbalance"
-                />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>{component.name} - Factor de Carga</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <MetricChart
-                  data={data}
-                  aprilData={aprilData}
-                  showApril={showApril}
-                  valueKey="Factor De Carga Suavizado"
-                  limitKey="Umbral Factor Carga"
-                  refKey="Referencia Factor De Carga Suavizado"
-                  predictionKey="predictedValue"
-                  aprilKey="aprilBaseline"
-                  yAxisLabel="Factor"
-                  componentId={component.id}
-                  metric="load_factor"
-                />
-              </CardContent>
-            </Card>
-          </React.Fragment>
-        ))}
+        {machineComponents.map((component) => {
+          const componentData = data.filter(d => d.componentId === component.id);
+          const { status, message } = getComponentStatus(componentData);
+          
+          return (
+            <React.Fragment key={component.id}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-3">
+                    {component.name} - Corriente
+                    <StatusIndicator status={status} message={message} />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <MetricChart
+                    data={data}
+                    aprilData={aprilData}
+                    showApril={showApril}
+                    valueKey="Corriente Promedio Suavizado"
+                    limitKey="Corriente Máxima"
+                    refKey="Referencia Corriente Promedio Suavizado"
+                    predictionKey="predictedValue"
+                    aprilKey="aprilBaseline"
+                    yAxisLabel="Amperios"
+                    componentId={component.id}
+                    metric="current"
+                  />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-3">
+                    {component.name} - Desbalance
+                    <StatusIndicator status={status} message={message} />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <MetricChart
+                    data={data}
+                    aprilData={aprilData}
+                    showApril={showApril}
+                    valueKey="Desbalance Suavizado"
+                    limitKey="Umbral Desbalance"
+                    refKey="Referencia Desbalance Suavizado"
+                    predictionKey="predictedValue"
+                    aprilKey="aprilBaseline"
+                    yAxisLabel="%"
+                    componentId={component.id}
+                    metric="unbalance"
+                  />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-3">
+                    {component.name} - Factor de Carga
+                    <StatusIndicator status={status} message={message} />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <MetricChart
+                    data={data}
+                    aprilData={aprilData}
+                    showApril={showApril}
+                    valueKey="Factor De Carga Suavizado"
+                    limitKey="Umbral Factor Carga"
+                    refKey="Referencia Factor De Carga Suavizado"
+                    predictionKey="predictedValue"
+                    aprilKey="aprilBaseline"
+                    yAxisLabel="Factor"
+                    componentId={component.id}
+                    metric="load_factor"
+                  />
+                </CardContent>
+              </Card>
+            </React.Fragment>
+          )
+        })}
       </div>
     </div>
   );
