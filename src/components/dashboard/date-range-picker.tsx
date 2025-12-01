@@ -57,7 +57,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             id="date"
             variant={"outline"}
             className={cn(
-              "w-full justify-start text-left font-normal bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white",
+              "w-full justify-start text-left font-normal bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white focus:ring-2 focus:ring-white",
               !date && "text-muted-foreground"
             )}
           >
