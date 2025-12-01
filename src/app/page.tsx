@@ -17,18 +17,17 @@ export default function DashboardPage({
       : MACHINES[0].id
   ) as MachineId;
 
-  // Simulate "today" as Nov 15, 2025, to have historical and future data
-  // Using string to avoid timezone issues between server and client
-  const simulatedToday = new Date('2025-11-15T00:00:00Z');
+  // Use a string literal for the date to ensure it's timezone-agnostic (interpreted as UTC)
+  const simulatedToday = parseISO('2025-11-15T00:00:00Z');
   
-  // These dates are now safe because they derive from a Z-suffixed date
   const startOfSimulatedMonth = startOfMonth(simulatedToday);
   const endOfSimulatedMonth = endOfMonth(simulatedToday);
 
-  // Default date range is the current simulated month
+  // Default date range is the current simulated month. Dates are parsed from ISO strings to ensure consistency.
   const fromDateString = typeof searchParams.from === 'string' ? searchParams.from : format(startOfSimulatedMonth, "yyyy-MM-dd");
   const toDateString = typeof searchParams.to === 'string' ? searchParams.to : format(endOfSimulatedMonth, "yyyy-MM-dd");
   
+  // Use parseISO to correctly handle dates without timezone causing shifts.
   const fromDate = parseISO(fromDateString);
   const toDate = parseISO(toDateString);
 

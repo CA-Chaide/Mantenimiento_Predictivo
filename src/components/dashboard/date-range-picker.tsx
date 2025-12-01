@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
+import { utcToZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -15,23 +16,35 @@ interface DateRangePickerProps extends React.HTMLAttributes<HTMLDivElement> {
   initialDate?: DateRange;
 }
 
+const formatInUTC = (date: Date, formatString: string) => {
+  // To avoid hydration mismatches, we format the date in a consistent timezone (UTC)
+  // and then display it. The user's browser timezone is determined on the client.
+  const timeZone = typeof window !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
+  const zonedDate = utcToZonedTime(date, timeZone);
+  return format(zonedDate, formatString);
+}
+
 export function DateRangePicker({ className, initialDate }: DateRangePickerProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [date, setDate] = React.useState<DateRange | undefined>(initialDate);
+  const [isClient, setIsClient] = React.useState(false);
 
   // When initialDate changes (e.g. on navigation), update the client state
   React.useEffect(() => {
       setDate(initialDate);
   }, [initialDate]);
+  
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleSelect = (range: DateRange | undefined) => {
     setDate(range);
     if (range?.from) {
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.set("from", format(range.from, "yyyy-MM-dd"));
-      // If only `from` is selected, we can default `to` to the end of that month or just from
       const toDate = range.to || range.from;
       newParams.set("to", format(toDate, "yyyy-MM-dd"));
       router.push(`${pathname}?${newParams.toString()}`);
@@ -51,13 +64,13 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {date?.from ? (
+            {isClient && date?.from ? (
               date.to && date.from.getTime() !== date.to.getTime() ? (
                 <>
-                  {format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}
+                  {formatInUTC(date.from, "LLL dd, y")} - {formatInUTC(date.to, "LLL dd, y")}
                 </>
               ) : (
-                format(date.from, "LLL dd, y")
+                formatInUTC(date.from, "LLL dd, y")
               )
             ) : (
               <span>Pick a date</span>
