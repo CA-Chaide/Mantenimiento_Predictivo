@@ -4,9 +4,11 @@ import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useMaintenanceData, MACHINES, COMPONENTS, MachineId, Component } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
 import { startOfMonth, endOfMonth, addMonths, format, parseISO } from "date-fns";
-import { Bot } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Bot, LogOut } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardPage({
   searchParams,
@@ -57,23 +59,49 @@ export default function DashboardPage({
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" side="left" className="border-r-0">
-        <SidebarHeader className="border-b border-sidebar-border">
-          <div className="flex h-12 items-center gap-2 px-2">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Bot className="size-5" />
+        <div className="flex flex-col justify-between h-full">
+            <div>
+                <SidebarHeader className="border-b border-sidebar-border">
+                <div className="flex h-12 items-center gap-2 px-2">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <Bot className="size-5" />
+                    </div>
+                    <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                    <h2 className="font-semibold text-lg tracking-tight text-sidebar-foreground">Predictive Insight</h2>
+                    </div>
+                </div>
+                </SidebarHeader>
+                <SidebarContent className="p-2">
+                    <div className="p-2 flex flex-col gap-2 group-data-[collapsible=icon]:hidden">
+                        <label className="text-xs font-medium text-sidebar-foreground/80 px-2">Rango de Fechas</label>
+                        <DateRangePicker initialDate={displayRange} className="w-full" />
+                    </div>
+                <SidebarNav allComponents={allMachineComponents} />
+                </SidebarContent>
             </div>
-            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-              <h2 className="font-semibold text-lg tracking-tight text-sidebar-foreground">Predictive Insight</h2>
+
+            <div className="mt-auto">
+                <div className="border-t border-sidebar-border p-2">
+                    <div className="group-data-[collapsible=icon]:hidden p-2 flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                            <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground">AD</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <p className="text-sm font-semibold text-sidebar-foreground">Admin Planta</p>
+                            <p className="text-xs text-sidebar-foreground/80">Supervisor</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="ml-auto text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                            <LogOut className="size-4" />
+                        </Button>
+                    </div>
+                    <div className="hidden group-data-[collapsible=icon]:flex justify-center p-2">
+                         <Button variant="ghost" size="icon" className="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                            <LogOut className="size-5" />
+                        </Button>
+                    </div>
+                </div>
             </div>
-          </div>
-        </SidebarHeader>
-        <SidebarContent className="p-2">
-            <div className="p-2 flex flex-col gap-2 group-data-[collapsible=icon]:hidden">
-                <label className="text-xs font-medium text-sidebar-foreground/80 px-2">Rango de Fechas</label>
-                <DateRangePicker initialDate={displayRange} className="w-full" />
-            </div>
-          <SidebarNav allComponents={allMachineComponents} />
-        </SidebarContent>
+        </div>
       </Sidebar>
       <SidebarInset className="bg-slate-50">
         <DashboardHeader title={headerTitle} />
