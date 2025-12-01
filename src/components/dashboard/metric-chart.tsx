@@ -84,7 +84,7 @@ export function MetricChart({
   }));
 
   return (
-    <div className="h-[350px] w-full">
+    <div className="h-[400px] w-full">
       <ResponsiveContainer>
         <LineChart data={combinedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />

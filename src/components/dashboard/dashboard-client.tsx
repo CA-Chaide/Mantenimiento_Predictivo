@@ -28,7 +28,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div className="flex flex-col-reverse items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center space-x-2">
           <Checkbox id="show-april" checked={showApril} onCheckedChange={(checked) => setShowApril(!!checked)} />
@@ -41,17 +41,17 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
         const statusInfo = getComponentStatus(componentData, component.name);
         
         return (
-          <div key={component.id} className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <Card id={`component-${component.id}`}>
+          <div key={component.id} className="w-full space-y-8">
+            <Card id={`component-${component.id}`} className="w-full rounded-xl shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  {component.name} - Corriente
+                <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
+                  Corriente (Amperios)
                   <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
                     <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <MetricChart
                   data={data}
                   aprilData={aprilData}
@@ -68,16 +68,17 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                 />
               </CardContent>
             </Card>
-            <Card id={`component-${component.id}-unbalance`}>
+            
+            <Card id={`component-${component.id}-unbalance`} className="w-full rounded-xl shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  {component.name} - Desbalance
+                <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
+                  Desbalance (%)
                   <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
                     <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <MetricChart
                   data={data}
                   aprilData={aprilData}
@@ -94,16 +95,17 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                 />
               </CardContent>
             </Card>
-            <Card id={`component-${component.id}-load_factor`} className="xl:col-span-2">
+
+            <Card id={`component-${component.id}-load_factor`} className="w-full rounded-xl shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  {component.name} - Factor de Carga
+                <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
+                  Factor de Carga
                    <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
                     <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <MetricChart
                   data={data}
                   aprilData={aprilData}
