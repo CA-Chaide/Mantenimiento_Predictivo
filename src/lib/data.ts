@@ -144,9 +144,21 @@ const generateProjection = (series: { realValue: number }[], projectionLength: n
 
 const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
     switch (metric) {
-        case 'current': return { base: 15, volatility: 2, min: 10, max: 20, limit: 50, ref: 18, jitter: 0.4 };
-        case 'unbalance': return { base: 0.1, volatility: 0.05, min: 0.05, max: 0.2, limit: 0.2, ref: 0.15, jitter: 0.01 };
-        case 'load_factor': return { base: 0.3, volatility: 0.1, min: 0.2, max: 0.4, limit: 0.6, ref: 0.35, jitter: 0.02 };
+        case 'current': {
+            const limit = 50;
+            const ref = limit * 0.5; // Ensure ref is always less than limit
+            return { base: 15, volatility: 2, min: 10, max: 20, limit, ref, jitter: 0.4 };
+        }
+        case 'unbalance': {
+            const limit = 0.2;
+            const ref = limit * 0.7; // Ensure ref is always less than limit
+            return { base: 0.1, volatility: 0.05, min: 0.05, max: 0.2, limit, ref, jitter: 0.01 };
+        }
+        case 'load_factor': {
+            const limit = 0.6;
+            const ref = limit * 0.6; // Ensure ref is always less than limit
+            return { base: 0.3, volatility: 0.1, min: 0.2, max: 0.4, limit, ref, jitter: 0.02 };
+        }
     }
 }
 
