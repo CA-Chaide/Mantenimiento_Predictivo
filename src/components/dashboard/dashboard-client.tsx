@@ -6,7 +6,8 @@ import { ChartDataPoint, Component } from "@/lib/data";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import React from "react";
-import { StatusIndicator, getComponentStatus } from "./status-indicator";
+import { StatusIndicator, getComponentStatus, ComponentStatus } from "./status-indicator";
+import { AnalysisModal } from "./analysis-modal";
 
 interface DashboardClientProps {
   machineComponents: Component[];
@@ -16,6 +17,15 @@ interface DashboardClientProps {
 
 export function DashboardClient({ machineComponents, data, aprilData }: DashboardClientProps) {
   const [showApril, setShowApril] = React.useState(false);
+  const [modalStatus, setModalStatus] = React.useState<ComponentStatus | null>(null);
+
+  const handleStatusClick = (status: ComponentStatus) => {
+    setModalStatus(status);
+  };
+
+  const closeModal = () => {
+    setModalStatus(null);
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,7 +39,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-1">
         {machineComponents.map((component) => {
           const componentData = data.filter(d => d.componentId === component.id);
-          const { status, message } = getComponentStatus(componentData);
+          const statusInfo = getComponentStatus(componentData, component.name);
           
           return (
             <React.Fragment key={component.id}>
@@ -37,7 +47,9 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3">
                     {component.name} - Corriente
-                    <StatusIndicator status={status} message={message} />
+                    <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
+                      <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -60,7 +72,9 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3">
                     {component.name} - Desbalance
-                    <StatusIndicator status={status} message={message} />
+                    <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
+                      <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -83,7 +97,9 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3">
                     {component.name} - Factor de Carga
-                    <StatusIndicator status={status} message={message} />
+                     <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
+                      <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -106,6 +122,12 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
           )
         })}
       </div>
+      
+      <AnalysisModal
+        isOpen={!!modalStatus}
+        onClose={closeModal}
+        statusInfo={modalStatus}
+      />
     </div>
   );
 }

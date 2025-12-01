@@ -3,8 +3,25 @@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ChartDataPoint } from "@/lib/data";
+import { format } from "date-fns";
 
 type Status = 'normal' | 'warning' | 'critical';
+
+export interface ComponentStatus {
+  status: Status;
+  message: string;
+  componentName: string;
+  details: {
+    metric: 'current' | 'unbalance' | 'load_factor' | 'none';
+    currentValue?: number | null;
+    limitValue?: number;
+    projectedDate?: string;
+  };
+  allMetrics: {
+    metric: string;
+    value: string;
+  }[];
+}
 
 interface StatusIndicatorProps {
   status: Status;
@@ -51,57 +68,87 @@ const getMetricName = (metric: 'current' | 'unbalance' | 'load_factor') => {
   }
 };
 
-const getMetricInfo = (metric: ChartDataPoint) => {
+type MetricInfo = { real: number | null; limit: number | undefined };
+const getMetricInfo = (metric: ChartDataPoint): MetricInfo => {
   if (metric.metric === 'current') {
     return { 
-      real: metric["Corriente Promedio Suavizado"], 
+      real: metric["Corriente Promedio Suavizado"] as number | null, 
       limit: metric["Corriente Máxima"] 
     };
   }
   if (metric.metric === 'unbalance') {
     return { 
-      real: metric["Desbalance Suavizado"], 
-      limit: metric["Umbral Desbalance"] 
+      real: metric["Desbalance Suavizado"] as number | null, 
+      limit: metric["Umbral Desbalance"]
     };
   }
   if (metric.metric === 'load_factor') {
     return { 
-      real: metric["Factor De Carga Suavizado"], 
+      real: metric["Factor De Carga Suavizado"] as number | null, 
       limit: metric["Umbral Factor Carga"]
     };
   }
-  return { real: null, limit: Infinity };
+  return { real: null, limit: undefined };
 };
 
-export const getComponentStatus = (componentData: ChartDataPoint[]): { status: Status, message: string } => {
+const getLastRealPoint = (metricData: ChartDataPoint[]): ChartDataPoint | undefined => {
+    return [...metricData].reverse().find(d => d.realValue != null);
+}
+
+export const getComponentStatus = (componentData: ChartDataPoint[], componentName: string): ComponentStatus => {
   let worstStatus: Status = 'normal';
   let worstMessage = 'Operación Normal';
+  let details: ComponentStatus['details'] = { metric: 'none' };
 
   const metrics: ('current' | 'unbalance' | 'load_factor')[] = ['current', 'unbalance', 'load_factor'];
+  const allMetricsData: ComponentStatus['allMetrics'] = [];
 
   for (const metric of metrics) {
     const metricData = componentData.filter(d => d.metric === metric);
+    const lastRealPoint = getLastRealPoint(metricData);
     
-    // Check for Critical status
-    const lastRealPoint = [...metricData].reverse().find(d => d.realValue != null);
+    let realVal = null;
+    let limitVal = undefined;
+
     if (lastRealPoint) {
-      const { real, limit } = getMetricInfo(lastRealPoint);
-      if (real != null && limit != null && real >= limit) {
-        return { status: 'critical', message: `${getMetricName(metric)} excede el límite` };
-      }
+        const info = getMetricInfo(lastRealPoint);
+        realVal = info.real;
+        limitVal = info.limit;
+        allMetricsData.push({
+          metric: getMetricName(metric),
+          value: `${realVal?.toFixed(2) ?? 'N/A'} / ${limitVal?.toFixed(2) ?? 'N/A'}`
+        });
+    }
+
+    // Check for Critical status
+    if (realVal != null && limitVal != null && realVal >= limitVal) {
+      return {
+        status: 'critical',
+        message: `${getMetricName(metric)} excede el límite`,
+        componentName,
+        details: {
+          metric: metric,
+          currentValue: realVal,
+          limitValue: limitVal
+        },
+        allMetrics: allMetricsData
+      };
     }
     
-    // Check for Warning status (including projections)
+    // Check for Warning status
     let isWarning = false;
     let warningMessage = '';
+    let warningDetails: ComponentStatus['details'] = { metric: 'none' };
 
     // 1. Check current value against 85% of limit
-    if (lastRealPoint) {
-        const { real, limit } = getMetricInfo(lastRealPoint);
-        if (real != null && limit != null && real >= limit * 0.85) {
-            isWarning = true;
-            warningMessage = `${getMetricName(metric)} se acerca al límite (al ${((real/limit)*100).toFixed(0)}%)`;
-        }
+    if (realVal != null && limitVal != null && realVal >= limitVal * 0.85) {
+        isWarning = true;
+        warningMessage = `${getMetricName(metric)} se acerca al límite (${((realVal/limitVal)*100).toFixed(0)}%)`;
+        warningDetails = {
+            metric,
+            currentValue: realVal,
+            limitValue: limitVal,
+        };
     }
 
     // 2. Check if projection hits the limit
@@ -111,6 +158,10 @@ export const getComponentStatus = (componentData: ChartDataPoint[]): { status: S
         if (point.predictedValue != null && limit != null && point.predictedValue >= limit) {
             isWarning = true;
             warningMessage = `Proyección de ${getMetricName(metric)} alcanzará el límite`;
+            warningDetails = {
+                metric,
+                projectedDate: format(new Date(point.date), "MMM, yyyy")
+            };
             break; 
         }
     }
@@ -118,8 +169,9 @@ export const getComponentStatus = (componentData: ChartDataPoint[]): { status: S
     if (isWarning && worstStatus === 'normal') {
         worstStatus = 'warning';
         worstMessage = warningMessage;
+        details = warningDetails;
     }
   }
 
-  return { status: worstStatus, message: worstMessage };
+  return { status: worstStatus, message: worstMessage, componentName, details, allMetrics: allMetricsData };
 };
