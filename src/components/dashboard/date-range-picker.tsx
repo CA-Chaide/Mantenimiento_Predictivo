@@ -57,11 +57,11 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             id="date"
             variant={"outline"}
             className={cn(
-              "w-[300px] justify-start text-left font-normal",
+              "w-full justify-start text-left font-normal bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white",
               !date && "text-muted-foreground"
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon className="mr-2 h-4 w-4 text-white" />
             {isClient && date?.from ? (
               date.to && date.from.getTime() !== date.to.getTime() ? (
                 <>
@@ -75,7 +75,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="end">
+        <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             initialFocus
             mode="range"

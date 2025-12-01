@@ -5,6 +5,7 @@ import { useMaintenanceData, MACHINES, COMPONENTS, MachineId } from "@/lib/data"
 import type { DateRange } from "react-day-picker";
 import { startOfMonth, endOfMonth, addMonths, format, parseISO } from "date-fns";
 import { Bot } from "lucide-react";
+import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 
 export default function DashboardPage({
   searchParams,
@@ -57,7 +58,11 @@ export default function DashboardPage({
             </div>
           </div>
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="p-2">
+            <div className="p-2 flex flex-col gap-2 group-data-[collapsible=icon]:hidden">
+                <label className="text-xs font-medium text-sidebar-foreground/80 px-2">Rango de Fechas</label>
+                <DateRangePicker initialDate={displayRange} className="w-full" />
+            </div>
           <SidebarNav />
         </SidebarContent>
       </Sidebar>
@@ -73,7 +78,6 @@ export default function DashboardPage({
             machineComponents={machineComponents}
             data={data}
             aprilData={aprilData}
-            dateRange={displayRange}
           />
         </main>
       </SidebarInset>

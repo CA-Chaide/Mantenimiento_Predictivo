@@ -1,8 +1,6 @@
 "use client";
 
-import type { DateRange } from "react-day-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DateRangePicker } from "./date-range-picker";
 import { MetricChart } from "./metric-chart";
 import { ChartDataPoint, Component } from "@/lib/data";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,10 +11,9 @@ interface DashboardClientProps {
   machineComponents: Component[];
   data: ChartDataPoint[];
   aprilData: ChartDataPoint[];
-  dateRange: DateRange;
 }
 
-export function DashboardClient({ machineComponents, data, aprilData, dateRange }: DashboardClientProps) {
+export function DashboardClient({ machineComponents, data, aprilData }: DashboardClientProps) {
   const [showApril, setShowApril] = React.useState(false);
 
   return (
@@ -26,7 +23,6 @@ export function DashboardClient({ machineComponents, data, aprilData, dateRange 
           <Checkbox id="show-april" checked={showApril} onCheckedChange={(checked) => setShowApril(!!checked)} />
           <Label htmlFor="show-april">Comparar con Abril 2025</Label>
         </div>
-        <DateRangePicker initialDate={dateRange} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-1">
