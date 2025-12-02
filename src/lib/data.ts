@@ -59,22 +59,28 @@ export type ChartDataPoint = {
   predictedValue: number | null;
 };
 
-// Using Math.random() directly to ensure data changes on each call
+// Generates data using a Random Walk model.
 const generateRandomWalk = (size: number, base: number, volatility: number, min: number, max: number, jitter: number) => {
   const series: { realValue: number; minValue: number; maxValue: number }[] = [];
   let lastValue = base;
 
   for (let i = 0; i < size; i++) {
+    // The "walk" is the previous value plus a random change.
     const change = (Math.random() - 0.5) * volatility;
     let newValue = lastValue + change;
+
+    // Clamp the value within the min/max physical limits.
     newValue = Math.max(min, Math.min(max, newValue));
     
+    // Add some random jitter for the final "real" value to make it look noisy.
     const finalValue = newValue + (Math.random() - 0.5) * jitter;
     
+    // Calculate a daily fluctuation range based on the final value.
     const rangeVolatility = finalValue > 1 ? 0.1 : 0.05;
     let minValue = finalValue * (1 - (Math.random() * rangeVolatility));
     let maxValue = finalValue * (1 + (Math.random() * rangeVolatility * 2));
     
+    // Ensure the range doesn't exceed the absolute min/max.
     minValue = Math.max(min, minValue);
     maxValue = Math.min(max, maxValue);
 
@@ -84,18 +90,23 @@ const generateRandomWalk = (size: number, base: number, volatility: number, min:
       maxValue: parseFloat(maxValue.toFixed(3)),
     });
 
+    // The next step in the walk starts from the current value.
     lastValue = newValue;
   }
   return series;
 };
 
-const generateProjection = (series: { realValue: number }[], projectionLength: number) => {
+// Calculates a projection using simple linear regression on the last 30 data points.
+const generateProjection = (historicalData: { realValue: number }[], projectionLength: number) => {
+  const series = historicalData.map(p => p.realValue).filter(v => v !== null) as number[];
+  
   if (series.length < 2) {
-    const lastVal = series.length > 0 ? series[series.length-1].realValue : 0;
+    const lastVal = series.length > 0 ? series[series.length-1] : 0;
     return Array(projectionLength).fill(lastVal);
   }
 
-  const history = series.slice(-30).map(p => p.realValue).filter(v => v !== null) as number[];
+  // Use the last 30 points for the trend calculation.
+  const history = series.slice(-30);
   const n = history.length;
 
   if (n < 2) {
@@ -111,44 +122,40 @@ const generateProjection = (series: { realValue: number }[], projectionLength: n
     sumXX += i * i;
   }
 
+  // Calculate slope (m) and intercept (b) for y = mx + b
   const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX) || 0;
+  const intercept = (sumY - slope * sumX) / n;
   
-  const lastKnownRealValue = history[n - 1];
-
   const projection: number[] = [];
-  let lastValue = lastKnownRealValue;
-
+  
   for (let i = 0; i < projectionLength; i++) {
-    let predicted = lastValue + slope; 
+    // Project the next value based on the linear trend.
+    let predicted = slope * (n + i) + intercept;
     
-    const noiseScale = lastValue > 1 ? 0.02 : 0.005; 
-    const noise = (Math.random() - 0.5) * (lastValue * noiseScale);
+    // Add some random noise to make the projection look less perfect.
+    const noiseScale = predicted > 1 ? 0.05 : 0.008; 
+    const noise = (Math.random() - 0.5) * (predicted * noiseScale);
     predicted += noise;
     
+    // Physical constraint: value cannot be negative.
     predicted = Math.max(0, predicted);
 
     projection.push(parseFloat(predicted.toFixed(3)));
-    lastValue = predicted;
   }
 
   return projection;
 };
 
 
+// Configuration for each metric based on senior data engineer's input.
 const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
     switch (metric) {
-        case 'current': {
-            const limit = 50;
-            return { base: 15, volatility: 2, min: 10, max: 20, limit, ref: limit * 0.5, jitter: 0.4 };
-        }
-        case 'unbalance': {
-            const limit = 0.2;
-            return { base: 0.1, volatility: 0.05, min: 0.05, max: 0.2, limit, ref: limit * 0.7, jitter: 0.01 };
-        }
-        case 'load_factor': {
-            const limit = 0.6;
-            return { base: 0.3, volatility: 0.1, min: 0.2, max: 0.4, limit, ref: limit * 0.6, jitter: 0.02 };
-        }
+        case 'current':
+            return { base: 3.75, volatility: 5.0, min: 2.0, max: 15.0, limit: 13.0, ref: 8.0, jitter: 0.5 };
+        case 'unbalance':
+            return { base: 0.11, volatility: 0.06, min: 0.05, max: 0.55, limit: 0.50, ref: 0.35, jitter: 0.01 };
+        case 'load_factor':
+            return { base: 0.33, volatility: 0.12, min: 0.1, max: 0.9, limit: 0.85, ref: 0.6, jitter: 0.03 };
     }
 }
 
@@ -175,11 +182,8 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
     aprilDataStore[component.id] = {};
     allMetrics.forEach(metric => {
         const config = getMetricConfig(metric);
-        // We still use a seed here for the baseline so it's consistent.
-        const seed = machineId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + 
-                     component.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) +
-                     metric.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
+        // We use a seeded random generator for the April baseline so it's consistent.
+        const seed = machineId.length + component.id.length + metric.length;
         const createSeededRandom = (seed: number) => () => {
             let t = (seed += 0x6d2b79f5);
             t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -204,12 +208,11 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
     allMetrics.forEach(metric => {
         const config = getMetricConfig(metric);
         
-        const historicalDaysCount = differenceInDays(simulatedToday, correctedFrom) + 1;
-        const totalDaysCount = allDays.length;
+        const historicalDaysCount = Math.max(0, differenceInDays(simulatedToday, correctedFrom) + 1);
+        const projectionLength = Math.max(0, allDays.length - historicalDaysCount);
 
-        // The main random walk now uses Math.random()
-        const fullHistoricalWalk = generateRandomWalk(historicalDaysCount > 0 ? historicalDaysCount : 0, config.base, config.volatility, config.min, config.max, config.jitter);
-        const projectionLength = totalDaysCount - historicalDaysCount > 0 ? totalDaysCount - historicalDaysCount : 0;
+        // The main random walk now uses Math.random() for dynamic refresh effect.
+        const fullHistoricalWalk = generateRandomWalk(historicalDaysCount, config.base, config.volatility, config.min, config.max, config.jitter);
         const projectionWalk = generateProjection(fullHistoricalWalk, projectionLength);
         
         const aprilPatternData = aprilDataStore[component.id]?.[metric] ?? [];
@@ -223,6 +226,7 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
             const maxValue = !isProjection ? walkPoint?.maxValue : null;
             const predictedValue = isProjection ? projectionWalk[index - historicalDaysCount] : null;
             
+            // Cyclical mapping for the April baseline.
             const aprilBaseline = aprilPatternData.length > 0 ? aprilPatternData[index % aprilPatternData.length] : null;
             
             const point: ChartDataPoint = {
