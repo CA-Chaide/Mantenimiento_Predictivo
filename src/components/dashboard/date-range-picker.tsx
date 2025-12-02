@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfMonth, subMonths, max, startOfYear } from "date-fns";
+import { format, startOfMonth, subMonths, max, startOfYear, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 
 interface DateRangePickerProps extends React.HTMLAttributes<HTMLDivElement> {
   initialDate?: DateRange;
@@ -42,14 +43,17 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   }, []);
 
-  const updateURL = (range: DateRange) => {
+  const updateURL = (range: DateRange | undefined) => {
+    const newParams = new URLSearchParams(searchParams.toString());
     if (range?.from) {
-      const newParams = new URLSearchParams(searchParams.toString());
       newParams.set("from", format(range.from, "yyyy-MM-dd"));
       const toDate = range.to || range.from;
       newParams.set("to", format(toDate, "yyyy-MM-dd"));
-      router.push(`${pathname}?${newParams.toString()}`);
+    } else {
+        newParams.delete("from");
+        newParams.delete("to");
     }
+    router.push(`${pathname}?${newParams.toString()}`);
   }
 
   const handleSelect = (range: DateRange | undefined) => {
@@ -85,6 +89,21 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     setPopoverOpen(false);
   }
 
+  const handleClear = () => {
+    const newParams = new URLSearchParams(searchParams.toString());
+    const machine = newParams.get('machine');
+    
+    const clearedParams = new URLSearchParams();
+    if(machine) clearedParams.set('machine', machine);
+
+    // Navigate to URL without date params, effectively resetting to default
+    router.push(`${pathname}?${clearedParams.toString()}`);
+    setDate(undefined);
+    setPopoverOpen(false);
+  }
+
+  const selectedDays = date?.from && date?.to ? differenceInDays(date.to, date.from) + 1 : 0;
+
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
@@ -112,28 +131,44 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0 flex" align="start">
-            <div className="flex flex-col gap-1 p-2 border-r">
-                <div className="px-2 py-1.5 text-xs font-semibold text-slate-500">Atajos</div>
-                <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
-                <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
-                <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisYear')}>Este Año</Button>
-                <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
+            <div className="flex flex-col justify-between p-2 border-r h-full">
+                <div>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-slate-500">Atajos</div>
+                    <div className="flex flex-col gap-1">
+                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
+                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
+                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisYear')}>Este Año</Button>
+                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
+                    </div>
+                </div>
+                <div>
+                    <Separator className="my-2" />
+                    <Button variant="ghost" className="justify-start text-sm h-8 w-full text-rose-600 hover:text-rose-700" onClick={handleClear}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Limpiar
+                    </Button>
+                </div>
             </div>
-          <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={date?.from || new Date('2025-10-01T00:00:00Z')}
-            selected={date}
-            onSelect={handleSelect}
-            numberOfMonths={2}
-            fromDate={minDate}
-            locale={es}
-            classNames={{
-                day_range_start: "day-range-start",
-                day_range_end: "day-range-end",
-                day_range_middle: "day-range-middle"
-            }}
-          />
+            <div>
+                <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={date?.from || new Date('2025-10-01T00:00:00Z')}
+                    selected={date}
+                    onSelect={handleSelect}
+                    numberOfMonths={2}
+                    fromDate={minDate}
+                    locale={es}
+                    classNames={{
+                        day_range_start: "day-range-start",
+                        day_range_end: "day-range-end",
+                        day_range_middle: "day-range-middle"
+                    }}
+                />
+                <div className="border-t text-center text-xs text-slate-500 py-2">
+                    {selectedDays > 0 ? `Periodo seleccionado: ${selectedDays} días` : 'Seleccione un rango de fechas'}
+                </div>
+            </div>
         </PopoverContent>
       </Popover>
     </div>
