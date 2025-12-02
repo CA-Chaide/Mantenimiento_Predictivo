@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ComponentStatus } from "./status-indicator";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { differenceInDays, parseISO } from "date-fns";
 
 interface AnalysisModalProps {
   isOpen: boolean;
@@ -31,6 +33,7 @@ export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProp
   if (!statusInfo) return null;
 
   const { status, componentName, details, allMetrics } = statusInfo;
+  const simulatedToday = new Date('2025-11-26T00:00:00Z');
 
   const statusConfig = {
     normal: { color: "bg-green-500", label: "Normal" },
@@ -38,34 +41,84 @@ export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProp
     critical: { color: "bg-red-500", label: "Crítico" },
   };
 
-  const renderDiagnosis = () => {
+  const getAnalysisData = () => {
+    const data = {
+        condicion: "NORMAL - Estable",
+        diagnostico: "Holgura de seguridad: OK",
+        tiempoEstimado: "N/A",
+        accion: "Monitoreo Continuo"
+    };
+
     switch (status) {
       case "critical":
-        return `CRÍTICO: El valor actual de ${getMetricName(details.metric)} (${details.currentValue?.toFixed(2)}) ha superado el límite permitido (${details.limitValue}). Se recomienda una parada y revisión inmediata.`;
-      case "warning":
-        if (details.projectedDate) {
-          return `ALERTA TEMPRANA: La IA ha detectado una tendencia de riesgo. Se proyecta que el ${getMetricName(details.metric)} superará el umbral de seguridad en ${details.projectedDate}. Planificar mantenimiento preventivo.`;
+        data.condicion = "CRÍTICO - Límite Excedido";
+        data.accion = "Parada / Inspección Física";
+        data.tiempoEstimado = "Inmediato / Actual";
+        if (details.currentValue != null && details.limitValue != null) {
+          const percentage = ((details.currentValue / details.limitValue) * 100).toFixed(0);
+          data.diagnostico = `Valor al ${percentage}% del límite (${details.currentValue.toFixed(2)} / ${details.limitValue.toFixed(2)})`;
+        } else {
+            data.diagnostico = "Valor actual excede el límite de seguridad.";
         }
-        return `ALERTA: El valor actual de ${getMetricName(details.metric)} (${details.currentValue?.toFixed(2)}) está operando cerca del límite de seguridad (${details.limitValue}). Se recomienda monitoreo continuo.`;
-      case "normal":
-      default:
-        return "OPERACIÓN NORMAL: Todos los parámetros operativos se encuentran dentro de los rangos seguros. No se detectan anomalías en las proyecciones a 3 meses.";
+        break;
+      case "warning":
+        data.condicion = "PREDICTIVO - Tendencia Ascendente";
+        data.accion = "Planificar Mantenimiento / Pedir Repuesto";
+        if (details.projectedDate) {
+          const daysToFailure = differenceInDays(parseISO(details.projectedDate), simulatedToday);
+          data.tiempoEstimado = `~${daysToFailure} Días para fallo crítico`;
+          data.diagnostico = `Proyección alcanzará el límite en ${details.projectedDate}`;
+        } else if (details.currentValue != null && details.limitValue != null) {
+            const percentage = ((details.currentValue / details.limitValue) * 100).toFixed(0);
+            data.diagnostico = `Valor actual al ${percentage}% del límite (${details.currentValue.toFixed(2)} / ${details.limitValue.toFixed(2)})`;
+            data.tiempoEstimado = "N/A (monitoreo)";
+        }
+        break;
     }
-  };
+    return data;
+  }
+
+  const analysis = getAnalysisData();
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-xl">
             <div className={cn("size-5 rounded-full flex-shrink-0", statusConfig[status].color, status === 'critical' && 'animate-pulse')} />
-            Análisis de Estado: {componentName}
+            Ficha Técnica: {componentName}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <p className="text-sm text-muted-foreground">{renderDiagnosis()}</p>
-          
-          <h4 className="font-semibold mt-4">Detalles Técnicos Actuales</h4>
+        <div className="grid gap-6 pt-4">
+            <Table>
+                <TableBody>
+                    <TableRow>
+                        <TableCell className="font-semibold text-muted-foreground w-1/3">Condición</TableCell>
+                        <TableCell>
+                            <span className={cn(
+                                status === 'critical' && 'text-red-600 font-bold',
+                                status === 'warning' && 'text-yellow-600 font-bold'
+                            )}>
+                                {analysis.condicion}
+                            </span>
+                        </TableCell>
+                    </TableRow>
+                     <TableRow>
+                        <TableCell className="font-semibold text-muted-foreground">Diagnóstico</TableCell>
+                        <TableCell className="font-mono">{analysis.diagnostico}</TableCell>
+                    </TableRow>
+                     <TableRow>
+                        <TableCell className="font-semibold text-muted-foreground">Tiempo Estimado</TableCell>
+                        <TableCell className="font-bold font-mono">{analysis.tiempoEstimado}</TableCell>
+                    </TableRow>
+                     <TableRow>
+                        <TableCell className="font-semibold text-muted-foreground">Acción Sugerida</TableCell>
+                        <TableCell>{analysis.accion}</TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
+
+          <h4 className="font-semibold">Detalles Técnicos Actuales ({getMetricName(details.metric)})</h4>
           <Table>
             <TableHeader>
               <TableRow>
