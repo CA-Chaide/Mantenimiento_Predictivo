@@ -1,16 +1,20 @@
 
+'use client';
+
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useMaintenanceData, MACHINES, COMPONENTS, MachineId, Component } from "@/lib/data";
+import { useMaintenanceData, COMPONENTS, MachineId, Component } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
-import { startOfMonth, endOfMonth, addMonths, format, parseISO } from "date-fns";
+import { startOfMonth, addMonths, format, parseISO } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, LogOut, MousePointerClick } from "lucide-react";
+import { Bot, LogOut, MousePointerClick, Loader } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Button } from "@/components/ui/button";
 import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from 'next/navigation';
 
 function EmptyState() {
   return (
@@ -26,29 +30,56 @@ function EmptyState() {
   )
 }
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
-  const { data: machinesData } = await calculosCorrientesDatosMantenimientoService.getMachines();
-  const machineList = machinesData.map((m: any) => ({ id: m.maquina, name: m.maquina }));
+function LoadingState() {
+    return (
+      <div className="flex h-full flex-col items-center justify-center rounded-lg bg-slate-50">
+        <div className="text-center">
+          <Loader className="mx-auto h-24 w-24 animate-spin text-primary" />
+          <h3 className="mt-4 text-xl font-semibold text-slate-700">Cargando Datos...</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+            Por favor espere mientras obtenemos la información más reciente.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+export default function DashboardPage() {
+  const searchParams = useSearchParams();
+  const [machineList, setMachineList] = useState<{ id: string, name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchMachines() {
+      try {
+        setLoading(true);
+        const { data: machinesData } = await calculosCorrientesDatosMantenimientoService.getMachines();
+        const machines = machinesData.map((m: any) => ({ id: m.maquina, name: m.maquina }));
+        setMachineList(machines);
+      } catch (error) {
+        console.error("Error fetching machines:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchMachines();
+  }, []);
 
   const machineId = (
-    typeof searchParams.machine === 'string' && machineList.some((m: any) => m.id === searchParams.machine)
-      ? searchParams.machine
+    typeof searchParams.get('machine') === 'string' && machineList.some((m: any) => m.id === searchParams.get('machine'))
+      ? searchParams.get('machine')
       : machineList[0]?.id
   ) as MachineId;
 
-  const componentId = typeof searchParams.component === 'string' ? searchParams.component : undefined;
+  const componentId = typeof searchParams.get('component') === 'string' ? searchParams.get('component') : undefined;
 
   const simulatedToday = parseISO('2025-11-26T00:00:00Z');
   
   const defaultFromDate = startOfMonth(simulatedToday);
   const defaultToDate = simulatedToday;
   
-  const fromDateString = typeof searchParams.from === 'string' ? searchParams.from : format(defaultFromDate, "yyyy-MM-dd");
-  const toDateString = typeof searchParams.to === 'string' ? searchParams.to : format(defaultToDate, "yyyy-MM-dd");
+  const fromDateString = typeof searchParams.get('from') === 'string' ? searchParams.get('from') : format(defaultFromDate, "yyyy-MM-dd");
+  const toDateString = typeof searchParams.get('to') === 'string' ? searchParams.get('to') : format(defaultToDate, "yyyy-MM-dd");
   
   const fromDate = parseISO(fromDateString);
   const toDate = parseISO(toDateString);
@@ -72,6 +103,22 @@ export default async function DashboardPage({
   
   const machine = machineList.find((m: any) => m.id === machineId);
   const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name;
+  
+  if (loading) {
+    return (
+        <SidebarProvider>
+         <Sidebar collapsible="icon" side="left" className="border-r-0">
+             {/* Render a simplified sidebar for loading state */}
+         </Sidebar>
+         <SidebarInset className="bg-slate-50">
+           <DashboardHeader title="Cargando..." />
+           <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+             <LoadingState />
+           </main>
+         </SidebarInset>
+       </SidebarProvider>
+    )
+  }
 
   return (
     <SidebarProvider>

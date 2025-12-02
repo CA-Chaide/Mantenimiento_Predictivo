@@ -3,10 +3,9 @@
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuSub, SidebarMenuSubButton, useSidebar } from "@/components/ui/sidebar";
-import { MACHINES, Component, COMPONENTS } from "@/lib/data";
-import { HardDrive, ChevronRight } from "lucide-react";
+import { Component } from "@/lib/data";
+import { HardDrive } from "lucide-react";
 import React from "react";
-import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SidebarNavProps {
@@ -47,7 +46,7 @@ export function SidebarNav({ machines, allComponents }: SidebarNavProps) {
         MÁQUINAS
       </div>
       <div className="px-2 group-data-[collapsible=icon]:hidden">
-        <Select onValueChange={handleMachineChange} defaultValue={currentMachine}>
+        <Select onValueChange={handleMachineChange} defaultValue={currentMachine} value={currentMachine}>
             <SelectTrigger className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white focus:ring-2 focus:ring-white">
                 <SelectValue placeholder="Seleccione una máquina" />
             </SelectTrigger>
