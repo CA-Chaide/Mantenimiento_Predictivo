@@ -5,10 +5,24 @@ import { useMaintenanceData, MACHINES, COMPONENTS, MachineId, Component } from "
 import type { DateRange } from "react-day-picker";
 import { startOfMonth, endOfMonth, addMonths, format, parseISO } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, LogOut } from "lucide-react";
+import { Bot, LogOut, MousePointerClick } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Button } from "@/components/ui/button";
+
+function EmptyState() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-white">
+      <div className="text-center">
+        <MousePointerClick className="mx-auto h-24 w-24 text-slate-300" />
+        <h3 className="mt-4 text-xl font-semibold text-slate-600">Seleccione un Componente</h3>
+        <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">
+          Haga clic en una de las opciones del menú lateral para visualizar los indicadores de Corriente, Desbalance y Factor de Carga.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 export default function DashboardPage({
   searchParams,
@@ -51,8 +65,6 @@ export default function DashboardPage({
   const allMachineComponents = COMPONENTS[machineId] || [];
   const selectedComponent = componentId ? allMachineComponents.find(c => c.id === componentId) : undefined;
   
-  const componentsToDisplay = selectedComponent ? [selectedComponent] : allMachineComponents;
-
   const machine = MACHINES.find(m => m.id === machineId);
   const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name;
 
@@ -107,11 +119,15 @@ export default function DashboardPage({
       <SidebarInset className="bg-slate-50">
         <DashboardHeader title={headerTitle} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          <DashboardClient
-            machineComponents={componentsToDisplay}
-            data={data}
-            aprilData={aprilData}
-          />
+          {selectedComponent ? (
+            <DashboardClient
+              machineComponents={[selectedComponent]}
+              data={data}
+              aprilData={aprilData}
+            />
+          ) : (
+            <EmptyState />
+          )}
         </main>
       </SidebarInset>
     </SidebarProvider>
