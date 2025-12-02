@@ -4,7 +4,7 @@
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useMaintenanceData, COMPONENTS, MachineId, Component } from "@/lib/data";
+import { useMaintenanceData, COMPONENTS, MachineId, Component, MACHINES } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
 import { startOfMonth, addMonths, format, parseISO } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,9 +12,8 @@ import { Bot, LogOut, MousePointerClick, Loader } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Button } from "@/components/ui/button";
-import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
-import React, { useEffect, useState } from "react";
 import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 
 function EmptyState() {
   return (
@@ -46,27 +45,12 @@ function LoadingState() {
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
-  const [machineList, setMachineList] = useState<{ id: string, name: string }[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchMachines() {
-      try {
-        setLoading(true);
-        const { data: machinesData } = await calculosCorrientesDatosMantenimientoService.getMachines();
-        const machines = machinesData.map((m: any) => ({ id: m.maquina, name: m.maquina }));
-        setMachineList(machines);
-      } catch (error) {
-        console.error("Error fetching machines:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchMachines();
-  }, []);
+  const machineList = MACHINES;
+  
+  const [loading] = useState(false);
 
   const machineId = (
-    typeof searchParams.get('machine') === 'string' && machineList.some((m: any) => m.id === searchParams.get('machine'))
+    typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
       ? searchParams.get('machine')
       : machineList[0]?.id
   ) as MachineId;
@@ -101,7 +85,7 @@ export default function DashboardPage() {
   const allMachineComponents = machineId ? (COMPONENTS[machineId] || []) : [];
   const selectedComponent = componentId ? allMachineComponents.find(c => c.id === componentId) : undefined;
   
-  const machine = machineList.find((m: any) => m.id === machineId);
+  const machine = machineList.find(m => m.id === machineId);
   const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name;
   
   if (loading) {

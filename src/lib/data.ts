@@ -264,5 +264,3 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
 
   return { data, aprilData: [] };
 }
-
-    

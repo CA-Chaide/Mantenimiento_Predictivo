@@ -3,13 +3,13 @@
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuSub, SidebarMenuSubButton, useSidebar } from "@/components/ui/sidebar";
-import { Component } from "@/lib/data";
+import { Component, MACHINES } from "@/lib/data";
 import { HardDrive } from "lucide-react";
 import React from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SidebarNavProps {
-    machines: { id: string, name: string }[];
+    machines: typeof MACHINES;
     allComponents: Component[];
 }
 
