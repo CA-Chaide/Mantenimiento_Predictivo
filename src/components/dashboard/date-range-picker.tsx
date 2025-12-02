@@ -98,8 +98,15 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     const clearedParams = new URLSearchParams();
     if(machine) clearedParams.set('machine', machine);
 
+    const defaultRange = {
+        from: startOfMonth(maxDate),
+        to: maxDate
+    }
+    clearedParams.set("from", format(defaultRange.from, "yyyy-MM-dd"));
+    clearedParams.set("to", format(defaultRange.to, "yyyy-MM-dd"));
+
     router.push(`${pathname}?${clearedParams.toString()}`);
-    setDate(undefined);
+    setDate(defaultRange);
     setPopoverOpen(false);
   }
 
@@ -166,6 +173,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                         day_range_end: "day-range-end",
                         day_range_middle: "day-range-middle"
                     }}
+                    disabled={{ after: maxDate }}
                 />
                 <div className="border-t text-center text-xs text-slate-500 py-2">
                     {selectedDays > 0 ? `Periodo seleccionado: ${selectedDays} días` : 'Seleccione un rango de fechas'}
