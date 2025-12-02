@@ -1,5 +1,5 @@
 
-import { eachDayOfInterval, formatISO, isBefore, startOfMonth, endOfMonth, parseISO, differenceInDays, max as dateMax, getDay, getDate } from 'date-fns';
+import { eachDayOfInterval, formatISO, isBefore, parseISO, differenceInDays, max as dateMax } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 
 export const MACHINES = [
@@ -123,7 +123,7 @@ const generateProjection = (series: { realValue: number }[], projectionLength: n
   for (let i = 0; i < projectionLength; i++) {
     let predicted = lastValue + slope; 
     
-    const noiseScale = lastValue > 10 ? 0.02 : 0.005; 
+    const noiseScale = lastValue > 1 ? 0.02 : 0.005; 
     const noise = (Math.random() - 0.5) * (lastValue * noiseScale);
     predicted += noise;
     
@@ -141,18 +141,15 @@ const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
     switch (metric) {
         case 'current': {
             const limit = 50;
-            const ref = limit * 0.5;
-            return { base: 15, volatility: 2, min: 10, max: 20, limit, ref, jitter: 0.4 };
+            return { base: 15, volatility: 2, min: 10, max: 20, limit, ref: limit * 0.5, jitter: 0.4 };
         }
         case 'unbalance': {
             const limit = 0.2;
-            const ref = limit * 0.7;
-            return { base: 0.1, volatility: 0.05, min: 0.05, max: 0.2, limit, ref, jitter: 0.01 };
+            return { base: 0.1, volatility: 0.05, min: 0.05, max: 0.2, limit, ref: limit * 0.7, jitter: 0.01 };
         }
         case 'load_factor': {
             const limit = 0.6;
-            const ref = limit * 0.6;
-            return { base: 0.3, volatility: 0.1, min: 0.2, max: 0.4, limit, ref, jitter: 0.02 };
+            return { base: 0.3, volatility: 0.1, min: 0.2, max: 0.4, limit, ref: limit * 0.6, jitter: 0.02 };
         }
     }
 }
@@ -206,7 +203,7 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
         const projectionWalk = generateProjection(fullHistoricalWalk, projectionLength);
 
         const aprilPatternData = aprilDataStore[component.id]?.[metric] ?? [];
-
+        
         allDays.forEach((day, index) => {
             const isProjection = isBefore(simulatedToday, day);
             const walkPoint = fullHistoricalWalk[index];
@@ -217,12 +214,9 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
             const predictedValue = isProjection ? projectionWalk[index - historicalDaysCount] : null;
             
             const aprilDatasetLength = aprilPatternData.length;
-            const currentIndexInReversedRange = totalDaysCount - 1 - index;
-            const aprilIndex = aprilDatasetLength - 1 - currentIndexInReversedRange;
-
-            const aprilBaseline = (aprilIndex >= 0 && aprilIndex < aprilDatasetLength)
-              ? aprilPatternData[aprilIndex]
-              : null;
+            const currentIndexFromEnd = totalDaysCount - 1 - index;
+            const aprilIndex = aprilDatasetLength - 1 - currentIndexFromEnd;
+            const aprilBaseline = (aprilIndex >= 0 && aprilIndex < aprilDatasetLength) ? aprilPatternData[aprilIndex] : null;
             
             const point: ChartDataPoint = {
                 date: formatISO(day, { representation: 'date' }),
