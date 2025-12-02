@@ -169,37 +169,28 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
   const allDays = eachDayOfInterval({ start: correctedFrom, end: dateRange.to });
   const machineComponents = COMPONENTS[machineId];
   const allMetrics: ('current' | 'unbalance' | 'load_factor')[] = ['current', 'unbalance', 'load_factor'];
-
-  const aprilStartDate = new Date('2025-04-01T00:00:00Z');
+  
+  const aprilStartDate = new Date('2025-04-10T00:00:00Z');
   const aprilEndDate = new Date('2025-04-30T00:00:00Z');
   const aprilDays = eachDayOfInterval({ start: aprilStartDate, end: aprilEndDate });
 
-  let data: ChartDataPoint[] = [];
-  
-  const aprilDataStore: Record<string, Record<string, Record<number, number | null>>> = {};
+  const aprilDataStore: Record<string, Record<string, number[]>> = {};
 
   machineComponents.forEach((component) => {
     aprilDataStore[component.id] = {};
     allMetrics.forEach(metric => {
-        aprilDataStore[component.id][metric] = {};
         const config = getMetricConfig(metric);
         const seed = machineId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + 
                      component.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) +
                      metric.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
         const aprilWalk = generateRandomWalk(aprilDays.length, seed + 1000, config.base * 0.9, config.volatility * 0.8, config.min, config.max, config.jitter);
-        
-        aprilDays.forEach((day, index) => {
-            const dayOfMonth = getDate(day);
-            if (isBefore(day, minDataDate)) {
-                 aprilDataStore[component.id][metric][dayOfMonth] = null;
-            } else {
-                 aprilDataStore[component.id][metric][dayOfMonth] = aprilWalk[index].realValue;
-            }
-        });
+        aprilDataStore[component.id][metric] = aprilWalk.map(p => p.realValue);
     });
   });
 
+  let data: ChartDataPoint[] = [];
+  
   machineComponents.forEach((component) => {
     allMetrics.forEach(metric => {
         const config = getMetricConfig(metric);
@@ -214,6 +205,8 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
         const projectionLength = totalDaysCount - historicalDaysCount > 0 ? totalDaysCount - historicalDaysCount : 0;
         const projectionWalk = generateProjection(fullHistoricalWalk, projectionLength);
 
+        const aprilPatternData = aprilDataStore[component.id]?.[metric] ?? [];
+
         allDays.forEach((day, index) => {
             const isProjection = isBefore(simulatedToday, day);
             const walkPoint = fullHistoricalWalk[index];
@@ -223,12 +216,14 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
             const maxValue = !isProjection ? walkPoint?.maxValue : null;
             const predictedValue = isProjection ? projectionWalk[index - historicalDaysCount] : null;
             
-            const dayOfMonth = getDate(day);
-            let aprilBaseline = aprilDataStore[component.id]?.[metric]?.[dayOfMonth] ?? null;
-            if (dayOfMonth > 30) {
-                 aprilBaseline = aprilDataStore[component.id]?.[metric]?.[30] ?? null;
-            }
+            const aprilDatasetLength = aprilPatternData.length;
+            const currentIndexInReversedRange = totalDaysCount - 1 - index;
+            const aprilIndex = aprilDatasetLength - 1 - currentIndexInReversedRange;
 
+            const aprilBaseline = (aprilIndex >= 0 && aprilIndex < aprilDatasetLength)
+              ? aprilPatternData[aprilIndex]
+              : null;
+            
             const point: ChartDataPoint = {
                 date: formatISO(day, { representation: 'date' }),
                 isProjection,
