@@ -31,14 +31,16 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
         const statusInfo = getComponentStatus(componentData, component.name);
         
         return (
-          <div key={component.id} className="w-full space-y-8">
+          <div key={component.id} className="w-full space-y-4">
+             <div className="flex items-center gap-3 text-lg font-semibold text-slate-800 -mb-2">
+                <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
+                  <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
+                </div>
+              </div>
             <Card id={`component-${component.id}`} className="w-full rounded-xl shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
                   Corriente
-                  <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
-                    <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
-                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -62,9 +64,6 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
                   Desbalance
-                  <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
-                    <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
-                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -88,9 +87,6 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
                   Factor de Carga
-                   <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
-                    <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
-                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">

@@ -13,6 +13,7 @@ import { ComponentStatus } from "./status-indicator";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { differenceInDays, parseISO } from "date-fns";
+import { Badge } from "../ui/badge";
 
 interface AnalysisModalProps {
   isOpen: boolean;
@@ -36,9 +37,10 @@ export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProp
   const simulatedToday = new Date('2025-11-26T00:00:00Z');
 
   const statusConfig = {
-    normal: { color: "bg-green-500", label: "Normal" },
-    warning: { color: "bg-yellow-500", label: "Alerta" },
-    critical: { color: "bg-red-500", label: "Crítico" },
+    normal: { color: "bg-green-500", text: 'text-green-600', label: "Normal" },
+    warning: { color: "bg-yellow-500", text: 'text-yellow-600', label: "Alerta" },
+    critical: { color: "bg-red-500", text: 'text-red-600', label: "Crítico" },
+    unknown: { color: "bg-slate-400", text: 'text-slate-500', label: "Desconocido"}
   };
 
   const getAnalysisData = () => {
@@ -95,10 +97,7 @@ export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProp
                     <TableRow>
                         <TableCell className="font-semibold text-muted-foreground w-1/3">Condición</TableCell>
                         <TableCell>
-                            <span className={cn(
-                                status === 'critical' && 'text-red-600 font-bold',
-                                status === 'warning' && 'text-yellow-600 font-bold'
-                            )}>
+                            <span className={cn('font-bold', statusConfig[status].text)}>
                                 {analysis.condicion}
                             </span>
                         </TableCell>
@@ -118,19 +117,32 @@ export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProp
                 </TableBody>
             </Table>
 
-          <h4 className="font-semibold">Detalles Técnicos Actuales ({getMetricName(details.metric)})</h4>
+          <h4 className="font-semibold">Desglose de Métricas</h4>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Métrica</TableHead>
-                <TableHead className="text-right">Valor / Límite</TableHead>
+                <TableHead>Valor / Límite</TableHead>
+                <TableHead className="text-right">Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {allMetrics.map(metric => (
                 <TableRow key={metric.metric}>
                   <TableCell>{metric.metric}</TableCell>
-                  <TableCell className="text-right font-mono">{metric.value}</TableCell>
+                  <TableCell className="font-mono">{metric.value}</TableCell>
+                  <TableCell className="text-right">
+                    <Badge variant={
+                        metric.status === 'critical' ? 'destructive' :
+                        metric.status === 'warning' ? 'secondary' :
+                        'default'
+                    } className={cn(
+                        metric.status === 'normal' && 'bg-green-100 text-green-800',
+                        metric.status === 'warning' && 'bg-yellow-100 text-yellow-800',
+                    )}>
+                        {statusConfig[metric.status].label}
+                    </Badge>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
