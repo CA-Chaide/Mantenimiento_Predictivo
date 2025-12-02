@@ -74,3 +74,15 @@
     font-family: 'Inter', sans-serif;
   }
 }
+
+@layer components {
+    .day-range-start {
+        @apply bg-emerald-500 text-white rounded-full hover:bg-emerald-600 focus:bg-emerald-600;
+    }
+    .day-range-end {
+        @apply bg-rose-500 text-white rounded-full hover:bg-rose-600 focus:bg-rose-600;
+    }
+    .day-range-middle {
+      @apply bg-slate-100/80 !text-slate-900 rounded-none;
+    }
+}

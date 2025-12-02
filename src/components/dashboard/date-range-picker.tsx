@@ -57,10 +57,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     if (range?.from && range?.to) {
         updateURL(range);
         setPopoverOpen(false);
-    } else if (range?.from && !range.to) {
-      // Still selecting end date, don't close
-    } else {
-      setPopoverOpen(false);
     }
   };
 
@@ -132,6 +128,11 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             numberOfMonths={2}
             fromDate={minDate}
             locale={es}
+            classNames={{
+                day_range_start: "day-range-start",
+                day_range_end: "day-range-end",
+                day_range_middle: "day-range-middle"
+            }}
           />
         </PopoverContent>
       </Popover>
