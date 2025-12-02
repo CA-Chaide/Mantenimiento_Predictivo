@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfMonth, subMonths, max } from "date-fns";
+import { format, startOfMonth, subMonths, max, startOfYear } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -64,7 +64,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     }
   };
 
-  const handlePreset = (preset: 'thisMonth' | 'last3Months' | 'sinceStart') => {
+  const handlePreset = (preset: 'thisMonth' | 'last3Months' | 'thisYear' | 'sinceStart') => {
     const simulatedToday = new Date('2025-11-15T00:00:00Z');
     let from: Date;
     const to = simulatedToday;
@@ -75,6 +75,9 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             break;
         case 'last3Months':
             from = max([subMonths(simulatedToday, 3), minDate]);
+            break;
+        case 'thisYear':
+            from = max([startOfYear(simulatedToday), minDate]);
             break;
         case 'sinceStart':
             from = minDate;
@@ -114,8 +117,10 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0 flex" align="start">
             <div className="flex flex-col gap-1 p-2 border-r">
+                <div className="px-2 py-1.5 text-xs font-semibold text-slate-500">Atajos</div>
                 <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
                 <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
+                <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisYear')}>Este Año</Button>
                 <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
             </div>
           <Calendar
