@@ -102,8 +102,13 @@ const generateProjection = (series: { realValue: number }[], projectionLength: n
     return Array(projectionLength).fill(lastVal);
   }
 
-  const history = series.slice(-30).map(p => p.realValue);
+  const history = series.slice(-30).map(p => p.realValue).filter(v => v !== null) as number[];
   const n = history.length;
+
+  if (n < 2) {
+    const lastVal = n > 0 ? history[n-1] : 0;
+    return Array(projectionLength).fill(lastVal);
+  }
 
   let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
   for (let i = 0; i < n; i++) {
@@ -201,9 +206,9 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
         const fullHistoricalWalk = generateRandomWalk(historicalDaysCount > 0 ? historicalDaysCount : 0, seed, config.base, config.volatility, config.min, config.max, config.jitter);
         const projectionLength = totalDaysCount - historicalDaysCount > 0 ? totalDaysCount - historicalDaysCount : 0;
         const projectionWalk = generateProjection(fullHistoricalWalk, projectionLength);
-
-        const aprilPatternData = aprilDataStore[component.id]?.[metric] ?? [];
         
+        const aprilPatternData = aprilDataStore[component.id]?.[metric] ?? [];
+
         allDays.forEach((day, index) => {
             const isProjection = isBefore(simulatedToday, day);
             const walkPoint = fullHistoricalWalk[index];
@@ -213,10 +218,7 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
             const maxValue = !isProjection ? walkPoint?.maxValue : null;
             const predictedValue = isProjection ? projectionWalk[index - historicalDaysCount] : null;
             
-            const aprilDatasetLength = aprilPatternData.length;
-            const currentIndexFromEnd = totalDaysCount - 1 - index;
-            const aprilIndex = aprilDatasetLength - 1 - currentIndexFromEnd;
-            const aprilBaseline = (aprilIndex >= 0 && aprilIndex < aprilDatasetLength) ? aprilPatternData[aprilIndex] : null;
+            const aprilBaseline = aprilPatternData.length > 0 ? aprilPatternData[index % aprilPatternData.length] : null;
             
             const point: ChartDataPoint = {
                 date: formatISO(day, { representation: 'date' }),

@@ -92,7 +92,7 @@ const getMetricInfo = (metric: ChartDataPoint): MetricInfo => {
 };
 
 const getLastRealPoint = (metricData: ChartDataPoint[]): ChartDataPoint | undefined => {
-    return [...metricData].reverse().find(d => d.realValue != null);
+    return [...metricData].reverse().find(d => !d.isProjection && d.realValue != null);
 }
 
 export const getComponentStatus = (componentData: ChartDataPoint[], componentName: string): ComponentStatus => {

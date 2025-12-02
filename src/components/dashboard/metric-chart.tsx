@@ -68,23 +68,11 @@ export function MetricChart({
         // The key for the area chart should be a tuple of [min, max]
         range: d.minValue != null && d.maxValue != null ? [d.minValue, d.maxValue] : null,
     }));
-    
-  const metricAprilData = aprilData
-    .filter(d => d.componentId === componentId && d.metric === metric)
-    .map((d, index) => ({
-      date: metricData[index]?.date,
-      aprilBaseline: d.aprilBaseline
-    }));
-
-  const combinedData = metricData.map((item, index) => ({
-    ...item,
-    ...(metricAprilData[index] || {}),
-  }));
 
   return (
     <div className="h-[400px] w-full">
       <ResponsiveContainer>
-        <LineChart data={combinedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={metricData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis
             dataKey="date"
