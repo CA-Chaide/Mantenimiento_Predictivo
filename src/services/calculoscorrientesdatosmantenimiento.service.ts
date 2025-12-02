@@ -29,7 +29,7 @@ interface GetAllParams {
   limit?: number;
 }
 
-const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImlzYWlhcy5jaGlxdXVpdG8iLCJyb2xlcyI6WyJhZG1pbiIsImRldmVsb3BlciJdLCJpYXQiOjE3MjI1NDg0NjMsImV4cCI6MTczMzA4ODQ2M30.4uY4Yy5N4Y2K5kCMa1BUnM8zWb-M3b-u9P1xV3e5aZM';
+const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImlzYWlhcy5jaGlxdXVpdG8iLCJyb2xlcyI6WyJhZG1pbiIsImRldmVsb3BlciJdLCJpYXQiOjE3MjI1OTM1NjgsImV4cCI6MTczMzEzMzU2OH0.q-gSO3M3rV2CRaL0JNb2f62uI1Jg_Mh72c_v1-5Fp_E';
 
 export const calculosCorrientesDatosMantenimientoService = {
   async getTotalByMaquina(maquina: string): Promise<{ total: number }> {
