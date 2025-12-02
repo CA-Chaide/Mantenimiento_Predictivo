@@ -4,7 +4,7 @@ import * as React from "react";
 import { format, startOfMonth, subMonths, max, startOfYear, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
-import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, RotateCcw } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -143,9 +143,9 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                 </div>
                 <div>
                     <Separator className="my-2" />
-                    <Button variant="ghost" className="justify-start text-sm h-8 w-full text-rose-600 hover:text-rose-700" onClick={handleClear}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Limpiar
+                    <Button variant="ghost" className="justify-start text-sm h-8 w-full text-slate-600 hover:text-slate-700" onClick={handleClear}>
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Restablecer
                     </Button>
                 </div>
             </div>
