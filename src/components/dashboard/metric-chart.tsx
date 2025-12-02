@@ -17,7 +17,6 @@ import { ChartDataPoint } from "@/lib/data";
 interface MetricChartProps {
   data: ChartDataPoint[];
   aprilData: ChartDataPoint[];
-  showApril: boolean;
   valueKey: keyof ChartDataPoint;
   limitKey: keyof ChartDataPoint;
   limitLabel: string;
@@ -49,7 +48,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function MetricChart({
   data,
   aprilData,
-  showApril,
   valueKey,
   limitKey,
   limitLabel,
@@ -152,17 +150,15 @@ export function MetricChart({
             connectNulls={false}
           />
 
-          {showApril && (
-              <Line
-                type="monotone"
-                dataKey="aprilBaseline"
-                name="Referencia Abril"
-                stroke="#06b6d4"
-                strokeWidth={1.5}
-                strokeOpacity={0.7}
-                dot={false}
-              />
-          )}
+          <Line
+            type="monotone"
+            dataKey="aprilBaseline"
+            name="Referencia Abril"
+            stroke="#06b6d4"
+            strokeWidth={1.5}
+            strokeOpacity={0.7}
+            dot={false}
+          />
 
         </LineChart>
       </ResponsiveContainer>
