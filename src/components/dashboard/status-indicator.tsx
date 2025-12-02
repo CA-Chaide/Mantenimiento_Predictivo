@@ -19,7 +19,8 @@ export interface ComponentStatus {
   };
   allMetrics: {
     metric: string;
-    value: string;
+    value: number | null;
+    limit: number | undefined;
     status: Status;
   }[];
 }
@@ -164,7 +165,7 @@ export const getComponentStatus = (componentData: ChartDataPoint[], componentNam
                 if (worstStatus === 'normal') {
                     worstStatus = 'warning';
                     worstMessage = `Proyección de ${getMetricName(metric)} alcanzará el límite`;
-                    details = { metric, projectedDate: format(parseISO(point.date), "MMM, yyyy"), currentValue: realVal, limitValue: limit };
+                    details = { metric, projectedDate: point.date, currentValue: realVal, limitValue: limit };
                 }
                 break; 
             }
@@ -173,7 +174,8 @@ export const getComponentStatus = (componentData: ChartDataPoint[], componentNam
 
     allMetricsData.push({
       metric: getMetricName(metric),
-      value: `${realVal?.toFixed(2) ?? 'N/A'} / ${limitVal?.toFixed(2) ?? 'N/A'}`,
+      value: realVal,
+      limit: limitVal,
       status: metricStatus
     });
   }

@@ -21,15 +21,6 @@ interface AnalysisModalProps {
   statusInfo: ComponentStatus | null;
 }
 
-const getMetricName = (metric: 'current' | 'unbalance' | 'load_factor' | 'none') => {
-    switch (metric) {
-      case 'current': return 'Corriente';
-      case 'unbalance': return 'Desbalance';
-      case 'load_factor': return 'Factor de Carga';
-      default: return '';
-    }
-  };
-
 export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProps) {
   if (!statusInfo) return null;
 
@@ -37,116 +28,71 @@ export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProp
   const simulatedToday = new Date('2025-11-26T00:00:00Z');
 
   const statusConfig = {
-    normal: { color: "bg-green-500", text: 'text-green-600', label: "Normal" },
-    warning: { color: "bg-yellow-500", text: 'text-yellow-600', label: "Alerta" },
-    critical: { color: "bg-red-500", text: 'text-red-600', label: "Crítico" },
-    unknown: { color: "bg-slate-400", text: 'text-slate-500', label: "Desconocido"}
+    normal: { color: "bg-green-500", text: 'text-green-700', label: "Normal", badge: 'default' },
+    warning: { color: "bg-yellow-500", text: 'text-yellow-700', label: "Alerta", badge: 'secondary' },
+    critical: { color: "bg-red-500", text: 'text-red-700', label: "Crítico", badge: 'destructive' },
+    unknown: { color: "bg-slate-400", text: 'text-slate-500', label: "Desconocido", badge: 'outline' }
   };
+  
+  const currentStatusInfo = statusConfig[status];
 
-  const getAnalysisData = () => {
-    const data = {
-        condicion: "NORMAL - Estable",
-        diagnostico: "Holgura de seguridad: OK",
-        tiempoEstimado: "N/A",
-        accion: "Monitoreo Continuo"
-    };
-
-    switch (status) {
-      case "critical":
-        data.condicion = "CRÍTICO - Límite Excedido";
-        data.accion = "Parada / Inspección Física";
-        data.tiempoEstimado = "Inmediato / Actual";
-        if (details.currentValue != null && details.limitValue != null) {
-          const percentage = ((details.currentValue / details.limitValue) * 100).toFixed(0);
-          data.diagnostico = `Valor al ${percentage}% del límite (${details.currentValue.toFixed(2)} / ${details.limitValue.toFixed(2)})`;
-        } else {
-            data.diagnostico = "Valor actual excede el límite de seguridad.";
-        }
-        break;
-      case "warning":
-        data.condicion = "PREDICTIVO - Tendencia Ascendente";
-        data.accion = "Planificar Mantenimiento / Pedir Repuesto";
-        if (details.projectedDate) {
-          const daysToFailure = differenceInDays(parseISO(details.projectedDate), simulatedToday);
-          data.tiempoEstimado = `~${daysToFailure} Días para fallo crítico`;
-          data.diagnostico = `Proyección alcanzará el límite en ${details.projectedDate}`;
-        } else if (details.currentValue != null && details.limitValue != null) {
-            const percentage = ((details.currentValue / details.limitValue) * 100).toFixed(0);
-            data.diagnostico = `Valor actual al ${percentage}% del límite (${details.currentValue.toFixed(2)} / ${details.limitValue.toFixed(2)})`;
-            data.tiempoEstimado = "N/A (monitoreo)";
-        }
-        break;
-    }
-    return data;
+  let timeToFailureMessage = null;
+  if (status === 'warning' && details.projectedDate) {
+    const daysToFailure = differenceInDays(parseISO(details.projectedDate), simulatedToday);
+    timeToFailureMessage = `Proyección IA: Cruce de límite en ~${daysToFailure} días.`;
   }
-
-  const analysis = getAnalysisData();
-
+  
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-xl">
-            <div className={cn("size-5 rounded-full flex-shrink-0", statusConfig[status].color, status === 'critical' && 'animate-pulse')} />
-            Ficha Técnica: {componentName}
+          <DialogTitle className="flex items-center justify-between">
+            <span>Estado: {componentName}</span>
+            <Badge variant={currentStatusInfo.badge} className={cn(
+                status === 'normal' && 'bg-green-100 text-green-800',
+                status === 'warning' && 'bg-yellow-100 text-yellow-800',
+            )}>
+              {currentStatusInfo.label}
+            </Badge>
           </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-6 pt-4">
-            <Table>
-                <TableBody>
-                    <TableRow>
-                        <TableCell className="font-semibold text-muted-foreground w-1/3">Condición</TableCell>
-                        <TableCell>
-                            <span className={cn('font-bold', statusConfig[status].text)}>
-                                {analysis.condicion}
-                            </span>
-                        </TableCell>
-                    </TableRow>
-                     <TableRow>
-                        <TableCell className="font-semibold text-muted-foreground">Diagnóstico</TableCell>
-                        <TableCell className="font-mono">{analysis.diagnostico}</TableCell>
-                    </TableRow>
-                     <TableRow>
-                        <TableCell className="font-semibold text-muted-foreground">Tiempo Estimado</TableCell>
-                        <TableCell className="font-bold font-mono">{analysis.tiempoEstimado}</TableCell>
-                    </TableRow>
-                     <TableRow>
-                        <TableCell className="font-semibold text-muted-foreground">Acción Sugerida</TableCell>
-                        <TableCell>{analysis.accion}</TableCell>
-                    </TableRow>
-                </TableBody>
-            </Table>
-
-          <h4 className="font-semibold">Desglose de Métricas</h4>
+        <div className="grid gap-4 pt-4">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Métrica</TableHead>
-                <TableHead>Valor / Límite</TableHead>
+                <TableHead>Valor Actual</TableHead>
+                <TableHead>Límite</TableHead>
                 <TableHead className="text-right">Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {allMetrics.map(metric => (
-                <TableRow key={metric.metric}>
-                  <TableCell>{metric.metric}</TableCell>
-                  <TableCell className="font-mono">{metric.value}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant={
-                        metric.status === 'critical' ? 'destructive' :
-                        metric.status === 'warning' ? 'secondary' :
-                        'default'
-                    } className={cn(
-                        metric.status === 'normal' && 'bg-green-100 text-green-800',
-                        metric.status === 'warning' && 'bg-yellow-100 text-yellow-800',
-                    )}>
-                        {statusConfig[metric.status].label}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {allMetrics.map(metric => {
+                const metricStatusInfo = statusConfig[metric.status];
+                return (
+                    <TableRow key={metric.metric}>
+                        <TableCell className="font-semibold">{metric.metric}</TableCell>
+                        <TableCell className="font-mono">{metric.value?.toFixed(2) ?? 'N/A'}</TableCell>
+                        <TableCell className="font-mono">{metric.limit?.toFixed(2) ?? 'N/A'}</TableCell>
+                        <TableCell className="text-right">
+                           <Badge variant={metricStatusInfo.badge} className={cn(
+                                metric.status === 'normal' && 'bg-green-100 text-green-800',
+                                metric.status === 'warning' && 'bg-yellow-100 text-yellow-800',
+                            )}>
+                                {metricStatusInfo.label}
+                            </Badge>
+                        </TableCell>
+                    </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
+
+            {timeToFailureMessage && (
+                <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 text-center">
+                    <p className="font-bold text-sm text-yellow-800">{timeToFailureMessage}</p>
+                </div>
+            )}
 
         </div>
         <DialogFooter>

@@ -33,7 +33,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
         return (
           <div key={component.id} className="w-full space-y-4">
              <div className="flex items-center gap-3 text-lg font-semibold text-slate-800 -mb-2">
-                <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
+                <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer flex items-center gap-3">
                   <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
                 </div>
               </div>
