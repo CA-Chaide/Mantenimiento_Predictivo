@@ -1,3 +1,4 @@
+
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
@@ -37,7 +38,7 @@ export default function DashboardPage({
 
   const componentId = typeof searchParams.component === 'string' ? searchParams.component : undefined;
 
-  const simulatedToday = parseISO('2025-11-15T00:00:00Z');
+  const simulatedToday = parseISO('2025-11-26T00:00:00Z');
   
   const defaultFromDate = startOfMonth(simulatedToday);
   const defaultToDate = endOfMonth(simulatedToday);

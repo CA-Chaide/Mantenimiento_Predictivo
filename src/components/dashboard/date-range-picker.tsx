@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -33,6 +34,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const [popoverOpen, setPopoverOpen] = React.useState(false);
 
   const minDate = new Date('2025-04-10T00:00:00Z');
+  const maxDate = new Date('2025-11-26T00:00:00Z');
 
   React.useEffect(() => {
       setDate(initialDate);
@@ -65,7 +67,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   };
 
   const handlePreset = (preset: 'thisMonth' | 'last3Months' | 'thisYear' | 'sinceStart') => {
-    const simulatedToday = new Date('2025-11-15T00:00:00Z');
+    const simulatedToday = maxDate;
     let from: Date;
     const to = simulatedToday;
 
@@ -96,7 +98,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     const clearedParams = new URLSearchParams();
     if(machine) clearedParams.set('machine', machine);
 
-    // Navigate to URL without date params, effectively resetting to default
     router.push(`${pathname}?${clearedParams.toString()}`);
     setDate(undefined);
     setPopoverOpen(false);
@@ -158,6 +159,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     onSelect={handleSelect}
                     numberOfMonths={2}
                     fromDate={minDate}
+                    toDate={maxDate}
                     locale={es}
                     classNames={{
                         day_range_start: "day-range-start",
