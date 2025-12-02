@@ -25,11 +25,11 @@ export default function DashboardPage({
 
   const simulatedToday = parseISO('2025-11-15T00:00:00Z');
   
-  const startOfSimulatedMonth = startOfMonth(simulatedToday);
-  const endOfSimulatedMonth = endOfMonth(simulatedToday);
-
-  const fromDateString = typeof searchParams.from === 'string' ? searchParams.from : format(startOfSimulatedMonth, "yyyy-MM-dd");
-  const toDateString = typeof searchParams.to === 'string' ? searchParams.to : format(endOfSimulatedMonth, "yyyy-MM-dd");
+  const defaultFromDate = startOfMonth(simulatedToday);
+  const defaultToDate = endOfMonth(simulatedToday);
+  
+  const fromDateString = typeof searchParams.from === 'string' ? searchParams.from : format(defaultFromDate, "yyyy-MM-dd");
+  const toDateString = typeof searchParams.to === 'string' ? searchParams.to : format(defaultToDate, "yyyy-MM-dd");
   
   const fromDate = parseISO(fromDateString);
   const toDate = parseISO(toDateString);

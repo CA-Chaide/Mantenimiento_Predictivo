@@ -1,4 +1,4 @@
-import { eachDayOfInterval, formatISO, isBefore, addDays, startOfMonth, endOfMonth, parseISO, differenceInDays } from 'date-fns';
+import { eachDayOfInterval, formatISO, isBefore, addDays, startOfMonth, endOfMonth, parseISO, differenceInDays, max as dateMax } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 
 export const MACHINES = [
@@ -163,16 +163,21 @@ const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
 }
 
 export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, simulatedToday: Date) {
+  const minDataDate = new Date('2025-04-10T00:00:00Z');
+  
   if (!dateRange.from || !dateRange.to) {
     return { data: [], aprilData: [] };
   }
-
-  const allDays = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+  
+  // Ensure the date range does not start before the minimum data date.
+  const correctedFrom = dateMax([dateRange.from, minDataDate]);
+  
+  const allDays = eachDayOfInterval({ start: correctedFrom, end: dateRange.to });
   const machineComponents = COMPONENTS[machineId];
   const allMetrics: ('current' | 'unbalance' | 'load_factor')[] = ['current', 'unbalance', 'load_factor'];
 
   const aprilRange = {
-      start: new Date('2025-04-01T00:00:00Z'),
+      start: new Date('2025-04-10T00:00:00Z'),
       end: new Date('2025-04-30T00:00:00Z')
   };
   const aprilDays = eachDayOfInterval(aprilRange);
@@ -187,7 +192,7 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
                      component.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) +
                      metric.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         
-        const historicalDaysCount = differenceInDays(simulatedToday, dateRange.from as Date) + 1;
+        const historicalDaysCount = differenceInDays(simulatedToday, correctedFrom) + 1;
         const totalDaysCount = allDays.length;
 
         const fullHistoricalWalk = generateRandomWalk(historicalDaysCount > 0 ? historicalDaysCount : 0, seed, config.base, config.volatility, config.min, config.max, config.jitter);

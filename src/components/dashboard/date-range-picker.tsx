@@ -126,10 +126,10 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={date?.from || new Date('2025-11-01T00:00:00Z')}
+            defaultMonth={date?.from || new Date('2025-10-01T00:00:00Z')}
             selected={date}
             onSelect={handleSelect}
-            numberOfMonths={1}
+            numberOfMonths={2}
             fromDate={minDate}
             locale={es}
           />
