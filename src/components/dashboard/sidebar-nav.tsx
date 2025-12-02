@@ -3,13 +3,13 @@
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuSub, SidebarMenuSubButton, useSidebar } from "@/components/ui/sidebar";
-import { Component, MACHINES } from "@/lib/data";
+import { Component, Machine } from "@/lib/data";
 import { HardDrive } from "lucide-react";
 import React from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SidebarNavProps {
-    machines: typeof MACHINES;
+    machines: Machine[];
     allComponents: Component[];
 }
 
@@ -39,6 +39,10 @@ export function SidebarNav({ machines, allComponents }: SidebarNavProps) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  if (!machines || machines.length === 0) {
+    return null;
+  }
 
   return (
     <SidebarMenu>

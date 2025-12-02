@@ -2,7 +2,9 @@
 import { eachDayOfInterval, formatISO, isBefore, parseISO, differenceInDays, max as dateMax } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 
-export const MACHINES = [
+export type Machine = { id: string; name: string };
+
+export const MACHINES: readonly Machine[] = [
   { id: 'laader', name: 'Laader' },
   { id: 'looper', name: 'Looper' },
   { id: 'mesa_elevadora', name: 'Mesa Elevadora' },
@@ -164,14 +166,19 @@ const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
 export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, simulatedToday: Date) {
   const minDataDate = new Date('2025-04-10T00:00:00Z');
   
-  if (!dateRange.from || !dateRange.to) {
+  if (!dateRange.from || !dateRange.to || !machineId) {
     return { data: [], aprilData: [] };
   }
   
   const correctedFrom = dateMax([dateRange.from, minDataDate]);
   
   const allDays = eachDayOfInterval({ start: correctedFrom, end: dateRange.to });
-  const machineComponents = COMPONENTS[machineId] || [];
+  const machineComponents = COMPONENTS[machineId];
+  
+  if (!machineComponents) {
+    return { data: [], aprilData: [] };
+  }
+
   const allMetrics: ('current' | 'unbalance' | 'load_factor')[] = ['current', 'unbalance', 'load_factor'];
   
   const aprilStartDate = new Date('2025-04-10T00:00:00Z');

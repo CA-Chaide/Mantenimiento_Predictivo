@@ -4,7 +4,7 @@
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useMaintenanceData, COMPONENTS, MachineId, Component, MACHINES } from "@/lib/data";
+import { useMaintenanceData, COMPONENTS, MachineId, Component, MACHINES, Machine } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
 import { startOfMonth, addMonths, format, parseISO } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -13,7 +13,8 @@ import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
 
 function EmptyState() {
   return (
@@ -45,10 +46,30 @@ function LoadingState() {
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
-  const machineList = MACHINES;
-  
-  const [loading] = useState(false);
+  const [machineList, setMachineList] = useState<Machine[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    async function fetchMachines() {
+      try {
+        setLoading(true);
+        const response = await calculosCorrientesDatosMantenimientoService.getMachines();
+        const transformedMachines = response.data.map((m: any) => ({
+          id: m.MAQUINA.toLowerCase().replace(/ /g, '_'),
+          name: m.MAQUINA.charAt(0).toUpperCase() + m.MAQUINA.slice(1).toLowerCase()
+        }));
+        setMachineList(transformedMachines);
+      } catch (error) {
+        console.error("Error fetching machines:", error);
+        setMachineList([...MACHINES]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchMachines();
+  }, []);
+  
   const machineId = (
     typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
       ? searchParams.get('machine')
