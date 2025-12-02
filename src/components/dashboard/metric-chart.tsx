@@ -81,7 +81,6 @@ export function MetricChart({
             stroke="#e2e8f0"
           />
           <YAxis
-            label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b' }}
             tick={{ fill: '#64748b' }}
             stroke="#e2e8f0"
           />
