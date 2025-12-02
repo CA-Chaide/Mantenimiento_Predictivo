@@ -29,12 +29,15 @@ interface GetAllParams {
   limit?: number;
 }
 
+const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImlzYWlhcy5jaGlxdXVpdG8iLCJyb2xlcyI6WyJhZG1pbiIsImRldmVsb3BlciJdLCJpYXQiOjE3MjI1NDg0NjMsImV4cCI6MTczMzA4ODQ2M30.4uY4Yy5N4Y2K5kCMa1BUnM8zWb-M3b-u9P1xV3e5aZM';
+
 export const calculosCorrientesDatosMantenimientoService = {
   async getTotalByMaquina(maquina: string): Promise<{ total: number }> {
     const response = await fetch(API_URL + '/totalByMaquina', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AUTH_TOKEN}`
       },
       body: JSON.stringify({ maquina }),
     });
@@ -58,6 +61,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AUTH_TOKEN}`
       },
       body: JSON.stringify(requestBody),
     });
@@ -83,6 +87,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AUTH_TOKEN}`
       },
       body: JSON.stringify(requestBody),
     });
@@ -104,6 +109,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AUTH_TOKEN}`
       },
     });
 
@@ -126,6 +132,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AUTH_TOKEN}`
       },
       body: JSON.stringify(requestBody),
     });
@@ -138,5 +145,3 @@ export const calculosCorrientesDatosMantenimientoService = {
     return response.json();
   },
 };
-
-    

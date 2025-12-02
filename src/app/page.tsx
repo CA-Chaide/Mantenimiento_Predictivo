@@ -10,6 +10,7 @@ import { Bot, LogOut, MousePointerClick } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Button } from "@/components/ui/button";
+import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
 
 function EmptyState() {
   return (
@@ -25,15 +26,18 @@ function EmptyState() {
   )
 }
 
-export default function DashboardPage({
+export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
+  const { data: machinesData } = await calculosCorrientesDatosMantenimientoService.getMachines();
+  const machineList = machinesData.map((m: any) => ({ id: m.maquina, name: m.maquina }));
+
   const machineId = (
-    typeof searchParams.machine === 'string' && MACHINES.some(m => m.id === searchParams.machine)
+    typeof searchParams.machine === 'string' && machineList.some((m: any) => m.id === searchParams.machine)
       ? searchParams.machine
-      : MACHINES[0].id
+      : machineList[0]?.id
   ) as MachineId;
 
   const componentId = typeof searchParams.component === 'string' ? searchParams.component : undefined;
@@ -63,10 +67,10 @@ export default function DashboardPage({
 
   const { data, aprilData } = useMaintenanceData(machineId, fullRange, simulatedToday);
 
-  const allMachineComponents = COMPONENTS[machineId] || [];
+  const allMachineComponents = machineId ? (COMPONENTS[machineId] || []) : [];
   const selectedComponent = componentId ? allMachineComponents.find(c => c.id === componentId) : undefined;
   
-  const machine = MACHINES.find(m => m.id === machineId);
+  const machine = machineList.find((m: any) => m.id === machineId);
   const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name;
 
   return (
@@ -90,7 +94,7 @@ export default function DashboardPage({
                         <label className="text-xs font-medium text-sidebar-foreground/80 px-2">Rango de Fechas</label>
                         <DateRangePicker initialDate={displayRange} className="w-full" />
                     </div>
-                <SidebarNav allComponents={allMachineComponents} />
+                <SidebarNav machines={machineList} allComponents={allMachineComponents} />
                 </SidebarContent>
             </div>
 
