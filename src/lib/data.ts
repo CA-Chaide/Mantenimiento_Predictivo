@@ -30,7 +30,7 @@ export const COMPONENTS: Record<MachineId, Component[]> = {
   ],
   t8: [
     { id: 'motor_cuchilla_t8', name: 'Motor Cuchilla T8' },
-    { id: 'motor_traslacion_t8', name: 'Motor Traslación T8' },
+    { id: 'motor_traslacion_t8', name: 'Motor Traslacion T8' },
   ],
 };
 
@@ -97,11 +97,11 @@ const generateRandomWalk = (size: number, base: number, volatility: number, min:
 };
 
 // Calculates a projection using simple linear regression on the last 30 data points.
-const generateProjection = (historicalData: { realValue: number }[], projectionLength: number) => {
+const generateProjection = (historicalData: { realValue: number | null }[], projectionLength: number) => {
   const series = historicalData.map(p => p.realValue).filter(v => v !== null) as number[];
   
   if (series.length < 2) {
-    const lastVal = series.length > 0 ? series[series.length-1] : 0;
+    const lastVal = series.length > 0 ? series[series.length - 1] : 0;
     return Array(projectionLength).fill(lastVal);
   }
 
@@ -110,7 +110,7 @@ const generateProjection = (historicalData: { realValue: number }[], projectionL
   const n = history.length;
 
   if (n < 2) {
-    const lastVal = n > 0 ? history[n-1] : 0;
+    const lastVal = n > 0 ? history[n - 1] : 0;
     return Array(projectionLength).fill(lastVal);
   }
 
@@ -130,10 +130,12 @@ const generateProjection = (historicalData: { realValue: number }[], projectionL
   
   for (let i = 0; i < projectionLength; i++) {
     // Project the next value based on the linear trend.
-    let predicted = slope * (n + i) + intercept;
+    const xFuture = n + i;
+    let predicted = slope * xFuture + intercept;
     
     // Add some random noise to make the projection look less perfect.
-    const noiseScale = predicted > 1 ? 0.05 : 0.008; 
+    // The uncertainty (noise) should grow slightly over time.
+    const noiseScale = (predicted > 1 ? 0.05 : 0.008) * (1 + i / projectionLength * 0.5); 
     const noise = (Math.random() - 0.5) * (predicted * noiseScale);
     predicted += noise;
     
@@ -151,11 +153,11 @@ const generateProjection = (historicalData: { realValue: number }[], projectionL
 const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
     switch (metric) {
         case 'current':
-            return { base: 3.75, volatility: 5.0, min: 2.0, max: 15.0, limit: 13.0, ref: 8.0, jitter: 0.5 };
+            return { base: 3.75, volatility: 2.5, min: 2.0, max: 15.0, limit: 13.0, ref: 8.0, jitter: 0.5 };
         case 'unbalance':
-            return { base: 0.11, volatility: 0.06, min: 0.05, max: 0.55, limit: 0.50, ref: 0.35, jitter: 0.01 };
+            return { base: 0.11, volatility: 0.03, min: 0.05, max: 0.55, limit: 0.50, ref: 0.35, jitter: 0.01 };
         case 'load_factor':
-            return { base: 0.33, volatility: 0.12, min: 0.1, max: 0.9, limit: 0.85, ref: 0.6, jitter: 0.03 };
+            return { base: 0.33, volatility: 0.06, min: 0.1, max: 0.9, limit: 0.85, ref: 0.6, jitter: 0.03 };
     }
 }
 
@@ -183,13 +185,13 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
     allMetrics.forEach(metric => {
         const config = getMetricConfig(metric);
         // We use a seeded random generator for the April baseline so it's consistent.
-        const seed = machineId.length + component.id.length + metric.length;
         const createSeededRandom = (seed: number) => () => {
             let t = (seed += 0x6d2b79f5);
             t = Math.imul(t ^ (t >>> 15), t | 1);
             t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
             return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
         };
+        const seed = machineId.length + component.id.length + metric.length;
         const random = createSeededRandom(seed);
         
         const aprilWalk = Array.from({ length: aprilDays.length }, () => {
@@ -262,3 +264,5 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
 
   return { data, aprilData: [] };
 }
+
+    
