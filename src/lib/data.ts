@@ -171,7 +171,7 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
   const correctedFrom = dateMax([dateRange.from, minDataDate]);
   
   const allDays = eachDayOfInterval({ start: correctedFrom, end: dateRange.to });
-  const machineComponents = COMPONENTS[machineId];
+  const machineComponents = COMPONENTS[machineId] || [];
   const allMetrics: ('current' | 'unbalance' | 'load_factor')[] = ['current', 'unbalance', 'load_factor'];
   
   const aprilStartDate = new Date('2025-04-10T00:00:00Z');
