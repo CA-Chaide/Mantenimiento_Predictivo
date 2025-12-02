@@ -59,28 +59,21 @@ export type ChartDataPoint = {
   predictedValue: number | null;
 };
 
-const createSeededRandom = (seed: number) => () => {
-  let t = (seed += 0x6d2b79f5);
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
-
-const generateRandomWalk = (size: number, seed: number, base: number, volatility: number, min: number, max: number, jitter: number) => {
-  const random = createSeededRandom(seed);
+// Using Math.random() directly to ensure data changes on each call
+const generateRandomWalk = (size: number, base: number, volatility: number, min: number, max: number, jitter: number) => {
   const series: { realValue: number; minValue: number; maxValue: number }[] = [];
   let lastValue = base;
 
   for (let i = 0; i < size; i++) {
-    const change = (random() - 0.5) * volatility;
+    const change = (Math.random() - 0.5) * volatility;
     let newValue = lastValue + change;
     newValue = Math.max(min, Math.min(max, newValue));
     
-    const finalValue = newValue + (random() - 0.5) * jitter;
+    const finalValue = newValue + (Math.random() - 0.5) * jitter;
     
     const rangeVolatility = finalValue > 1 ? 0.1 : 0.05;
-    let minValue = finalValue * (1 - (random() * rangeVolatility));
-    let maxValue = finalValue * (1 + (random() * rangeVolatility * 2));
+    let minValue = finalValue * (1 - (Math.random() * rangeVolatility));
+    let maxValue = finalValue * (1 + (Math.random() * rangeVolatility * 2));
     
     minValue = Math.max(min, minValue);
     maxValue = Math.min(max, maxValue);
@@ -182,12 +175,26 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
     aprilDataStore[component.id] = {};
     allMetrics.forEach(metric => {
         const config = getMetricConfig(metric);
+        // We still use a seed here for the baseline so it's consistent.
         const seed = machineId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + 
                      component.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) +
                      metric.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-        const aprilWalk = generateRandomWalk(aprilDays.length, seed + 1000, config.base * 0.9, config.volatility * 0.8, config.min, config.max, config.jitter);
-        aprilDataStore[component.id][metric] = aprilWalk.map(p => p.realValue);
+        const createSeededRandom = (seed: number) => () => {
+            let t = (seed += 0x6d2b79f5);
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+        const random = createSeededRandom(seed);
+        
+        const aprilWalk = Array.from({ length: aprilDays.length }, () => {
+             const base = config.base * 0.9;
+             const volatility = config.volatility * 0.8;
+             let val = base + (random() - 0.5) * volatility;
+             return Math.max(config.min, Math.min(config.max, val));
+        });
+        aprilDataStore[component.id][metric] = aprilWalk;
     });
   });
 
@@ -196,14 +203,12 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
   machineComponents.forEach((component) => {
     allMetrics.forEach(metric => {
         const config = getMetricConfig(metric);
-        const seed = machineId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + 
-                     component.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) +
-                     metric.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         
         const historicalDaysCount = differenceInDays(simulatedToday, correctedFrom) + 1;
         const totalDaysCount = allDays.length;
 
-        const fullHistoricalWalk = generateRandomWalk(historicalDaysCount > 0 ? historicalDaysCount : 0, seed, config.base, config.volatility, config.min, config.max, config.jitter);
+        // The main random walk now uses Math.random()
+        const fullHistoricalWalk = generateRandomWalk(historicalDaysCount > 0 ? historicalDaysCount : 0, config.base, config.volatility, config.min, config.max, config.jitter);
         const projectionLength = totalDaysCount - historicalDaysCount > 0 ? totalDaysCount - historicalDaysCount : 0;
         const projectionWalk = generateProjection(fullHistoricalWalk, projectionLength);
         

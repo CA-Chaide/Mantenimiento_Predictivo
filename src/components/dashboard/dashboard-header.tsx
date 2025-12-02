@@ -1,6 +1,8 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -10,26 +12,35 @@ import { cn } from "@/lib/utils";
 
 interface DashboardHeaderProps {
   title?: string;
+  onRefresh?: () => void;
 }
 
 export function DashboardHeader({ title }: DashboardHeaderProps) {
+  const router = useRouter();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
+    // Set initial timestamp on mount
     setLastUpdated(new Date());
   }, []);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    // Simulate a data fetch
-    setTimeout(() => {
-      setLastUpdated(new Date());
-      setIsRefreshing(false);
-      // Here you would typically trigger a re-fetch of the data
-      // For example: router.refresh() or a state management action
-    }, 1500);
+    // Use Next.js router to re-fetch server data
+    router.refresh();
   };
+
+  useEffect(() => {
+    // After a re-render (which router.refresh() will cause),
+    // stop the spinning and update the timestamp.
+    if (isRefreshing) {
+        setLastUpdated(new Date());
+        setIsRefreshing(false);
+    }
+    // This effect should run whenever `isRefreshing` changes.
+    // We don't add router here as it's stable.
+  }, [isRefreshing]);
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur-sm lg:h-[60px] lg:px-6">
