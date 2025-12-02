@@ -3,6 +3,7 @@ import { environment } from "@/environments/environments.prod";
 import type { BodyListResponse } from "@/types/body-list-response";
 
 const API_URL = `${environment.apiURL}/api/CalculosCorrientesDatosMantenimiento`;
+const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImludGVsaWdlbnRpYSIsImlhdCI6MTcyMTM0NjQzMiwiZXhwIjoxNzMyODgyNDMyfQ.5Z5aQj1fG4f4i-rL8p3g4n-X_VwE-b-T9tC2a1iH3xY";
 
 interface GetDataByMaquinaParams {
   maquina: string;
@@ -29,15 +30,13 @@ interface GetAllParams {
   limit?: number;
 }
 
-const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImlzYWlhcy5jaGlxdXVpdG8iLCJyb2xlcyI6WyJhZG1pbiIsImRldmVsb3BlciJdLCJpYXQiOjE3MjI1OTM1NjgsImV4cCI6MTczMzEzMzU2OH0.q-gSO3M3rV2CRaL0JNb2f62uI1Jg_Mh72c_v1-5Fp_E';
-
 export const calculosCorrientesDatosMantenimientoService = {
   async getTotalByMaquina(maquina: string): Promise<{ total: number }> {
     const response = await fetch(API_URL + '/totalByMaquina', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AUTH_TOKEN}`
+        'Authorization': `Bearer ${TOKEN}`,
       },
       body: JSON.stringify({ maquina }),
     });
@@ -61,7 +60,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AUTH_TOKEN}`
+        'Authorization': `Bearer ${TOKEN}`,
       },
       body: JSON.stringify(requestBody),
     });
@@ -87,7 +86,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AUTH_TOKEN}`
+        'Authorization': `Bearer ${TOKEN}`,
       },
       body: JSON.stringify(requestBody),
     });
@@ -109,7 +108,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AUTH_TOKEN}`
+        'Authorization': `Bearer ${TOKEN}`,
       },
     });
 
@@ -132,7 +131,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AUTH_TOKEN}`
+        'Authorization': `Bearer ${TOKEN}`,
       },
       body: JSON.stringify(requestBody),
     });
