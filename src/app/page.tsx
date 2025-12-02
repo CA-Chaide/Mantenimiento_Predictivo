@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
-import { COMPONENTS } from "@/lib/data";
 
 function EmptyState() {
   return (
@@ -48,34 +47,56 @@ function LoadingState() {
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const [machineList, setMachineList] = useState<Machine[]>([]);
+  const [componentList, setComponentList] = useState<Component[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchMachines() {
       try {
-        setLoading(true);
         const response = await calculosCorrientesDatosMantenimientoService.getMachines();
         const transformedMachines = response.data.map((m: any) => ({
-          id: m.MAQUINA.toLowerCase().replace(/ /g, '_'),
+          id: m.MAQUINA,
           name: m.MAQUINA.charAt(0).toUpperCase() + m.MAQUINA.slice(1).toLowerCase()
         }));
         setMachineList(transformedMachines);
       } catch (error) {
         console.error("Error fetching machines:", error);
-        setMachineList([]); // Set to empty on error
+        setMachineList([]); 
       } finally {
         setLoading(false);
       }
     }
-
     fetchMachines();
   }, []);
   
+  const machineId = (
+    typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
+      ? searchParams.get('machine')
+      : machineList[0]?.id
+  ) as MachineId | undefined;
+
+  useEffect(() => {
+    async function fetchComponents() {
+      if (!machineId) return;
+      try {
+        const response = await calculosCorrientesDatosMantenimientoService.getComponentsByMachine({ maquina: machineId });
+        const transformedComponents = response.data.map((c: any) => ({
+          id: c.COMPONENTE.toLowerCase().replace(/ /g, '_'),
+          name: c.COMPONENTE.charAt(0).toUpperCase() + c.COMPONENTE.slice(1).toLowerCase()
+        }));
+        setComponentList(transformedComponents);
+      } catch (error) {
+        console.error("Error fetching components:", error);
+        setComponentList([]);
+      }
+    }
+    fetchComponents();
+  }, [machineId]);
+
   if (loading) {
     return (
       <SidebarProvider>
         <Sidebar collapsible="icon" side="left" className="border-r-0">
-          {/* Render a simplified sidebar for loading state */}
           <div className="flex flex-col justify-between h-full">
             <div>
               <SidebarHeader className="border-b border-sidebar-border">
@@ -97,12 +118,6 @@ export default function DashboardPage() {
       </SidebarProvider>
     );
   }
-
-  const machineId = (
-    typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
-      ? searchParams.get('machine')
-      : machineList[0]?.id
-  ) as MachineId | undefined;
 
   const componentId = typeof searchParams.get('component') === 'string' ? searchParams.get('component') : undefined;
 
@@ -131,8 +146,7 @@ export default function DashboardPage() {
 
   const { data, aprilData } = useMaintenanceData(machineId!, fullRange, simulatedToday);
 
-  const allMachineComponents = machineId ? (COMPONENTS[machineId] || []) : [];
-  const selectedComponent = componentId ? allMachineComponents.find(c => c.id === componentId) : undefined;
+  const selectedComponent = componentId ? componentList.find(c => c.id === componentId) : undefined;
   
   const machine = machineList.find(m => m.id === machineId);
   const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name;
@@ -158,7 +172,7 @@ export default function DashboardPage() {
                         <label className="text-xs font-medium text-sidebar-foreground/80 px-2">Rango de Fechas</label>
                         <DateRangePicker initialDate={displayRange} className="w-full" />
                     </div>
-                <SidebarNav machines={machineList} allComponents={allMachineComponents} />
+                <SidebarNav machines={machineList} allComponents={componentList} />
                 </SidebarContent>
             </div>
 
@@ -202,5 +216,3 @@ export default function DashboardPage() {
     </SidebarProvider>
   );
 }
-
-    

@@ -3,38 +3,8 @@ import { eachDayOfInterval, formatISO, isBefore, parseISO, differenceInDays, max
 import type { DateRange } from 'react-day-picker';
 
 export type Machine = { id: string; name: string };
-
-export const MACHINES: readonly Machine[] = [
-  { id: 'laader', name: 'Laader' },
-  { id: 'looper', name: 'Looper' },
-  { id: 'mesa_elevadora', name: 'Mesa Elevadora' },
-  { id: 'puente_grua', name: 'Puente Grúa' },
-  { id: 't8', name: 'T8' },
-] as const;
-
-export type MachineId = typeof MACHINES[number]['id'];
+export type MachineId = string;
 export type Component = { id: string; name: string };
-
-export const COMPONENTS: Record<MachineId, Component[]> = {
-  laader: [{ id: 'motor_mixer', name: 'Motor Mixer' }],
-  looper: [
-    { id: 'motor_banda_looper', name: 'Motor Banda Looper' },
-    { id: 'motor_cuchilla_looper', name: 'Motor Cuchilla Looper' },
-  ],
-  mesa_elevadora: [
-    { id: 'motor_elevacion_derecha', name: 'Motor Elevación Derecha' },
-    { id: 'motor_traslacion_der_izq', name: 'Motor Traslación Der/Izq' },
-  ],
-  puente_grua: [
-    { id: 'motor_elevacion_derecha', name: 'Motor Elevación Derecha' },
-    { id: 'motor_elevacion_izquierdo', name: 'Motor Elevación Izquierdo' },
-    { id: 'motor_traslacion_der_izq', name: 'Motor Traslación Der/Izq' },
-  ],
-  t8: [
-    { id: 'motor_cuchilla_t8', name: 'Motor Cuchilla T8' },
-    { id: 'motor_traslacion_t8', name: 'Motor Traslacion T8' },
-  ],
-};
 
 export type ChartDataPoint = {
   date: string;
@@ -173,11 +143,6 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
   const correctedFrom = dateMax([dateRange.from, minDataDate]);
   
   const allDays = eachDayOfInterval({ start: correctedFrom, end: dateRange.to });
-  const machineComponents = COMPONENTS[machineId];
-  
-  if (!machineComponents) {
-    return { data: [], aprilData: [] };
-  }
 
   const allMetrics: ('current' | 'unbalance' | 'load_factor')[] = ['current', 'unbalance', 'load_factor'];
   
@@ -187,7 +152,9 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
 
   const aprilDataStore: Record<string, Record<string, number[]>> = {};
 
-  machineComponents.forEach((component) => {
+  const componentsForMachine: Component[] = [{ id: 'motor_mixer', name: 'Motor Mixer' }, { id: 'motor_banda_looper', name: 'Motor Banda Looper' }, { id: 'motor_cuchilla_looper', name: 'Motor Cuchilla Looper' }, { id: 'motor_elevacion_derecha', name: 'Motor Elevación Derecha' }, { id: 'motor_traslacion_der_izq', name: 'Motor Traslación Der/Izq' }, { id: 'motor_elevacion_izquierdo', name: 'Motor Elevación Izquierdo' }, { id: 'motor_cuchilla_t8', name: 'Motor Cuchilla T8' }, { id: 'motor_traslacion_t8', name: 'Motor Traslacion T8' }];
+
+  componentsForMachine.forEach((component) => {
     aprilDataStore[component.id] = {};
     allMetrics.forEach(metric => {
         const config = getMetricConfig(metric);
@@ -213,7 +180,7 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
 
   let data: ChartDataPoint[] = [];
   
-  machineComponents.forEach((component) => {
+  componentsForMachine.forEach((component) => {
     allMetrics.forEach(metric => {
         const config = getMetricConfig(metric);
         
@@ -271,5 +238,3 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
 
   return { data, aprilData: [] };
 }
-
-    
