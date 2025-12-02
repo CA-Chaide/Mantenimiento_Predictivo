@@ -57,7 +57,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     if (range?.from && range?.to) {
         updateURL(range);
         setPopoverOpen(false);
-    } else if (!range?.to) {
+    } else if (range?.from && !range.to) {
       // Still selecting end date, don't close
     } else {
       setPopoverOpen(false);
@@ -114,9 +114,9 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0 flex" align="start">
             <div className="flex flex-col gap-1 p-2 border-r">
-                <Button variant="ghost" className="justify-start text-sm" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
-                <Button variant="ghost" className="justify-start text-sm" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
-                <Button variant="ghost" className="justify-start text-sm" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
+                <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
+                <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
+                <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
             </div>
           <Calendar
             initialFocus
@@ -124,7 +124,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             defaultMonth={date?.from || new Date('2025-11-01T00:00:00Z')}
             selected={date}
             onSelect={handleSelect}
-            numberOfMonths={2}
+            numberOfMonths={1}
             fromDate={minDate}
             locale={es}
           />
