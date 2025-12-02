@@ -1,4 +1,5 @@
-import { eachDayOfInterval, formatISO, isBefore, addDays, startOfMonth, endOfMonth, parseISO, differenceInDays, max as dateMax } from 'date-fns';
+
+import { eachDayOfInterval, formatISO, isBefore, startOfMonth, endOfMonth, parseISO, differenceInDays, max as dateMax, getDay, getDate } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 
 export const MACHINES = [
@@ -42,7 +43,6 @@ export type ChartDataPoint = {
   minValue: number | null;
   maxValue: number | null;
   
-  // Nombres de claves actualizados para coincidir con la estructura del CSV
   "Corriente Promedio Suavizado"?: number | null;
   "Corriente Máxima"?: number;
   "Referencia Corriente Promedio Suavizado"?: number;
@@ -59,7 +59,6 @@ export type ChartDataPoint = {
   predictedValue: number | null;
 };
 
-// A simple seeded pseudo-random number generator
 const createSeededRandom = (seed: number) => () => {
   let t = (seed += 0x6d2b79f5);
   t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -67,7 +66,6 @@ const createSeededRandom = (seed: number) => () => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-// Generates a smooth, random walk time series with jitter and min/max values
 const generateRandomWalk = (size: number, seed: number, base: number, volatility: number, min: number, max: number, jitter: number) => {
   const random = createSeededRandom(seed);
   const series: { realValue: number; minValue: number; maxValue: number }[] = [];
@@ -80,10 +78,9 @@ const generateRandomWalk = (size: number, seed: number, base: number, volatility
     
     const finalValue = newValue + (random() - 0.5) * jitter;
     
-    // Simulate min/max range
     const rangeVolatility = finalValue > 1 ? 0.1 : 0.05;
     let minValue = finalValue * (1 - (random() * rangeVolatility));
-    let maxValue = finalValue * (1 + (random() * rangeVolatility * 2)); // More likely to have higher peaks
+    let maxValue = finalValue * (1 + (random() * rangeVolatility * 2));
     
     minValue = Math.max(min, minValue);
     maxValue = Math.min(max, maxValue);
@@ -99,14 +96,12 @@ const generateRandomWalk = (size: number, seed: number, base: number, volatility
   return series;
 };
 
-// Generates a projection based on linear regression of the last 30 points
 const generateProjection = (series: { realValue: number }[], projectionLength: number) => {
   if (series.length < 2) {
     const lastVal = series.length > 0 ? series[series.length-1].realValue : 0;
     return Array(projectionLength).fill(lastVal);
   }
 
-  // Use the last 30 days for trend calculation
   const history = series.slice(-30).map(p => p.realValue);
   const n = history.length;
 
@@ -146,17 +141,17 @@ const getMetricConfig = (metric: 'current' | 'unbalance' | 'load_factor') => {
     switch (metric) {
         case 'current': {
             const limit = 50;
-            const ref = limit * 0.5; // Ensure ref is always less than limit
+            const ref = limit * 0.5;
             return { base: 15, volatility: 2, min: 10, max: 20, limit, ref, jitter: 0.4 };
         }
         case 'unbalance': {
             const limit = 0.2;
-            const ref = limit * 0.7; // Ensure ref is always less than limit
+            const ref = limit * 0.7;
             return { base: 0.1, volatility: 0.05, min: 0.05, max: 0.2, limit, ref, jitter: 0.01 };
         }
         case 'load_factor': {
             const limit = 0.6;
-            const ref = limit * 0.6; // Ensure ref is always less than limit
+            const ref = limit * 0.6;
             return { base: 0.3, volatility: 0.1, min: 0.2, max: 0.4, limit, ref, jitter: 0.02 };
         }
     }
@@ -169,21 +164,41 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
     return { data: [], aprilData: [] };
   }
   
-  // Ensure the date range does not start before the minimum data date.
   const correctedFrom = dateMax([dateRange.from, minDataDate]);
   
   const allDays = eachDayOfInterval({ start: correctedFrom, end: dateRange.to });
   const machineComponents = COMPONENTS[machineId];
   const allMetrics: ('current' | 'unbalance' | 'load_factor')[] = ['current', 'unbalance', 'load_factor'];
 
-  const aprilRange = {
-      start: new Date('2025-04-10T00:00:00Z'),
-      end: new Date('2025-04-30T00:00:00Z')
-  };
-  const aprilDays = eachDayOfInterval(aprilRange);
+  const aprilStartDate = new Date('2025-04-01T00:00:00Z');
+  const aprilEndDate = new Date('2025-04-30T00:00:00Z');
+  const aprilDays = eachDayOfInterval({ start: aprilStartDate, end: aprilEndDate });
 
   let data: ChartDataPoint[] = [];
-  let aprilData: ChartDataPoint[] = [];
+  
+  const aprilDataStore: Record<string, Record<string, Record<number, number | null>>> = {};
+
+  machineComponents.forEach((component) => {
+    aprilDataStore[component.id] = {};
+    allMetrics.forEach(metric => {
+        aprilDataStore[component.id][metric] = {};
+        const config = getMetricConfig(metric);
+        const seed = machineId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + 
+                     component.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) +
+                     metric.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+        const aprilWalk = generateRandomWalk(aprilDays.length, seed + 1000, config.base * 0.9, config.volatility * 0.8, config.min, config.max, config.jitter);
+        
+        aprilDays.forEach((day, index) => {
+            const dayOfMonth = getDate(day);
+            if (isBefore(day, minDataDate)) {
+                 aprilDataStore[component.id][metric][dayOfMonth] = null;
+            } else {
+                 aprilDataStore[component.id][metric][dayOfMonth] = aprilWalk[index].realValue;
+            }
+        });
+    });
+  });
 
   machineComponents.forEach((component) => {
     allMetrics.forEach(metric => {
@@ -198,23 +213,6 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
         const fullHistoricalWalk = generateRandomWalk(historicalDaysCount > 0 ? historicalDaysCount : 0, seed, config.base, config.volatility, config.min, config.max, config.jitter);
         const projectionLength = totalDaysCount - historicalDaysCount > 0 ? totalDaysCount - historicalDaysCount : 0;
         const projectionWalk = generateProjection(fullHistoricalWalk, projectionLength);
-        
-        const aprilWalk = generateRandomWalk(aprilDays.length, seed + 1000, config.base * 0.9, config.volatility * 0.8, config.min, config.max, config.jitter);
-        
-        aprilDays.forEach((day, index) => {
-            const point: ChartDataPoint = {
-                date: formatISO(day, { representation: 'date' }),
-                isProjection: false,
-                componentId: component.id,
-                metric: metric,
-                aprilBaseline: aprilWalk[index].realValue,
-                predictedValue: null,
-                realValue: null,
-                minValue: null,
-                maxValue: null,
-            };
-            aprilData.push(point);
-        });
 
         allDays.forEach((day, index) => {
             const isProjection = isBefore(simulatedToday, day);
@@ -225,12 +223,18 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
             const maxValue = !isProjection ? walkPoint?.maxValue : null;
             const predictedValue = isProjection ? projectionWalk[index - historicalDaysCount] : null;
             
+            const dayOfMonth = getDate(day);
+            let aprilBaseline = aprilDataStore[component.id]?.[metric]?.[dayOfMonth] ?? null;
+            if (dayOfMonth > 30) {
+                 aprilBaseline = aprilDataStore[component.id]?.[metric]?.[30] ?? null;
+            }
+
             const point: ChartDataPoint = {
                 date: formatISO(day, { representation: 'date' }),
                 isProjection,
                 componentId: component.id,
                 metric: metric,
-                aprilBaseline: null,
+                aprilBaseline,
                 predictedValue,
                 realValue,
                 minValue,
@@ -256,5 +260,5 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
     });
   });
 
-  return { data, aprilData };
+  return { data, aprilData: [] };
 }
