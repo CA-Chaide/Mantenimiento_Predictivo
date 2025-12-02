@@ -4,7 +4,7 @@
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useMaintenanceData, COMPONENTS, MachineId, Component, MACHINES, Machine } from "@/lib/data";
+import { useMaintenanceData, type MachineId, type Component, type Machine } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
 import { startOfMonth, addMonths, format, parseISO } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
+import { COMPONENTS } from "@/lib/data";
 
 function EmptyState() {
   return (
@@ -61,7 +62,7 @@ export default function DashboardPage() {
         setMachineList(transformedMachines);
       } catch (error) {
         console.error("Error fetching machines:", error);
-        setMachineList([...MACHINES]);
+        setMachineList([]); // Set to empty on error
       } finally {
         setLoading(false);
       }
@@ -70,11 +71,38 @@ export default function DashboardPage() {
     fetchMachines();
   }, []);
   
+  if (loading) {
+    return (
+      <SidebarProvider>
+        <Sidebar collapsible="icon" side="left" className="border-r-0">
+          {/* Render a simplified sidebar for loading state */}
+          <div className="flex flex-col justify-between h-full">
+            <div>
+              <SidebarHeader className="border-b border-sidebar-border">
+                <div className="flex h-16 items-center gap-3 px-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <Bot className="size-6" />
+                  </div>
+                </div>
+              </SidebarHeader>
+            </div>
+          </div>
+        </Sidebar>
+        <SidebarInset className="bg-slate-50">
+          <DashboardHeader title="Cargando..." />
+          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+            <LoadingState />
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    );
+  }
+
   const machineId = (
     typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
       ? searchParams.get('machine')
       : machineList[0]?.id
-  ) as MachineId;
+  ) as MachineId | undefined;
 
   const componentId = typeof searchParams.get('component') === 'string' ? searchParams.get('component') : undefined;
 
@@ -101,7 +129,7 @@ export default function DashboardPage() {
     to: toDate,
   }
 
-  const { data, aprilData } = useMaintenanceData(machineId, fullRange, simulatedToday);
+  const { data, aprilData } = useMaintenanceData(machineId!, fullRange, simulatedToday);
 
   const allMachineComponents = machineId ? (COMPONENTS[machineId] || []) : [];
   const selectedComponent = componentId ? allMachineComponents.find(c => c.id === componentId) : undefined;
@@ -109,22 +137,6 @@ export default function DashboardPage() {
   const machine = machineList.find(m => m.id === machineId);
   const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name;
   
-  if (loading) {
-    return (
-        <SidebarProvider>
-         <Sidebar collapsible="icon" side="left" className="border-r-0">
-             {/* Render a simplified sidebar for loading state */}
-         </Sidebar>
-         <SidebarInset className="bg-slate-50">
-           <DashboardHeader title="Cargando..." />
-           <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-             <LoadingState />
-           </main>
-         </SidebarInset>
-       </SidebarProvider>
-    )
-  }
-
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" side="left" className="border-r-0">
@@ -176,7 +188,7 @@ export default function DashboardPage() {
       <SidebarInset className="bg-slate-50">
         <DashboardHeader title={headerTitle} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          {selectedComponent ? (
+          {selectedComponent && machineId ? (
             <DashboardClient
               machineComponents={[selectedComponent]}
               data={data}
@@ -190,3 +202,5 @@ export default function DashboardPage() {
     </SidebarProvider>
   );
 }
+
+    
