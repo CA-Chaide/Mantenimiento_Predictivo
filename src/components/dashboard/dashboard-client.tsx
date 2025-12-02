@@ -35,7 +35,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
             <Card id={`component-${component.id}`} className="w-full rounded-xl shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
-                  Corriente (Amperios)
+                  Corriente
                   <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
                     <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
                   </div>
@@ -51,7 +51,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                   refKey="Referencia Corriente Promedio Suavizado"
                   predictionKey="predictedValue"
                   aprilKey="aprilBaseline"
-                  yAxisLabel="Amperios"
+                  yAxisLabel=""
                   componentId={component.id}
                   metric="current"
                 />
@@ -61,7 +61,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
             <Card id={`component-${component.id}-unbalance`} className="w-full rounded-xl shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
-                  Desbalance (%)
+                  Desbalance
                   <div onClick={() => handleStatusClick(statusInfo)} className="cursor-pointer">
                     <StatusIndicator status={statusInfo.status} message={statusInfo.message} />
                   </div>
@@ -77,7 +77,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                   refKey="Referencia Desbalance Suavizado"
                   predictionKey="predictedValue"
                   aprilKey="aprilBaseline"
-                  yAxisLabel="%"
+                  yAxisLabel=""
                   componentId={component.id}
                   metric="unbalance"
                 />
