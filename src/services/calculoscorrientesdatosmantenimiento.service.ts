@@ -19,6 +19,15 @@ interface GetDataByDateRangeParams {
   limit?: number;
 }
 
+interface GetDataByDateRangeParamsAndComponent {
+  maquina: string;
+  componente: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  page?: number;
+  limit?: number;
+}
+
 interface GetComponentsByMachineParams {
   maquina: string;
   page?: number;
@@ -39,6 +48,24 @@ export const calculosCorrientesDatosMantenimientoService = {
         'Authorization': `Bearer ${TOKEN}`,
       },
       body: JSON.stringify({ maquina }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({ message: 'Error desconocido en el servidor' }));
+      throw new Error(errorBody.message || `Error ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  async getTotalByMaquinaAndComponente(maquina: string, componente: string, fecha_inicio: string, fecha_fin: string): Promise<{ total: number }> {
+    const response = await fetch(API_URL + '/totalByMaquinaAndComponente', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKEN}`,
+      },
+      body: JSON.stringify({ maquina, componente, fecha_inicio, fecha_fin }),
     });
 
     if (!response.ok) {
@@ -83,6 +110,34 @@ export const calculosCorrientesDatosMantenimientoService = {
     };
 
     const response = await fetch(API_URL + '/dataByMachineAndDates', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKEN}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({ message: 'Error desconocido en el servidor' }));
+      throw new Error(errorBody.message || `Error ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+
+  async getDataByMachineComponentAndDates(params: GetDataByDateRangeParamsAndComponent): Promise<BodyListResponse<any>> {
+    const requestBody = {
+      maquina: params.maquina,
+      componente: params.componente,
+      fecha_inicio: params.fecha_inicio,
+      fecha_fin: params.fecha_fin,
+      page: params.page || 1,
+      limit: params.limit || 1000,
+    };
+
+    const response = await fetch(API_URL + '/machineComponentDates', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -4,7 +4,7 @@ import type { DateRange } from 'react-day-picker';
 
 export type Machine = { id: string; name: string };
 export type MachineId = string;
-export type Component = { id: string; name: string };
+export type Component = { id: string; name: string; originalName: string };
 
 export type ChartDataPoint = {
   date: string;
@@ -152,7 +152,16 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
 
   const aprilDataStore: Record<string, Record<string, number[]>> = {};
 
-  const componentsForMachine: Component[] = [{ id: 'motor_mixer', name: 'Motor Mixer' }, { id: 'motor_banda_looper', name: 'Motor Banda Looper' }, { id: 'motor_cuchilla_looper', name: 'Motor Cuchilla Looper' }, { id: 'motor_elevacion_derecha', name: 'Motor Elevación Derecha' }, { id: 'motor_traslacion_der_izq', name: 'Motor Traslación Der/Izq' }, { id: 'motor_elevacion_izquierdo', name: 'Motor Elevación Izquierdo' }, { id: 'motor_cuchilla_t8', name: 'Motor Cuchilla T8' }, { id: 'motor_traslacion_t8', name: 'Motor Traslacion T8' }];
+  const componentsForMachine: Component[] = [
+    { id: 'motor_mixer', name: 'Motor Mixer', originalName: 'Motor Mixer' }, 
+    { id: 'motor_banda_looper', name: 'Motor Banda Looper', originalName: 'Motor Banda Looper' }, 
+    { id: 'motor_cuchilla_looper', name: 'Motor Cuchilla Looper', originalName: 'Motor Cuchilla Looper' }, 
+    { id: 'motor_elevacion_derecha', name: 'Motor Elevación Derecha', originalName: 'Motor Elevación Derecha' }, 
+    { id: 'motor_traslacion_der_izq', name: 'Motor Traslación Der/Izq', originalName: 'Motor Traslación Der/Izq' }, 
+    { id: 'motor_elevacion_izquierdo', name: 'Motor Elevación Izquierdo', originalName: 'Motor Elevación Izquierdo' }, 
+    { id: 'motor_cuchilla_t8', name: 'Motor Cuchilla T8', originalName: 'Motor Cuchilla T8' }, 
+    { id: 'motor_traslacion_t8', name: 'Motor Traslacion T8', originalName: 'Motor Traslacion T8' }
+  ];
 
   componentsForMachine.forEach((component) => {
     aprilDataStore[component.id] = {};
@@ -238,3 +247,308 @@ export function useMaintenanceData(machineId: MachineId, dateRange: DateRange, s
 
   return { data, aprilData: [] };
 }
+
+export async function useRealMaintenanceData(
+  machineId: MachineId,
+  component: Component,
+  dateRange: DateRange,
+  calculosService: any,
+  onProgressUpdate?: (data: ChartDataPoint[], progress: number) => void
+) {
+  if (!dateRange.from || !dateRange.to || !machineId || !component) {
+    return { data: [], aprilData: [] };
+  }
+
+  try {
+    const fromDateString = formatISO(dateRange.from, { representation: 'date' });
+    const toDateString = formatISO(dateRange.to, { representation: 'date' });
+
+    // Usar el nombre original del componente para la petición al backend
+    const componentNameForAPI = component.originalName;
+
+    // Primero, obtener el total de registros para saber cuántas páginas hay
+    const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
+      machineId, 
+      componentNameForAPI,
+      fromDateString,
+      toDateString
+    );
+    const totalRecords = totalResponse.total || 0;
+
+    console.log('useRealMaintenanceData - Total de registros:', totalRecords);
+
+    if (totalRecords === 0) {
+      return { data: [], aprilData: [] };
+    }
+
+    // Calcular número de páginas basado en el total
+    const limit = 1000;
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    // Obtener la primera página
+    const firstResponse = await calculosService.getDataByMachineComponentAndDates({
+      maquina: machineId,
+      componente: componentNameForAPI,
+      fecha_inicio: fromDateString,
+      fecha_fin: toDateString,
+      page: 1,
+      limit,
+    });
+
+    let allRecords: any[] = firstResponse.data || [];
+
+    // Notificar progreso de la primera página
+    if (onProgressUpdate && allRecords.length > 0) {
+      const transformedData: ChartDataPoint[] = allRecords
+        .filter((record: any) => {
+          return record.AÑO && record.MES && record.DIA;
+        })
+        .map((record: any) => {
+          const fechaDate = new Date(
+            record.AÑO,
+            record.MES - 1,
+            record.DIA,
+            record.HORA || 0,
+            record.MINUTO || 0,
+            record.SEGUNDO || 0
+          );
+          const fecha = formatISO(fechaDate, { representation: 'date' });
+
+          return {
+            date: fecha,
+            isProjection: false,
+            componentId: component.id,
+            metric: 'current',
+            realValue: typeof record.PromedioSuavizado === 'number' ? Number(record.PromedioSuavizado) : null,
+            minValue: null,
+            maxValue: typeof record.CORREINTEMAX === 'number' ? Number(record.CORREINTEMAX) : null,
+            aprilBaseline: null,
+            predictedValue: null,
+            'Corriente Promedio Suavizado': typeof record.PromedioSuavizado === 'number' ? Number(record.PromedioSuavizado) : undefined,
+            'Corriente Máxima': typeof record.CORREINTEMAX === 'number' ? Number(record.CORREINTEMAX) : undefined,
+            'Referencia Corriente Promedio Suavizado': typeof record.PROMEDIO === 'number' ? Number(record.PROMEDIO) : undefined,
+            'Desbalance Suavizado': typeof record.DesbalanceSuavizado === 'number' ? Number(record.DesbalanceSuavizado) : undefined,
+            'Umbral Desbalance': typeof record.Umbral_Desbalance === 'number' ? Number(record.Umbral_Desbalance) : undefined,
+            'Referencia Desbalance Suavizado': typeof record.DesbalancePorcentual === 'number' ? Number(record.DesbalancePorcentual) : undefined,
+            'Factor De Carga Suavizado': typeof record.FactorDeCargaSuavizado === 'number' ? Number(record.FactorDeCargaSuavizado) : undefined,
+            'Umbral Factor Carga': typeof record.Umbral_FactorCarga === 'number' ? Number(record.Umbral_FactorCarga) : undefined,
+            'Referencia Factor De Carga Suavizado': typeof record.FactorDeCarga === 'number' ? Number(record.FactorDeCarga) : undefined,
+          } as ChartDataPoint;
+        });
+
+      onProgressUpdate(transformedData, (1 / totalPages) * 100);
+    }
+
+    // Si hay más páginas, obtenerlas en paralelo
+    if (totalPages > 1) {
+      const promesas = [];
+      for (let page = 2; page <= totalPages; page++) {
+        promesas.push(
+          calculosService.getDataByMachineComponentAndDates({
+            maquina: machineId,
+            componente: componentNameForAPI,
+            fecha_inicio: fromDateString,
+            fecha_fin: toDateString,
+            page,
+            limit,
+          })
+        );
+      }
+
+      // Esperar todas las respuestas en paralelo
+      const todasLasPaginas = await Promise.all(promesas);
+
+      // Combinar todos los datos
+      todasLasPaginas.forEach((pageData) => {
+        if (pageData.data && Array.isArray(pageData.data)) {
+          allRecords = [...allRecords, ...pageData.data];
+        }
+      });
+
+      // Notificar progreso al 100% con todos los datos
+      if (onProgressUpdate) {
+        const transformedData: ChartDataPoint[] = allRecords
+          .filter((record: any) => {
+            return record.AÑO && record.MES && record.DIA;
+          })
+          .map((record: any) => {
+            const fechaDate = new Date(
+              record.AÑO,
+              record.MES - 1,
+              record.DIA,
+              record.HORA || 0,
+              record.MINUTO || 0,
+              record.SEGUNDO || 0
+            );
+            const fecha = formatISO(fechaDate, { representation: 'date' });
+
+            return {
+              date: fecha,
+              isProjection: false,
+              componentId: component.id,
+              metric: 'current',
+              realValue: typeof record.PromedioSuavizado === 'number' ? Number(record.PromedioSuavizado) : null,
+              minValue: null,
+              maxValue: typeof record.CORREINTEMAX === 'number' ? Number(record.CORREINTEMAX) : null,
+              aprilBaseline: null,
+              predictedValue: null,
+              'Corriente Promedio Suavizado': typeof record.PromedioSuavizado === 'number' ? Number(record.PromedioSuavizado) : undefined,
+              'Corriente Máxima': typeof record.CORREINTEMAX === 'number' ? Number(record.CORREINTEMAX) : undefined,
+              'Referencia Corriente Promedio Suavizado': typeof record.PROMEDIO === 'number' ? Number(record.PROMEDIO) : undefined,
+              'Desbalance Suavizado': typeof record.DesbalanceSuavizado === 'number' ? Number(record.DesbalanceSuavizado) : undefined,
+              'Umbral Desbalance': typeof record.Umbral_Desbalance === 'number' ? Number(record.Umbral_Desbalance) : undefined,
+              'Referencia Desbalance Suavizado': typeof record.DesbalancePorcentual === 'number' ? Number(record.DesbalancePorcentual) : undefined,
+              'Factor De Carga Suavizado': typeof record.FactorDeCargaSuavizado === 'number' ? Number(record.FactorDeCargaSuavizado) : undefined,
+              'Umbral Factor Carga': typeof record.Umbral_FactorCarga === 'number' ? Number(record.Umbral_FactorCarga) : undefined,
+              'Referencia Factor De Carga Suavizado': typeof record.FactorDeCarga === 'number' ? Number(record.FactorDeCarga) : undefined,
+            } as ChartDataPoint;
+          });
+
+        onProgressUpdate(transformedData, 100);
+      }
+    }
+
+    // Los datos ya fueron transformados y enviados via callback
+    // Solo retornamos los datos finales
+    const finalData: ChartDataPoint[] = allRecords
+      .filter((record: any) => {
+        return record.AÑO && record.MES && record.DIA;
+      })
+      .map((record: any) => {
+        const fechaDate = new Date(
+          record.AÑO,
+          record.MES - 1,
+          record.DIA,
+          record.HORA || 0,
+          record.MINUTO || 0,
+          record.SEGUNDO || 0
+        );
+        const fecha = formatISO(fechaDate, { representation: 'date' });
+
+        return {
+          date: fecha,
+          isProjection: false,
+          componentId: component.id,
+          metric: 'current',
+          realValue: typeof record.PromedioSuavizado === 'number' ? Number(record.PromedioSuavizado) : null,
+          minValue: null,
+          maxValue: typeof record.CORREINTEMAX === 'number' ? Number(record.CORREINTEMAX) : null,
+          aprilBaseline: null,
+          predictedValue: null,
+          'Corriente Promedio Suavizado': typeof record.PromedioSuavizado === 'number' ? Number(record.PromedioSuavizado) : undefined,
+          'Corriente Máxima': typeof record.CORREINTEMAX === 'number' ? Number(record.CORREINTEMAX) : undefined,
+          'Referencia Corriente Promedio Suavizado': typeof record.PROMEDIO === 'number' ? Number(record.PROMEDIO) : undefined,
+          'Desbalance Suavizado': typeof record.DesbalanceSuavizado === 'number' ? Number(record.DesbalanceSuavizado) : undefined,
+          'Umbral Desbalance': typeof record.Umbral_Desbalance === 'number' ? Number(record.Umbral_Desbalance) : undefined,
+          'Referencia Desbalance Suavizado': typeof record.DesbalancePorcentual === 'number' ? Number(record.DesbalancePorcentual) : undefined,
+          'Factor De Carga Suavizado': typeof record.FactorDeCargaSuavizado === 'number' ? Number(record.FactorDeCargaSuavizado) : undefined,
+          'Umbral Factor Carga': typeof record.Umbral_FactorCarga === 'number' ? Number(record.Umbral_FactorCarga) : undefined,
+          'Referencia Factor De Carga Suavizado': typeof record.FactorDeCarga === 'number' ? Number(record.FactorDeCarga) : undefined,
+        } as ChartDataPoint;
+      });
+
+    console.log('Datos transformados finales:', finalData.length, 'registros');
+    return { data: finalData, aprilData: [] };
+  } catch (error) {
+    console.error('Error en useRealMaintenanceData:', error);
+    return { data: [], aprilData: [] };
+  }
+}
+
+// ============ FUNCIONES DE SUAVIZADO ============
+
+/**
+ * Media Móvil Exponencial (EMA)
+ * Los valores recientes tienen más peso
+ * alpha: factor de suavizado (0-1), valores altos = más peso a valores recientes
+ */
+export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
+  if (values.length === 0) return [];
+  
+  const ema: number[] = [values[0]];
+  for (let i = 1; i < values.length; i++) {
+    ema.push(alpha * values[i] + (1 - alpha) * ema[i - 1]);
+  }
+  return ema;
+}
+
+/**
+ * Suavizado Holt-Winters
+ * Captura tendencia y estacionalidad
+ */
+export function calculateHoltWinters(
+  values: number[],
+  alpha: number = 0.3,
+  beta: number = 0.1,
+  gamma: number = 0.1,
+  seasonLength: number = 8 // 24 horas / 3 horas por punto
+): number[] {
+  if (values.length < seasonLength) return values;
+
+  const result: number[] = [];
+  let level = values[0];
+  let trend = (values[seasonLength] - values[0]) / seasonLength;
+  const seasonal: number[] = values.slice(0, seasonLength).map(v => v - level);
+
+  for (let i = 0; i < values.length; i++) {
+    const seasonalIndex = i % seasonLength;
+    const seasonalComponent = seasonal[seasonalIndex];
+    const forecast = level + trend + seasonalComponent;
+    result.push(forecast);
+
+    if (i < values.length - 1) {
+      const error = values[i + 1] - forecast;
+      const newLevel = alpha * (values[i + 1] - seasonalComponent) + (1 - alpha) * (level + trend);
+      const newTrend = beta * (newLevel - level) + (1 - beta) * trend;
+      const newSeasonal = gamma * (values[i + 1] - newLevel) + (1 - gamma) * seasonalComponent;
+
+      level = newLevel;
+      trend = newTrend;
+      seasonal[seasonalIndex] = newSeasonal;
+    }
+  }
+  return result;
+}
+
+/**
+ * Spline cúbico (implementación simplificada)
+ * Usa interpolación de Catmull-Rom para una curva muy suave
+ */
+export function calculateCubicSpline(values: number[]): number[] {
+  if (values.length < 2) return values;
+
+  const result: number[] = [];
+  const n = values.length;
+
+  // Crear puntos con padding
+  const padded = [values[0], ...values, values[n - 1]];
+
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = padded[i];
+    const p1 = padded[i + 1];
+    const p2 = padded[i + 2];
+    const p3 = padded[i + 3];
+
+    // Usar interpolación Catmull-Rom
+    // Interpolamos entre p1 y p2 con 4 puntos de control
+    for (let t = 0; t < 1; t += 0.5) {
+      const t2 = t * t;
+      const t3 = t2 * t;
+
+      const v =
+        0.5 *
+        (2 * p1 +
+          (-p0 + p2) * t +
+          (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+          (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+
+      result.push(v);
+    }
+  }
+
+  // Agregar el último punto
+  result.push(values[n - 1]);
+
+  return result;
+}
+

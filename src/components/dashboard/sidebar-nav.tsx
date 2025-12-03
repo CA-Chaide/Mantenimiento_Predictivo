@@ -19,7 +19,7 @@ export function SidebarNav({ machines, allComponents }: SidebarNavProps) {
   const pathname = usePathname();
   const { state: sidebarState } = useSidebar();
 
-  const currentMachine = searchParams.get("machine") || machines[0]?.id;
+  const currentMachine = searchParams.get("machine") || "";
   const currentComponent = searchParams.get("component");
 
   const handleMachineChange = (machineId: string) => {

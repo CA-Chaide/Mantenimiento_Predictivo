@@ -4,7 +4,7 @@
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useMaintenanceData, type MachineId, type Component, type Machine } from "@/lib/data";
+import { useRealMaintenanceData, type MachineId, type Component, type Machine } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
 import { startOfMonth, addMonths, format, parseISO } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -13,7 +13,7 @@ import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
 
 function EmptyState() {
@@ -30,7 +30,7 @@ function EmptyState() {
   )
 }
 
-function LoadingState() {
+function LoadingState({ progress }: { progress: number }) {
     return (
       <div className="flex h-full flex-col items-center justify-center rounded-lg bg-slate-50">
         <div className="text-center">
@@ -39,26 +39,66 @@ function LoadingState() {
           <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
             Por favor espere mientras obtenemos la información más reciente.
           </p>
+          {progress > 0 && (
+            <div className="mt-4 w-64 mx-auto">
+              <div className="w-full bg-slate-200 rounded-full h-2.5">
+                <div 
+                  className="bg-primary h-2.5 rounded-full transition-all duration-300" 
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+              <p className="mt-2 text-xs text-slate-600">{Math.round(progress)}% completado</p>
+            </div>
+          )}
         </div>
       </div>
     );
   }
+
+function NoDataState() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-amber-200 bg-amber-50">
+      <div className="text-center">
+        <svg className="mx-auto h-24 w-24 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+        </svg>
+        <h3 className="mt-4 text-xl font-semibold text-amber-800">No hay registros disponibles</h3>
+        <p className="mx-auto mt-2 max-w-md text-sm text-amber-600">
+          No se encontraron datos para la máquina y componente seleccionados en el rango de fechas especificado.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const [machineList, setMachineList] = useState<Machine[]>([]);
   const [componentList, setComponentList] = useState<Component[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [noDataAvailable, setNoDataAvailable] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
+  // Fetch machines
   useEffect(() => {
     async function fetchMachines() {
       try {
         const response = await calculosCorrientesDatosMantenimientoService.getMachines();
-        const transformedMachines = response.data.map((m: any) => ({
-          id: m.MAQUINA,
-          name: m.MAQUINA.charAt(0).toUpperCase() + m.MAQUINA.slice(1).toLowerCase()
-        }));
-        setMachineList(transformedMachines);
+        if (response.data && Array.isArray(response.data)) {
+          const transformedMachines = response.data.map((m: any) => {
+            const machineName = m.MAQUINA || m.name || m.id || '';
+            return {
+              id: machineName.toString(),
+              name: machineName.toString()
+            };
+          });
+          setMachineList(transformedMachines);
+        } else {
+          console.error("Formato de respuesta inesperado:", response);
+          setMachineList([]);
+        }
       } catch (error) {
         console.error("Error fetching machines:", error);
         setMachineList([]); 
@@ -69,22 +109,33 @@ export default function DashboardPage() {
     fetchMachines();
   }, []);
   
+  // No seleccionar máquina por defecto, solo si está en la URL
   const machineId = (
     typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
       ? searchParams.get('machine')
-      : machineList[0]?.id
+      : undefined
   ) as MachineId | undefined;
 
+  // Fetch components
   useEffect(() => {
     async function fetchComponents() {
       if (!machineId) return;
       try {
         const response = await calculosCorrientesDatosMantenimientoService.getComponentsByMachine({ maquina: machineId });
-        const transformedComponents = response.data.map((c: any) => ({
-          id: c.COMPONENTE.toLowerCase().replace(/ /g, '_'),
-          name: c.COMPONENTE.charAt(0).toUpperCase() + c.COMPONENTE.slice(1).toLowerCase()
-        }));
-        setComponentList(transformedComponents);
+        if (response.data && Array.isArray(response.data)) {
+          const transformedComponents = response.data.map((c: any) => {
+            const componentName = c.COMPONENTE || c.name || c.id || '';
+            return {
+              id: componentName.toString().toLowerCase().replace(/ /g, '_'),
+              name: componentName.toString(),
+              originalName: componentName.toString()
+            };
+          });
+          setComponentList(transformedComponents);
+        } else {
+          console.error("Formato de respuesta inesperado:", response);
+          setComponentList([]);
+        }
       } catch (error) {
         console.error("Error fetching components:", error);
         setComponentList([]);
@@ -93,6 +144,117 @@ export default function DashboardPage() {
     fetchComponents();
   }, [machineId]);
 
+  const componentId = typeof searchParams.get('component') === 'string' ? searchParams.get('component') : undefined;
+
+  const simulatedToday = useMemo(() => parseISO('2025-11-26T00:00:00Z'), []);
+  
+  const defaultFromDate = useMemo(() => startOfMonth(simulatedToday), [simulatedToday]);
+  const defaultToDate = simulatedToday;
+  
+  const fromDateString = (typeof searchParams.get('from') === 'string' ? searchParams.get('from') : format(defaultFromDate, "yyyy-MM-dd")) as string;
+  const toDateString = (typeof searchParams.get('to') === 'string' ? searchParams.get('to') : format(defaultToDate, "yyyy-MM-dd")) as string;
+  
+  const fromDate = useMemo(() => parseISO(fromDateString), [fromDateString]);
+  const toDate = useMemo(() => parseISO(toDateString), [toDateString]);
+
+  const displayRange: DateRange = useMemo(() => ({
+    from: fromDate,
+    to: toDate,
+  }), [fromDate, toDate]);
+
+  // Cargar datos reales cuando se selecciona un componente
+  useEffect(() => {
+    async function loadChartData() {
+      // Resetear estados
+      setNoDataAvailable(false);
+      setLoadingProgress(0);
+      
+      if (!machineId || !componentId) {
+        setChartData([]);
+        setChartLoading(false);
+        return;
+      }
+
+      const selectedComp = componentList.find(c => c.id === componentId);
+      if (!selectedComp) {
+        setChartData([]);
+        setChartLoading(false);
+        return;
+      }
+
+      setChartLoading(true);
+      try {
+        // Verificar que las fechas existan
+        if (!fromDateString || !toDateString) {
+          setChartData([]);
+          setChartLoading(false);
+          return;
+        }
+
+        console.log('Iniciando carga de datos para:', { machineId, componente: selectedComp.originalName });
+
+        // Primero verificar si hay datos
+        const totalResponse = await calculosCorrientesDatosMantenimientoService.getTotalByMaquinaAndComponente(
+          machineId,
+          selectedComp.originalName,
+          fromDateString,
+          toDateString
+        );
+
+        console.log('Total de registros:', totalResponse.total);
+
+        if (totalResponse.total === 0) {
+          console.log('No hay datos disponibles');
+          setNoDataAvailable(true);
+          setChartData([]);
+          setChartLoading(false);
+          setLoadingProgress(0);
+          return;
+        }
+
+        // Si hay datos, cargarlos con actualizaciones progresivas
+        const result = await useRealMaintenanceData(
+          machineId,
+          selectedComp,
+          displayRange,
+          calculosCorrientesDatosMantenimientoService,
+          (partialData, progress) => {
+            // Actualizar datos y progreso a medida que llegan
+            console.log('Actualización de datos:', { registros: partialData.length, progreso: progress });
+            setChartData(partialData);
+            setLoadingProgress(progress);
+            // Si ya hay datos parciales, no mostrar el estado "sin datos"
+            if (partialData.length > 0) {
+              setNoDataAvailable(false);
+            }
+          }
+        );
+        
+        console.log('Carga finalizada, total de registros:', result.data.length);
+        
+        // Solo actualizar si el resultado final tiene más datos que el último callback
+        if (result.data.length > 0) {
+          setChartData(result.data);
+          setNoDataAvailable(false);
+        } else {
+          setNoDataAvailable(true);
+        }
+        setLoadingProgress(100);
+      } catch (error) {
+        console.error("Error loading chart data:", error);
+        setChartData([]);
+        setNoDataAvailable(false);
+        setLoadingProgress(0);
+      } finally {
+        setChartLoading(false);
+      }
+    }
+
+    loadChartData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [machineId, componentId, fromDateString, toDateString]);
+
+  // Early return after all hooks
   if (loading) {
     return (
       <SidebarProvider>
@@ -112,42 +274,14 @@ export default function DashboardPage() {
         <SidebarInset className="bg-slate-50">
           <DashboardHeader title="Cargando..." />
           <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-            <LoadingState />
+            <LoadingState progress={0} />
           </main>
         </SidebarInset>
       </SidebarProvider>
     );
   }
 
-  const componentId = typeof searchParams.get('component') === 'string' ? searchParams.get('component') : undefined;
-
-  const simulatedToday = parseISO('2025-11-26T00:00:00Z');
-  
-  const defaultFromDate = startOfMonth(simulatedToday);
-  const defaultToDate = simulatedToday;
-  
-  const fromDateString = typeof searchParams.get('from') === 'string' ? searchParams.get('from') : format(defaultFromDate, "yyyy-MM-dd");
-  const toDateString = typeof searchParams.get('to') === 'string' ? searchParams.get('to') : format(defaultToDate, "yyyy-MM-dd");
-  
-  const fromDate = parseISO(fromDateString);
-  const toDate = parseISO(toDateString);
-
-  const futureProjectionDate = addMonths(toDate, 3);
-  
-  const fullRange: DateRange = {
-    from: fromDate,
-    to: futureProjectionDate,
-  };
-
-  const displayRange: DateRange = {
-    from: fromDate,
-    to: toDate,
-  }
-
-  const { data, aprilData } = useMaintenanceData(machineId!, fullRange, simulatedToday);
-
   const selectedComponent = componentId ? componentList.find(c => c.id === componentId) : undefined;
-  
   const machine = machineList.find(m => m.id === machineId);
   const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name;
   
@@ -202,14 +336,35 @@ export default function DashboardPage() {
       <SidebarInset className="bg-slate-50">
         <DashboardHeader title={headerTitle} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          {selectedComponent && machineId ? (
-            <DashboardClient
-              machineComponents={[selectedComponent]}
-              data={data}
-              aprilData={aprilData}
-            />
-          ) : (
+          {!selectedComponent || !machineId ? (
             <EmptyState />
+          ) : noDataAvailable && !chartLoading ? (
+            <NoDataState />
+          ) : chartLoading && chartData.length === 0 ? (
+            <LoadingState progress={loadingProgress} />
+          ) : (
+            <div className="relative">
+              {chartLoading && (
+                <div className="absolute top-0 left-0 right-0 z-10 bg-blue-50 border-b border-blue-200 px-4 py-2 flex items-center justify-between">
+                  <span className="text-sm text-blue-700 font-medium">
+                    Cargando datos... {Math.round(loadingProgress)}%
+                  </span>
+                  <div className="w-48 bg-blue-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${loadingProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+              <div className={chartLoading ? "mt-12" : ""}>
+                <DashboardClient
+                  machineComponents={[selectedComponent]}
+                  data={chartData}
+                  aprilData={[]}
+                />
+              </div>
+            </div>
           )}
         </main>
       </SidebarInset>
