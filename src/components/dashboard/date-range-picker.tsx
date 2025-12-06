@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfMonth, subMonths, max, startOfYear, differenceInDays, subDays } from "date-fns";
+import { format, startOfMonth, subMonths, max, startOfYear, differenceInDays, subDays, subYears } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon, RotateCcw } from "lucide-react";
@@ -34,7 +34,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const [popoverOpen, setPopoverOpen] = React.useState(false);
 
   const yesterday = subDays(new Date(), 1);
-  const sinceStartDate = new Date('2024-01-01T00:00:00Z');
+  const sinceStartDate = new Date('2025-04-10T00:00:00Z');
 
   React.useEffect(() => {
       setDate(initialDate);
@@ -67,7 +67,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     }
   };
 
-  const handlePreset = (preset: 'thisMonth' | 'last3Months' | 'thisYear' | 'sinceStart') => {
+  const handlePreset = (preset: 'thisMonth' | 'last3Months' | 'lastYear' | 'sinceStart') => {
     const today = new Date();
     let from: Date;
     const to = today;
@@ -79,15 +79,14 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
         case 'last3Months':
             from = subMonths(today, 3);
             break;
-        case 'thisYear':
-            from = startOfYear(today);
+        case 'lastYear':
+            from = subYears(today, 1);
             break;
         case 'sinceStart':
             from = sinceStartDate;
             break;
     }
-    // Ensure the preset range does not go into the future
-    const newRange = { from, to: max([from, to]) > yesterday ? yesterday : to };
+    const newRange = { from, to };
     setDate(newRange);
     updateURL(newRange);
     setPopoverOpen(false);
@@ -136,7 +135,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     <div className="flex flex-col gap-1">
                         <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
                         <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
-                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisYear')}>Este Año</Button>
+                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('lastYear')}>Este Año</Button>
                         <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
                     </div>
                 </div>
