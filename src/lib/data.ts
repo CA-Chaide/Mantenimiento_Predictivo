@@ -254,64 +254,44 @@ export async function useRealMaintenanceData(
     let allRecords: any[] = [];
     let aggregatedData: ChartDataPoint[];
 
-    const days = differenceInDays(toDate, fromDate);
+    const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
+      machineId,
+      componentNameForAPI,
+      fromDateString,
+      toDateString
+    );
 
-    // Adaptive data loading logic
-    if (days > 90) {
-      // For large date ranges, fetch pre-aggregated data
-      const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
+    const totalRecords = totalResponse.total || 0;
+    if (totalRecords === 0) {
+      onProgressUpdate?.([], 100);
+      return { data: [] };
+    }
+
+    const limit = 1000;
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    for (let page = 1; page <= totalPages; page++) {
+      const response = await calculosService.getDataByMachineComponentAndDates({
         maquina: machineId,
         componente: componentNameForAPI,
         fecha_inicio: fromDateString,
         fecha_fin: toDateString,
+        page,
+        limit,
       });
 
       if (response.data && Array.isArray(response.data)) {
-        allRecords = response.data;
-      }
-      onProgressUpdate?.([], 90); // Simulate progress
-      aggregatedData = allRecords.map(recordToDataPoint(component, true));
-    } else {
-      // For smaller date ranges, fetch detailed data and aggregate client-side
-      const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
-        machineId,
-        componentNameForAPI,
-        fromDateString,
-        toDateString
-      );
-
-      const totalRecords = totalResponse.total || 0;
-      if (totalRecords === 0) {
-        onProgressUpdate?.([], 100);
-        return { data: [] };
+        allRecords = allRecords.concat(response.data);
       }
 
-      const limit = 1000;
-      const totalPages = Math.ceil(totalRecords / limit);
-
-      for (let page = 1; page <= totalPages; page++) {
-        const response = await calculosService.getDataByMachineComponentAndDates({
-          maquina: machineId,
-          componente: componentNameForAPI,
-          fecha_inicio: fromDateString,
-          fecha_fin: toDateString,
-          page,
-          limit,
-        });
-
-        if (response.data && Array.isArray(response.data)) {
-          allRecords = allRecords.concat(response.data);
-        }
-
-        if (onProgressUpdate) {
-          const transformedData = allRecords.map(recordToDataPoint(component, false));
-          onProgressUpdate(transformedData, (page / totalPages) * 90);
-        }
+      if (onProgressUpdate) {
+        const transformedData = allRecords.map(recordToDataPoint(component, false));
+        onProgressUpdate(transformedData, (page / totalPages) * 90);
       }
-      
-      const rawTransformedData = allRecords.map(recordToDataPoint(component, false));
-      aggregatedData = aggregateDataByDay(rawTransformedData);
     }
+    
+    const rawTransformedData = allRecords.map(recordToDataPoint(component, false));
+    aggregatedData = aggregateDataByDay(rawTransformedData);
     
 
     if (aggregatedData.length < 2) {
