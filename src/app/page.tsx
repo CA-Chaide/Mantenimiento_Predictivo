@@ -6,7 +6,7 @@ import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDay } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
-import { startOfMonth, format, parseISO } from "date-fns";
+import { startOfMonth, format, parseISO, subDays } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, LogOut, MousePointerClick, Loader } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
@@ -154,8 +154,9 @@ export default function DashboardPage() {
 
   const simulatedToday = useMemo(() => parseISO('2025-11-26T00:00:00Z'), []);
   
-  const defaultFromDate = useMemo(() => startOfMonth(simulatedToday), [simulatedToday]);
-  const defaultToDate = simulatedToday;
+  // Default to last 30 days from "yesterday" relative to simulated date
+  const defaultToDate = useMemo(() => subDays(simulatedToday, 1), [simulatedToday]);
+  const defaultFromDate = useMemo(() => subDays(defaultToDate, 30), [defaultToDate]);
   
   const fromDateString = (typeof searchParams.get('from') === 'string' ? searchParams.get('from') : format(defaultFromDate, "yyyy-MM-dd")) as string;
   const toDateString = (typeof searchParams.get('to') === 'string' ? searchParams.get('to') : format(defaultToDate, "yyyy-MM-dd")) as string;
@@ -202,7 +203,7 @@ export default function DashboardPage() {
           calculosCorrientesDatosMantenimientoService,
           (partialData, progress) => {
             const aggregatedData = aggregateDataByDay(partialData);
-            setChartData(aggregatedData);
+            setChartData(aggregatedData); // Temporarily update with aggregated data
             setLoadingProgress(progress);
             if (partialData.length > 0) {
               setNoDataAvailable(false);
@@ -210,10 +211,9 @@ export default function DashboardPage() {
           }
         );
         
-        const finalAggregatedData = aggregateDataByDay(result.data);
-
-        if (finalAggregatedData.length > 0) {
-          setChartData(finalAggregatedData);
+        // The result.data already includes the projection
+        if (result.data.length > 0) {
+          setChartData(result.data);
           setNoDataAvailable(false);
         } else {
           setChartData([]);
@@ -351,3 +351,5 @@ export default function DashboardPage() {
     </SidebarProvider>
   );
 }
+
+    

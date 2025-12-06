@@ -15,7 +15,8 @@ import {
   Legend,
   ResponsiveContainer,
   AreaChart,
-  Area
+  Area,
+  ComposedChart,
 } from "recharts";
 import { ChartDataPoint } from "@/lib/data";
 import React from "react";
@@ -66,21 +67,22 @@ export function MetricChart({
   limitKey,
   limitLabel,
   refKey,
+  predictionKey,
   componentId,
   metric
 }: MetricChartProps) {
   
   const metricData = data
-    .filter(d => d.componentId === componentId) // This is now redundant if data is pre-filtered
+    // No need to filter by componentId if data is pre-filtered, but safe to keep
     .map(d => ({
       date: d.date, // Already in "YYYY-MM-DD"
-      // Graph will show the daily average
-      [valueKey as string]: d[metric].avg,
-      // We use the `max` value for the limit comparison and status
-      realValue: d[metric].max,
-      // The limit and ref should be consistent per day
+      // Graph will show the daily average for the main value
+      [valueKey as string]: d.isProjection ? null : (d[valueKey] as number | null),
+      // The limit and ref should be consistent per day, and should extend into projection
       [limitKey as string]: d[limitKey] as number | null,
       [refKey as string]: d[refKey] as number | null,
+      // The projection value
+      [predictionKey as string]: d.isProjection ? d[predictionKey] : null,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -88,7 +90,7 @@ export function MetricChart({
     <div className="space-y-4">
       <div className="h-[400px] w-full">
         <ResponsiveContainer>
-          <AreaChart data={metricData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart data={metricData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
@@ -149,9 +151,22 @@ export function MetricChart({
               strokeDasharray="3 3"
               dot={false}
             />
-          </AreaChart>
+
+            <Line
+              type="monotone"
+              dataKey={predictionKey.toString()}
+              name="Proyección IA"
+              stroke="#9333ea"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={false}
+              connectNulls={false}
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
 }
+
+    
