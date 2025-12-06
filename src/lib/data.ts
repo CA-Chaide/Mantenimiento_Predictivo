@@ -12,13 +12,13 @@ export type ChartDataPoint = {
   componentId: string;
   
   "Corriente Promedio Suavizado"?: number | null;
-  "Corriente Máxima"?: number;
+  "Corriente Máxima"?: number | null;
   
   "Desbalance Suavizado"?: number | null;
-  "Umbral Desbalance"?: number;
+  "Umbral Desbalance"?: number | null;
   
   "Factor De Carga Suavizado"?: number | null;
-  "Umbral Factor Carga"?: number;
+  "Umbral Factor Carga"?: number | null;
 
   "proyeccion_corriente_tendencia"?: number | null;
   "proyeccion_corriente_pesimista"?: number | null;
@@ -41,13 +41,13 @@ export type RawDataRecord = {
     componentId: string;
     
     "Corriente Promedio Suavizado"?: number | null;
-    "Corriente Máxima"?: number;
+    "Corriente Máxima"?: number | null;
     
     "Desbalance Suavizado"?: number | null;
-    "Umbral Desbalance"?: number;
+    "Umbral Desbalance"?: number | null;
     
     "Factor De Carga Suavizado"?: number | null;
-    "Umbral Factor Carga"?: number;
+    "Umbral Factor Carga"?: number | null;
   };
 
 /**
@@ -85,9 +85,9 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
     }, {} as Record<string, { 
         records: RawDataRecord[], 
         componentId: string,
-        "Corriente Máxima"?: number,
-        "Umbral Desbalance"?: number,
-        "Umbral Factor Carga"?: number,
+        "Corriente Máxima"?: number | null,
+        "Umbral Desbalance"?: number | null,
+        "Umbral Factor Carga"?: number | null,
     }>);
   
     // Step 2 & 3: Calculate averages for each group
@@ -254,7 +254,6 @@ export async function useRealMaintenanceData(
     let allRecords: any[] = [];
     let aggregatedData: ChartDataPoint[];
 
-    // Fetch and process data
     const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
       machineId,
       componentNameForAPI,
@@ -290,9 +289,10 @@ export async function useRealMaintenanceData(
         onProgressUpdate(transformedData, (page / totalPages) * 90);
       }
     }
-
+    
     const rawTransformedData = allRecords.map(recordToDataPoint(component, false));
     aggregatedData = aggregateDataByDay(rawTransformedData);
+    
 
     if (aggregatedData.length < 2) {
       onProgressUpdate?.([], 100);
@@ -348,6 +348,7 @@ export async function useRealMaintenanceData(
     return { data: combinedData };
 
   } catch (error) {
+    console.error("Error in useRealMaintenanceData:", error);
     throw error;
   }
 }
@@ -359,6 +360,23 @@ const recordToDataPoint = (component: Component, isAggregated: boolean) => (reco
     return isNaN(num) ? null : num;
   };
   
+  if (isAggregated) {
+    return {
+      date: record.fecha, // Already in "YYYY-MM-DD" format
+      isProjection: false,
+      componentId: component.id,
+
+      'Corriente Promedio Suavizado': safeNumber(record.promedio_corriente_suavizado),
+      'Corriente Máxima': safeNumber(record.corriente_maxima) ?? null,
+
+      'Desbalance Suavizado': safeNumber(record.promedio_desbalance_suavizado),
+      'Umbral Desbalance': safeNumber(record.umbral_desbalance) ?? null,
+      
+      'Factor De Carga Suavizado': safeNumber(record.promedio_factor_carga_suavizado),
+      'Umbral Factor Carga': safeNumber(record.umbral_factor_carga) ?? null,
+    };
+  }
+
   // Handle detailed data format
   let fechaDate;
   try {
@@ -380,13 +398,13 @@ const recordToDataPoint = (component: Component, isAggregated: boolean) => (reco
     componentId: component.id,
     
     'Corriente Promedio Suavizado': safeNumber(record.PromedioSuavizado),
-    'Corriente Máxima': safeNumber(record.CORRIENTEMAX) ?? undefined,
+    'Corriente Máxima': safeNumber(record.CORRIENTEMAX) ?? null,
 
     'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
-    'Umbral Desbalance': safeNumber(record.Umbral_Desbalance) ?? undefined,
+    'Umbral Desbalance': safeNumber(record.Umbral_Desbalance) ?? null,
 
     'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
-    'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga) ?? undefined,
+    'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga) ?? null,
   };
 };
 

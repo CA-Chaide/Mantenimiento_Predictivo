@@ -140,6 +140,7 @@ export function MetricChart({
               stroke="#dc2626"
               strokeWidth={2}
               dot={false}
+              connectNulls={true}
             />
 
             <Line
