@@ -10,7 +10,6 @@ export type ChartDataPoint = {
   date: string; // "YYYY-MM-DD"
   isProjection: boolean;
   componentId: string;
-  metric: 'current' | 'unbalance' | 'load_factor';
   
   "Corriente Promedio Suavizado"?: number | null;
   "Corriente Máxima"?: number;
@@ -25,7 +24,9 @@ export type ChartDataPoint = {
   "Referencia Factor De Carga Suavizado"?: number;
 
   predictedValue?: number | null;
-  [key: string]: any; // Allow other properties
+  predictedValuePesimistic?: number | null;
+  predictedValueOptimistic?: number | null;
+  [key: string]: any; 
 };
 
 // Raw record from the API before aggregation
@@ -125,7 +126,6 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         date: day,
         componentId: group.componentId,
         isProjection: false,
-        metric: 'current', // Placeholder, not used per-metric anymore
 
         "Corriente Promedio Suavizado": dayMetrics.current.count > 0 ? dayMetrics.current.sum / dayMetrics.current.count : null,
         "Corriente Máxima": group["Corriente Máxima"],
@@ -151,7 +151,7 @@ export function calculateLinearRegressionAndProject(
   data: ChartDataPoint[],
   metricKey: keyof ChartDataPoint,
   daysToProject: number = 90
-): ChartDataPoint[] {
+): { trend: ChartDataPoint[], pessimistic: ChartDataPoint[], optimistic: ChartDataPoint[] } {
     const cleanData = data.map((p, i) => ({
       x: i,
       y: p[metricKey] as number,
@@ -159,7 +159,7 @@ export function calculateLinearRegressionAndProject(
     })).filter(p => p.y !== null && !isNaN(p.y));
 
     if (cleanData.length < 2) {
-      return []; // Cannot perform regression on less than 2 points
+      return { trend: [], pessimistic: [], optimistic: [] };
     }
 
     // Simple linear regression calculation
@@ -177,26 +177,34 @@ export function calculateLinearRegressionAndProject(
     const intercept = (sumY - slope * sumX) / n;
 
     if (isNaN(slope) || isNaN(intercept)) {
-      return []; // Invalid regression result
+      return { trend: [], pessimistic: [], optimistic: [] };
     }
 
     const lastPoint = cleanData[n - 1];
     const lastDate = parseISO(lastPoint.date);
-    const projection: ChartDataPoint[] = [];
+    const trend: ChartDataPoint[] = [];
+    const pessimistic: ChartDataPoint[] = [];
+    const optimistic: ChartDataPoint[] = [];
+    
+    // Define factors for pessimistic and optimistic scenarios
+    const pessimisticFactor = 1.5; // 50% steeper slope
+    const optimisticFactor = 0.5; // 50% less steep slope
 
     for (let i = 1; i <= daysToProject; i++) {
         const x = lastPoint.x + i;
-        const y = slope * x + intercept;
         const newDate = addDays(lastDate, i);
         
-        const basePoint = data[0]; // Get a base point for limit/ref values
+        const trendValue = slope * x + intercept;
+        const pessimisticValue = (slope * pessimisticFactor) * x + intercept;
+        const optimisticValue = (slope * optimisticFactor) * x + intercept;
 
-        projection.push({
+        const basePoint = data[0]; 
+
+        const createProjectionPoint = (value: number) => ({
           date: formatISO(newDate, { representation: 'date' }),
           isProjection: true,
           componentId: data[0].componentId,
-          metric: data[0].metric, // This is a placeholder
-          predictedValue: y,
+          predictedValue: value,
           // Carry over limit and reference lines into the future
           "Corriente Máxima": basePoint["Corriente Máxima"],
           "Referencia Corriente Promedio Suavizado": basePoint["Referencia Corriente Promedio Suavizado"],
@@ -205,9 +213,13 @@ export function calculateLinearRegressionAndProject(
           "Umbral Factor Carga": basePoint["Umbral Factor Carga"],
           "Referencia Factor De Carga Suavizado": basePoint["Referencia Factor De Carga Suavizado"],
         });
+
+        trend.push(createProjectionPoint(trendValue));
+        pessimistic.push(createProjectionPoint(pessimisticValue));
+        optimistic.push(createProjectionPoint(optimisticValue));
     }
 
-    return projection;
+    return { trend, pessimistic, optimistic };
 }
 
 
@@ -273,39 +285,39 @@ export async function useRealMaintenanceData(
       return { data: aggregatedData };
     }
 
-    // Calculate projections for each metric
-    const projCorriente = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado");
-    const projDesbalance = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado");
-    const projFactorCarga = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado");
+    const { trend: projCorriente, pessimistic: projCorrientePes, optimistic: projCorrienteOpt } = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado");
+    const { trend: projDesbalance, pessimistic: projDesbalancePes, optimistic: projDesbalanceOpt } = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado");
+    const { trend: projFactorCarga, pessimistic: projFactorCargaPes, optimistic: projFactorCargaOpt } = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado");
 
-    // Merge projections into a single array
-    const allProjections = new Map<string, Partial<ChartDataPoint>>();
+    const mergeProjections = (baseData: ChartDataPoint[], projections: { [key: string]: ChartDataPoint[] }) => {
+      const projectionMap = new Map<string, Partial<ChartDataPoint>>();
 
-    const mergeProjection = (proj: ChartDataPoint[], key: string) => {
-      proj.forEach(p => {
-        if (!allProjections.has(p.date)) {
-          allProjections.set(p.date, { ...p, predictedValue: undefined });
-        }
-        const existing = allProjections.get(p.date)!;
-        existing[key] = p.predictedValue;
+      Object.entries(projections).forEach(([key, projArray]) => {
+        projArray.forEach(p => {
+          if (!projectionMap.has(p.date)) {
+            projectionMap.set(p.date, { ...p });
+          }
+          const existing = projectionMap.get(p.date)!;
+          existing[key] = p.predictedValue;
+        });
       });
+
+      const finalProjections = Array.from(projectionMap.values()).map(p => ({
+        ...p,
+        isProjection: true
+      } as ChartDataPoint));
+
+      return [...baseData, ...finalProjections];
     };
 
-    mergeProjection(projCorriente, 'predictedValueCurrent');
-    mergeProjection(projDesbalance, 'predictedValueUnbalance');
-    mergeProjection(projFactorCarga, 'predictedValueLoadFactor');
-    
-    const finalProjection: ChartDataPoint[] = Array.from(allProjections.values()).map(p => {
-       // This mapping is tricky. Let's just create one projection for each metric
-       return {
-         ...p,
-         "Corriente Promedio Suavizado": p['predictedValueCurrent'],
-         "Desbalance Suavizado": p['predictedValueUnbalance'],
-         "Factor De Carga Suavizado": p['predictedValueLoadFactor'],
-       } as ChartDataPoint;
+    const combinedData = mergeProjections(aggregatedData, {
+      predictedValue: projCorriente,
+      predictedValuePesimistic: projCorrientePes,
+      predictedValueOptimistic: projCorrienteOpt,
+      // Placeholder for other metrics, assuming we merge them similarly
+      // For now, we focus on 'current' metric's projections
     });
 
-    const combinedData = [...aggregatedData, ...finalProjection];
     onProgressUpdate?.(rawTransformedData, 100);
     
     return { data: combinedData };

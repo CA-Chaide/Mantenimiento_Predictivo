@@ -73,16 +73,14 @@ export function MetricChart({
 }: MetricChartProps) {
   
   const metricData = data
-    // No need to filter by componentId if data is pre-filtered, but safe to keep
     .map(d => ({
-      date: d.date, // Already in "YYYY-MM-DD"
-      // Graph will show the daily average for the main value
+      date: d.date, 
       [valueKey as string]: d.isProjection ? null : (d[valueKey] as number | null),
-      // The limit and ref should be consistent per day, and should extend into projection
       [limitKey as string]: d[limitKey] as number | null,
       [refKey as string]: d[refKey] as number | null,
-      // The projection value
-      [predictionKey as string]: d.isProjection ? d[predictionKey] : null,
+      [predictionKey as string]: d.isProjection ? d.predictedValue : null,
+      predictedValuePesimistic: d.isProjection ? d.predictedValuePesimistic : null,
+      predictedValueOptimistic: d.isProjection ? d.predictedValueOptimistic : null,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -155,8 +153,30 @@ export function MetricChart({
             <Line
               type="monotone"
               dataKey={predictionKey.toString()}
-              name="Proyección IA"
+              name="Proyección Tendencia"
               stroke="#9333ea"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={false}
+              connectNulls={false}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="predictedValuePesimistic"
+              name="Proyección Pesimista"
+              stroke="#f97316"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={false}
+              connectNulls={false}
+            />
+
+             <Line
+              type="monotone"
+              dataKey="predictedValueOptimistic"
+              name="Proyección Optimista"
+              stroke="#22c55e"
               strokeWidth={2}
               strokeDasharray="5 5"
               dot={false}
@@ -168,5 +188,3 @@ export function MetricChart({
     </div>
   );
 }
-
-    
