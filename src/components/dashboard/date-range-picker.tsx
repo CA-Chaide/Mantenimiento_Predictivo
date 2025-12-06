@@ -60,9 +60,10 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
 
   const handleSelect = (range: DateRange | undefined) => {
     setDate(range);
+    // Only update URL when a complete range is selected
     if (range?.from && range?.to) {
         updateURL(range);
-        setPopoverOpen(false);
+        setPopoverOpen(false); // Close popover after selection
     }
   };
 
@@ -93,20 +94,9 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
 
   const handleClear = () => {
     const newParams = new URLSearchParams(searchParams.toString());
-    const machine = newParams.get('machine');
-    
-    const clearedParams = new URLSearchParams();
-    if(machine) clearedParams.set('machine', machine);
-
-    const defaultRange = {
-        from: startOfMonth(maxDate),
-        to: maxDate
-    }
-    clearedParams.set("from", format(defaultRange.from, "yyyy-MM-dd"));
-    clearedParams.set("to", format(defaultRange.to, "yyyy-MM-dd"));
-
-    router.push(`${pathname}?${clearedParams.toString()}`);
-    setDate(defaultRange);
+    newParams.delete("from");
+    newParams.delete("to");
+    router.push(`${pathname}?${newParams.toString()}`);
     setPopoverOpen(false);
   }
 

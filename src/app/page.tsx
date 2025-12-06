@@ -161,15 +161,28 @@ export default function DashboardPage() {
   const fromDateString = (typeof searchParams.get('from') === 'string' ? searchParams.get('from') : format(defaultFromDate, "yyyy-MM-dd")) as string;
   const toDateString = (typeof searchParams.get('to') === 'string' ? searchParams.get('to') : format(defaultToDate, "yyyy-MM-dd")) as string;
   
-  const fromDate = useMemo(() => parseISO(fromDateString), [fromDateString]);
-  const toDate = useMemo(() => parseISO(toDateString), [toDateString]);
+  const fromDate = useMemo(() => {
+    try {
+      return parseISO(fromDateString);
+    } catch (e) {
+      return defaultFromDate;
+    }
+  }, [fromDateString, defaultFromDate]);
+  
+  const toDate = useMemo(() => {
+    try {
+      return parseISO(toDateString);
+    } catch (e) {
+      return defaultToDate;
+    }
+  }, [toDateString, defaultToDate]);
 
   const displayRange: DateRange = useMemo(() => ({
     from: fromDate,
     to: toDate,
   }), [fromDate, toDate]);
 
-  // Load real data when component is selected
+  // Load real data when component or date range is selected
   useEffect(() => {
     async function loadChartData() {
       setNoDataAvailable(false);
@@ -190,7 +203,7 @@ export default function DashboardPage() {
 
       setChartLoading(true);
       try {
-        if (!fromDateString || !toDateString) {
+        if (!displayRange.from || !displayRange.to) {
           setChartData([]);
           setChartLoading(false);
           return;
@@ -202,9 +215,14 @@ export default function DashboardPage() {
           displayRange,
           calculosCorrientesDatosMantenimientoService,
           (partialData, progress) => {
-            const aggregatedData = aggregateDataByDay(partialData);
-            setChartData(aggregatedData); // Temporarily update with aggregated data
+            // This callback gives us a sense of progress, but the final aggregation
+            // should happen once, after all data is fetched.
+            // For now, let's just update the progress.
             setLoadingProgress(progress);
+            if(progress < 100) {
+              const aggregatedData = aggregateDataByDay(partialData);
+              setChartData(aggregatedData); // Temporarily update with aggregated data
+            }
             if (partialData.length > 0) {
               setNoDataAvailable(false);
             }
@@ -223,7 +241,7 @@ export default function DashboardPage() {
       } catch (error) {
         console.error("Error loading chart data:", error);
         setChartData([]);
-        setNoDataAvailable(false);
+        setNoDataAvailable(true); // Set to true on error
         setLoadingProgress(0);
       } finally {
         setChartLoading(false);
@@ -231,8 +249,7 @@ export default function DashboardPage() {
     }
 
     loadChartData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [machineId, componentId, fromDateString, toDateString, componentList]); // Added componentList dependency
+  }, [machineId, componentId, fromDateString, toDateString, componentList, displayRange]);
 
   // Early return after all hooks
   if (loading) {
@@ -324,20 +341,15 @@ export default function DashboardPage() {
             <LoadingState progress={loadingProgress} />
           ) : (
             <div className="relative">
-              {chartLoading && (
-                <div className="absolute top-0 left-0 right-0 z-10 bg-blue-50 border-b border-blue-200 px-4 py-2 flex items-center justify-between">
-                  <span className="text-sm text-blue-700 font-medium">
-                    Agregando datos... {Math.round(loadingProgress)}%
-                  </span>
-                  <div className="w-48 bg-blue-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${loadingProgress}%` }}
-                    ></div>
-                  </div>
+              {chartLoading && chartData.length > 0 && (
+                <div className="absolute top-0 left-0 right-0 z-10 bg-slate-50/80 backdrop-blur-sm h-full flex items-center justify-center">
+                    <div className="text-center">
+                         <Loader className="mx-auto h-12 w-12 animate-spin text-primary" />
+                         <p className="mt-2 text-sm font-semibold text-slate-600">Recalculando Proyección...</p>
+                    </div>
                 </div>
               )}
-              <div className={chartLoading ? "mt-12" : ""}>
+              <div className={chartLoading ? "opacity-30" : ""}>
                 <DashboardClient
                   machineComponents={selectedComponent ? [selectedComponent] : []}
                   data={chartData}
@@ -351,5 +363,3 @@ export default function DashboardPage() {
     </SidebarProvider>
   );
 }
-
-    
