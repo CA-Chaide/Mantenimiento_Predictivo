@@ -298,7 +298,7 @@ export async function useRealMaintenanceData(
         allRecords = response.data;
       }
       onProgressUpdate?.([], 100);
-      aggregatedData = allRecords.map(recordToDataPoint(component));
+      aggregatedData = allRecords.map(recordToDataPoint(component, true));
     } else {
       // For smaller date ranges, fetch detailed data and aggregate on client
       const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
@@ -331,11 +331,11 @@ export async function useRealMaintenanceData(
           }
 
           if (onProgressUpdate) {
-              const transformedData = allRecords.map(recordToDataPoint(component));
+              const transformedData = allRecords.map(recordToDataPoint(component, false));
               onProgressUpdate(transformedData, (page / totalPages) * 90);
           }
       }
-      const rawTransformedData = allRecords.map(recordToDataPoint(component));
+      const rawTransformedData = allRecords.map(recordToDataPoint(component, false));
       aggregatedData = aggregateDataByDay(rawTransformedData);
     }
     
@@ -397,14 +397,14 @@ export async function useRealMaintenanceData(
 }
 
 // Helper to transform a single API record into our data point format.
-const recordToDataPoint = (component: Component) => (record: any): RawDataRecord => {
+const recordToDataPoint = (component: Component, isAggregated: boolean) => (record: any): RawDataRecord => {
   const safeNumber = (value: any): number | null => {
     const num = Number(value);
     return isNaN(num) ? null : num;
   };
   
   // Handle pre-aggregated data format
-  if (record.FECHA) {
+  if (isAggregated) {
      return {
       date: formatISO(parseISO(record.FECHA)),
       isProjection: false,
