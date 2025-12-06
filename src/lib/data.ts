@@ -13,15 +13,12 @@ export type ChartDataPoint = {
   
   "Corriente Promedio Suavizado"?: number | null;
   "Corriente Máxima"?: number;
-  "Referencia Corriente Promedio Suavizado"?: number;
   
   "Desbalance Suavizado"?: number | null;
   "Umbral Desbalance"?: number;
-  "Referencia Desbalance Suavizado"?: number;
   
   "Factor De Carga Suavizado"?: number | null;
   "Umbral Factor Carga"?: number;
-  "Referencia Factor De Carga Suavizado"?: number;
 
   "proyeccion_corriente_tendencia"?: number | null;
   "proyeccion_corriente_pesimista"?: number | null;
@@ -45,15 +42,12 @@ export type RawDataRecord = {
     
     "Corriente Promedio Suavizado"?: number | null;
     "Corriente Máxima"?: number;
-    "Referencia Corriente Promedio Suavizado"?: number;
     
     "Desbalance Suavizado"?: number | null;
     "Umbral Desbalance"?: number;
-    "Referencia Desbalance Suavizado"?: number;
     
     "Factor De Carga Suavizado"?: number | null;
     "Umbral Factor Carga"?: number;
-    "Referencia Factor De Carga Suavizado"?: number;
   };
 
 /**
@@ -82,11 +76,8 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
           componentId: record.componentId,
           // Store first limit and ref values, assuming they are constant for the day
           "Corriente Máxima": record["Corriente Máxima"],
-          "Referencia Corriente Promedio Suavizado": record["Referencia Corriente Promedio Suavizado"],
           "Umbral Desbalance": record["Umbral Desbalance"],
-          "Referencia Desbalance Suavizado": record["Referencia Desbalance Suavizado"],
           "Umbral Factor Carga": record["Umbral Factor Carga"],
-          "Referencia Factor De Carga Suavizado": record["Referencia Factor De Carga Suavizado"],
         };
       }
       acc[day].records.push(record);
@@ -95,11 +86,8 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         records: RawDataRecord[], 
         componentId: string,
         "Corriente Máxima"?: number,
-        "Referencia Corriente Promedio Suavizado"?: number,
         "Umbral Desbalance"?: number,
-        "Referencia Desbalance Suavizado"?: number,
         "Umbral Factor Carga"?: number,
-        "Referencia Factor De Carga Suavizado"?: number,
     }>);
   
     // Step 2 & 3: Calculate averages for each group
@@ -137,15 +125,12 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
 
         "Corriente Promedio Suavizado": dayMetrics.current.count > 0 ? dayMetrics.current.sum / dayMetrics.current.count : null,
         "Corriente Máxima": group["Corriente Máxima"],
-        "Referencia Corriente Promedio Suavizado": group["Referencia Corriente Promedio Suavizado"],
 
         "Desbalance Suavizado": dayMetrics.unbalance.count > 0 ? dayMetrics.unbalance.sum / dayMetrics.unbalance.count : null,
         "Umbral Desbalance": group["Umbral Desbalance"],
-        "Referencia Desbalance Suavizado": group["Referencia Desbalance Suavizado"],
         
         "Factor De Carga Suavizado": dayMetrics.load_factor.count > 0 ? dayMetrics.load_factor.sum / dayMetrics.load_factor.count : null,
         "Umbral Factor Carga": group["Umbral Factor Carga"],
-        "Referencia Factor De Carga Suavizado": group["Referencia Factor De Carga Suavizado"],
       };
       
       return newPoint;
@@ -230,11 +215,8 @@ export function calculateLinearRegressionAndProject(
                 isProjection: true,
                 componentId: data[0].componentId,
                  "Corriente Máxima": basePoint["Corriente Máxima"],
-                "Referencia Corriente Promedio Suavizado": basePoint["Referencia Corriente Promedio Suavizado"],
                 "Umbral Desbalance": basePoint["Umbral Desbalance"],
-                "Referencia Desbalance Suavizado": basePoint["Referencia Desbalance Suavizado"],
                 "Umbral Factor Carga": basePoint["Umbral Factor Carga"],
-                "Referencia Factor De Carga Suavizado": basePoint["Referencia Factor De Carga Suavizado"],
                 predictedValue: trendVal > 0 ? trendVal : 0,
                 predictedValuePesimistic: pessimisticVal > 0 ? pessimisticVal : 0,
                 predictedValueOptimistic: optimisticVal > 0 ? optimisticVal : 0,
@@ -263,55 +245,61 @@ export async function useRealMaintenanceData(
   }
 
   try {
-    const fromDateString = formatISO(dateRange.from, { representation: 'date' });
-    const toDateString = formatISO(dateRange.to, { representation: 'date' });
+    const fromDate = dateRange.from;
+    const toDate = dateRange.to;
+    const fromDateString = formatISO(fromDate, { representation: 'date' });
+    const toDateString = formatISO(toDate, { representation: 'date' });
     const componentNameForAPI = component.originalName;
 
     let allRecords: any[] = [];
     let aggregatedData: ChartDataPoint[];
 
+    // Fetch and process data
     const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
-      machineId, 
+      machineId,
       componentNameForAPI,
       fromDateString,
       toDateString
     );
+
     const totalRecords = totalResponse.total || 0;
     if (totalRecords === 0) {
       onProgressUpdate?.([], 100);
       return { data: [] };
     }
-    
+
     const limit = 1000;
     const totalPages = Math.ceil(totalRecords / limit);
-    
+
     for (let page = 1; page <= totalPages; page++) {
-        const response = await calculosService.getDataByMachineComponentAndDates({
-            maquina: machineId,
-            componente: componentNameForAPI,
-            fecha_inicio: fromDateString,
-            fecha_fin: toDateString,
-            page,
-            limit,
-        });
+      const response = await calculosService.getDataByMachineComponentAndDates({
+        maquina: machineId,
+        componente: componentNameForAPI,
+        fecha_inicio: fromDateString,
+        fecha_fin: toDateString,
+        page,
+        limit,
+      });
 
-        if (response.data && Array.isArray(response.data)) {
-            allRecords = allRecords.concat(response.data);
-        }
+      if (response.data && Array.isArray(response.data)) {
+        allRecords = allRecords.concat(response.data);
+      }
 
-        if (onProgressUpdate) {
-            const transformedData = allRecords.map(recordToDataPoint(component, false));
-            onProgressUpdate(transformedData, (page / totalPages) * 90);
-        }
+      if (onProgressUpdate) {
+        const transformedData = allRecords.map(recordToDataPoint(component, false));
+        onProgressUpdate(transformedData, (page / totalPages) * 90);
+      }
     }
+
     const rawTransformedData = allRecords.map(recordToDataPoint(component, false));
     aggregatedData = aggregateDataByDay(rawTransformedData);
-    
+
     if (aggregatedData.length < 2) {
       onProgressUpdate?.([], 100);
       return { data: aggregatedData };
     }
-
+    
+    // Calculate projections for all metrics
     const { trend: projCorriente, pessimistic: projCorrientePes, optimistic: projCorrienteOpt } = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado");
     const { trend: projDesbalance, pessimistic: projDesbalancePes, optimistic: projDesbalanceOpt } = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado");
     const { trend: projFactorCarga, pessimistic: projFactorCargaPes, optimistic: projFactorCargaOpt } = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado");
@@ -371,24 +359,6 @@ const recordToDataPoint = (component: Component, isAggregated: boolean) => (reco
     return isNaN(num) ? null : num;
   };
   
-  // Handle pre-aggregated data format
-  if (isAggregated) {
-     return {
-      date: formatISO(parseISO(record.FECHA)),
-      isProjection: false,
-      componentId: component.id,
-      'Corriente Promedio Suavizado': safeNumber(record.PromedioSuavizado),
-      'Corriente Máxima': safeNumber(record.CORRIENTEMAX) ?? undefined,
-      'Referencia Corriente Promedio Suavizado': safeNumber(record.PROMEDIO) ?? undefined,
-      'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
-      'Umbral Desbalance': safeNumber(record.Umbral_Desbalance) ?? undefined,
-      'Referencia Desbalance Suavizado': safeNumber(record.DesbalancePorcentual) ?? undefined,
-      'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
-      'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga) ?? undefined,
-      'Referencia Factor De Carga Suavizado': safeNumber(record.FactorDeCarga) ?? undefined,
-    };
-  }
-
   // Handle detailed data format
   let fechaDate;
   try {
@@ -410,16 +380,13 @@ const recordToDataPoint = (component: Component, isAggregated: boolean) => (reco
     componentId: component.id,
     
     'Corriente Promedio Suavizado': safeNumber(record.PromedioSuavizado),
-    'Corriente Máxima': safeNumber(record.CORREINTEMAX) ?? undefined,
-    'Referencia Corriente Promedio Suavizado': safeNumber(record.PROMEDIO) ?? undefined,
+    'Corriente Máxima': safeNumber(record.CORRIENTEMAX) ?? undefined,
 
     'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
     'Umbral Desbalance': safeNumber(record.Umbral_Desbalance) ?? undefined,
-    'Referencia Desbalance Suavizado': safeNumber(record.DesbalancePorcentual) ?? undefined,
 
     'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
     'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga) ?? undefined,
-    'Referencia Factor De Carga Suavizado': safeNumber(record.FactorDeCarga) ?? undefined,
   };
 };
 
