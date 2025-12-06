@@ -311,8 +311,8 @@ export async function useRealMaintenanceData(
     return { data: combinedData };
 
   } catch (error) {
-    console.error('Error en useRealMaintenanceData:', error);
-    return { data: [] };
+    // Let the caller handle the error notification
+    throw error;
   }
 }
 
@@ -367,5 +367,3 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
-
-    

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
+import { useToast } from "@/hooks/use-toast";
 
 function EmptyState() {
   return (
@@ -73,6 +74,7 @@ function NoDataState() {
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [machineList, setMachineList] = useState<Machine[]>([]);
   const [componentList, setComponentList] = useState<Component[]>([]);
   const [loading, setLoading] = useState(true);
@@ -225,23 +227,32 @@ export default function DashboardPage() {
         if (result.data.length > 0) {
           setChartData(result.data);
           setNoDataAvailable(false);
+          toast({
+            title: "Carga de Datos Completa",
+            description: "La información ha sido actualizada correctamente.",
+          });
         } else {
           setChartData([]);
           setNoDataAvailable(true);
         }
         setLoadingProgress(100);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error loading chart data:", error);
         setChartData([]);
-        setNoDataAvailable(true); // Set to true on error
+        setNoDataAvailable(true);
         setLoadingProgress(0);
+        toast({
+            variant: "destructive",
+            title: "Error al Cargar Datos",
+            description: error.message || "No se pudo obtener la información del servidor.",
+        });
       } finally {
         setChartLoading(false);
       }
     }
 
     loadChartData();
-  }, [machineId, componentId, fromDateString, toDateString, componentList, displayRange]);
+  }, [machineId, componentId, fromDateString, toDateString, componentList, displayRange, toast]);
 
   // Early return after all hooks
   if (loading) {
