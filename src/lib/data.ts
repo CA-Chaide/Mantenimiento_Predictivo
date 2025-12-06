@@ -218,7 +218,7 @@ export async function useRealMaintenanceData(
   calculosService: any,
   onProgressUpdate?: (data: RawDataRecord[], progress: number) => void
 ): Promise<{ data: ChartDataPoint[] }> {
-  if (!dateRange.from || !dateRange.to || !machineId || !component) {
+  if (!dateRange || !dateRange.from || !dateRange.to || !machineId || !component) {
     return { data: [] };
   }
 
@@ -373,5 +373,3 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
-
-    

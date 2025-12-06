@@ -6,7 +6,7 @@ import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDay } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
-import { startOfMonth, format, parseISO, subDays } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, LogOut, MousePointerClick, Loader } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
@@ -23,7 +23,7 @@ function EmptyState() {
         <MousePointerClick className="mx-auto h-24 w-24 text-slate-300" />
         <h3 className="mt-4 text-xl font-semibold text-slate-600">Seleccione un Componente</h3>
         <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">
-          Haga clic en una de las opciones del menú lateral para visualizar los indicadores de Corriente, Desbalance y Factor de Carga.
+          Haga clic en una de las opciones del menú lateral y seleccione un rango de fechas para visualizar los indicadores.
         </p>
       </div>
     </div>
@@ -151,36 +151,30 @@ export default function DashboardPage() {
   }, [machineId]);
 
   const componentId = typeof searchParams.get('component') === 'string' ? searchParams.get('component') : undefined;
-
-  const simulatedToday = useMemo(() => parseISO('2025-11-26T00:00:00Z'), []);
   
-  // Default to last 30 days from "yesterday" relative to simulated date
-  const defaultToDate = useMemo(() => subDays(simulatedToday, 1), [simulatedToday]);
-  const defaultFromDate = useMemo(() => subDays(defaultToDate, 30), [defaultToDate]);
-  
-  const fromDateString = (typeof searchParams.get('from') === 'string' ? searchParams.get('from') : format(defaultFromDate, "yyyy-MM-dd")) as string;
-  const toDateString = (typeof searchParams.get('to') === 'string' ? searchParams.get('to') : format(defaultToDate, "yyyy-MM-dd")) as string;
+  const fromDateString = searchParams.get('from');
+  const toDateString = searchParams.get('to');
   
   const fromDate = useMemo(() => {
     try {
-      return parseISO(fromDateString);
+      return fromDateString ? parseISO(fromDateString) : undefined;
     } catch (e) {
-      return defaultFromDate;
+      return undefined;
     }
-  }, [fromDateString, defaultFromDate]);
+  }, [fromDateString]);
   
   const toDate = useMemo(() => {
     try {
-      return parseISO(toDateString);
+      return toDateString ? parseISO(toDateString) : undefined;
     } catch (e) {
-      return defaultToDate;
+      return undefined;
     }
-  }, [toDateString, defaultToDate]);
+  }, [toDateString]);
 
-  const displayRange: DateRange = useMemo(() => ({
-    from: fromDate,
-    to: toDate,
-  }), [fromDate, toDate]);
+  const displayRange: DateRange | undefined = useMemo(() => {
+    if (!fromDate || !toDate) return undefined;
+    return { from: fromDate, to: toDate };
+  }, [fromDate, toDate]);
 
   // Load real data when component or date range is selected
   useEffect(() => {
@@ -188,7 +182,7 @@ export default function DashboardPage() {
       setNoDataAvailable(false);
       setLoadingProgress(0);
       
-      if (!machineId || !componentId) {
+      if (!machineId || !componentId || !displayRange) {
         setChartData([]);
         setChartLoading(false);
         return;
@@ -333,7 +327,7 @@ export default function DashboardPage() {
       <SidebarInset className="bg-slate-50">
         <DashboardHeader title={headerTitle} />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          {!selectedComponent || !machineId ? (
+          {!selectedComponent || !machineId || !displayRange ? (
             <EmptyState />
           ) : noDataAvailable && !chartLoading ? (
             <NoDataState />
