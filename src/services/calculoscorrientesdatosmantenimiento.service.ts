@@ -162,7 +162,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       fecha_fin: params.fecha_fin,
     };
   
-    const response = await fetch(API_URL + '/machineComponentDatesAggregated', {
+    const response = await fetch(API_URL + '/dataByMachineComponentDatesAggregated', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
