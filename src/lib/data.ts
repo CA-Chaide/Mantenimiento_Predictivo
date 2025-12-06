@@ -220,20 +220,6 @@ export function calculateLinearRegressionAndProject(
 
         const basePoint = data[0]; 
 
-        const createProjectionPoint = (value: number, type: 'trend' | 'pessimistic' | 'optimistic') => {
-          const point: ChartDataPoint = {
-              date: formatISO(newDate, { representation: 'date' }),
-              isProjection: true,
-              componentId: data[0].componentId,
-              // Use specific keys for each projection
-              [metricKey]: null, // Real value is null for projections
-          };
-
-          const key = `proyeccion_${metricKey.toString().toLowerCase().replace(/ /g, '_')}_${type}` as keyof ChartDataPoint;
-          point[key] = value > 0 ? value : 0;
-          return point;
-        };
-        
         const createFullProjectionPoint = (
             trendVal: number,
             pessimisticVal: number,
@@ -280,64 +266,46 @@ export async function useRealMaintenanceData(
     const fromDateString = formatISO(dateRange.from, { representation: 'date' });
     const toDateString = formatISO(dateRange.to, { representation: 'date' });
     const componentNameForAPI = component.originalName;
-    const daysDifference = differenceInDays(dateRange.to, dateRange.from);
 
     let allRecords: any[] = [];
     let aggregatedData: ChartDataPoint[];
 
-    // Adaptive fetching strategy
-    if (daysDifference > 90) {
-      // For large date ranges, fetch pre-aggregated data
-      const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
-        maquina: machineId,
-        componente: componentNameForAPI,
-        fecha_inicio: fromDateString,
-        fecha_fin: toDateString,
-      });
-      if (response.data && Array.isArray(response.data)) {
-        allRecords = response.data;
-      }
+    const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
+      machineId, 
+      componentNameForAPI,
+      fromDateString,
+      toDateString
+    );
+    const totalRecords = totalResponse.total || 0;
+    if (totalRecords === 0) {
       onProgressUpdate?.([], 100);
-      aggregatedData = allRecords.map(recordToDataPoint(component, true));
-    } else {
-      // For smaller date ranges, fetch detailed data and aggregate on client
-      const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
-        machineId, 
-        componentNameForAPI,
-        fromDateString,
-        toDateString
-      );
-      const totalRecords = totalResponse.total || 0;
-      if (totalRecords === 0) {
-        onProgressUpdate?.([], 100);
-        return { data: [] };
-      }
-      
-      const limit = 1000;
-      const totalPages = Math.ceil(totalRecords / limit);
-      
-      for (let page = 1; page <= totalPages; page++) {
-          const response = await calculosService.getDataByMachineComponentAndDates({
-              maquina: machineId,
-              componente: componentNameForAPI,
-              fecha_inicio: fromDateString,
-              fecha_fin: toDateString,
-              page,
-              limit,
-          });
-
-          if (response.data && Array.isArray(response.data)) {
-              allRecords = allRecords.concat(response.data);
-          }
-
-          if (onProgressUpdate) {
-              const transformedData = allRecords.map(recordToDataPoint(component, false));
-              onProgressUpdate(transformedData, (page / totalPages) * 90);
-          }
-      }
-      const rawTransformedData = allRecords.map(recordToDataPoint(component, false));
-      aggregatedData = aggregateDataByDay(rawTransformedData);
+      return { data: [] };
     }
+    
+    const limit = 1000;
+    const totalPages = Math.ceil(totalRecords / limit);
+    
+    for (let page = 1; page <= totalPages; page++) {
+        const response = await calculosService.getDataByMachineComponentAndDates({
+            maquina: machineId,
+            componente: componentNameForAPI,
+            fecha_inicio: fromDateString,
+            fecha_fin: toDateString,
+            page,
+            limit,
+        });
+
+        if (response.data && Array.isArray(response.data)) {
+            allRecords = allRecords.concat(response.data);
+        }
+
+        if (onProgressUpdate) {
+            const transformedData = allRecords.map(recordToDataPoint(component, false));
+            onProgressUpdate(transformedData, (page / totalPages) * 90);
+        }
+    }
+    const rawTransformedData = allRecords.map(recordToDataPoint(component, false));
+    aggregatedData = aggregateDataByDay(rawTransformedData);
     
     if (aggregatedData.length < 2) {
       onProgressUpdate?.([], 100);
