@@ -10,10 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface SidebarNavProps {
     machines: Machine[];
-    allComponents: Component[];
+    components: Component[];
 }
 
-export function SidebarNav({ machines, allComponents }: SidebarNavProps) {
+export function SidebarNav({ machines, components }: SidebarNavProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -33,15 +33,14 @@ export function SidebarNav({ machines, allComponents }: SidebarNavProps) {
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.set("component", componentId);
     router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
-    
-    const element = document.getElementById(`component-${componentId}`);
-    if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
   };
 
   if (!machines || machines.length === 0) {
-    return null;
+    return (
+        <div className="p-4 text-xs text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
+            Cargando máquinas...
+        </div>
+    );
   }
 
   return (
@@ -88,18 +87,25 @@ export function SidebarNav({ machines, allComponents }: SidebarNavProps) {
       
       {/* Expanded view */}
       <div className="group-data-[collapsible=icon]:hidden">
-        <SidebarMenuSub>
-            {allComponents.map(component => (
-                <SidebarMenuItem key={component.id}>
-                    <SidebarMenuSubButton 
-                        onClick={() => handleComponentSelect(component.id)}
-                        isActive={currentComponent === component.id}
-                    >
-                        <span>{component.name}</span>
-                    </SidebarMenuSubButton>
-                </SidebarMenuItem>
-            ))}
-        </SidebarMenuSub>
+        {currentMachine && components.length > 0 && (
+            <SidebarMenuSub>
+                {components.map(component => (
+                    <SidebarMenuItem key={component.id}>
+                        <SidebarMenuSubButton 
+                            onClick={() => handleComponentSelect(component.id)}
+                            isActive={currentComponent === component.id}
+                        >
+                            <span>{component.name}</span>
+                        </SidebarMenuSubButton>
+                    </SidebarMenuItem>
+                ))}
+            </SidebarMenuSub>
+        )}
+        {currentMachine && components.length === 0 && (
+            <div className="p-4 text-xs text-sidebar-foreground/70">
+                No hay componentes para esta máquina.
+            </div>
+        )}
       </div>
     </SidebarMenu>
   );

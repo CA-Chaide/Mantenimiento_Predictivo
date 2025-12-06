@@ -4,9 +4,9 @@
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useRealMaintenanceData, type MachineId, type Component, type Machine } from "@/lib/data";
+import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDay } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
-import { startOfMonth, addMonths, format, parseISO } from "date-fns";
+import { startOfMonth, format, parseISO } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, LogOut, MousePointerClick, Loader } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
@@ -87,8 +87,10 @@ export default function DashboardPage() {
       try {
         const response = await calculosCorrientesDatosMantenimientoService.getMachines();
         if (response.data && Array.isArray(response.data)) {
-          const transformedMachines = response.data.map((m: any) => {
-            const machineName = m.MAQUINA || m.name || m.id || '';
+          const transformedMachines = response.data
+          .filter((m: any) => m.MAQUINA)
+          .map((m: any) => {
+            const machineName = m.MAQUINA;
             return {
               id: machineName.toString(),
               name: machineName.toString()
@@ -96,7 +98,7 @@ export default function DashboardPage() {
           });
           setMachineList(transformedMachines);
         } else {
-          console.error("Formato de respuesta inesperado:", response);
+          console.error("Formato de respuesta inesperado para máquinas:", response);
           setMachineList([]);
         }
       } catch (error) {
@@ -109,22 +111,26 @@ export default function DashboardPage() {
     fetchMachines();
   }, []);
   
-  // No seleccionar máquina por defecto, solo si está en la URL
   const machineId = (
     typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
       ? searchParams.get('machine')
       : undefined
   ) as MachineId | undefined;
 
-  // Fetch components
+  // Fetch components when machine changes
   useEffect(() => {
     async function fetchComponents() {
-      if (!machineId) return;
+      if (!machineId) {
+        setComponentList([]);
+        return;
+      };
       try {
         const response = await calculosCorrientesDatosMantenimientoService.getComponentsByMachine({ maquina: machineId });
         if (response.data && Array.isArray(response.data)) {
-          const transformedComponents = response.data.map((c: any) => {
-            const componentName = c.COMPONENTE || c.name || c.id || '';
+          const transformedComponents = response.data
+          .filter((c: any) => c.COMPONENTE)
+          .map((c: any) => {
+            const componentName = c.COMPONENTE;
             return {
               id: componentName.toString().toLowerCase().replace(/ /g, '_'),
               name: componentName.toString(),
@@ -133,7 +139,7 @@ export default function DashboardPage() {
           });
           setComponentList(transformedComponents);
         } else {
-          console.error("Formato de respuesta inesperado:", response);
+          console.error("Formato de respuesta inesperado para componentes:", response);
           setComponentList([]);
         }
       } catch (error) {
@@ -162,10 +168,9 @@ export default function DashboardPage() {
     to: toDate,
   }), [fromDate, toDate]);
 
-  // Cargar datos reales cuando se selecciona un componente
+  // Load real data when component is selected
   useEffect(() => {
     async function loadChartData() {
-      // Resetear estados
       setNoDataAvailable(false);
       setLoadingProgress(0);
       
@@ -184,59 +189,34 @@ export default function DashboardPage() {
 
       setChartLoading(true);
       try {
-        // Verificar que las fechas existan
         if (!fromDateString || !toDateString) {
           setChartData([]);
           setChartLoading(false);
           return;
         }
 
-        console.log('Iniciando carga de datos para:', { machineId, componente: selectedComp.originalName });
-
-        // Primero verificar si hay datos
-        const totalResponse = await calculosCorrientesDatosMantenimientoService.getTotalByMaquinaAndComponente(
-          machineId,
-          selectedComp.originalName,
-          fromDateString,
-          toDateString
-        );
-
-        console.log('Total de registros:', totalResponse.total);
-
-        if (totalResponse.total === 0) {
-          console.log('No hay datos disponibles');
-          setNoDataAvailable(true);
-          setChartData([]);
-          setChartLoading(false);
-          setLoadingProgress(0);
-          return;
-        }
-
-        // Si hay datos, cargarlos con actualizaciones progresivas
         const result = await useRealMaintenanceData(
           machineId,
           selectedComp,
           displayRange,
           calculosCorrientesDatosMantenimientoService,
           (partialData, progress) => {
-            // Actualizar datos y progreso a medida que llegan
-            console.log('Actualización de datos:', { registros: partialData.length, progreso: progress });
-            setChartData(partialData);
+            const aggregatedData = aggregateDataByDay(partialData);
+            setChartData(aggregatedData);
             setLoadingProgress(progress);
-            // Si ya hay datos parciales, no mostrar el estado "sin datos"
             if (partialData.length > 0) {
               setNoDataAvailable(false);
             }
           }
         );
         
-        console.log('Carga finalizada, total de registros:', result.data.length);
-        
-        // Solo actualizar si el resultado final tiene más datos que el último callback
-        if (result.data.length > 0) {
-          setChartData(result.data);
+        const finalAggregatedData = aggregateDataByDay(result.data);
+
+        if (finalAggregatedData.length > 0) {
+          setChartData(finalAggregatedData);
           setNoDataAvailable(false);
         } else {
+          setChartData([]);
           setNoDataAvailable(true);
         }
         setLoadingProgress(100);
@@ -252,7 +232,7 @@ export default function DashboardPage() {
 
     loadChartData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [machineId, componentId, fromDateString, toDateString]);
+  }, [machineId, componentId, fromDateString, toDateString, componentList]); // Added componentList dependency
 
   // Early return after all hooks
   if (loading) {
@@ -283,7 +263,7 @@ export default function DashboardPage() {
 
   const selectedComponent = componentId ? componentList.find(c => c.id === componentId) : undefined;
   const machine = machineList.find(m => m.id === machineId);
-  const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name;
+  const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name || 'Dashboard';
   
   return (
     <SidebarProvider>
@@ -306,7 +286,7 @@ export default function DashboardPage() {
                         <label className="text-xs font-medium text-sidebar-foreground/80 px-2">Rango de Fechas</label>
                         <DateRangePicker initialDate={displayRange} className="w-full" />
                     </div>
-                <SidebarNav machines={machineList} allComponents={componentList} />
+                <SidebarNav machines={machineList} components={componentList} />
                 </SidebarContent>
             </div>
 
@@ -347,7 +327,7 @@ export default function DashboardPage() {
               {chartLoading && (
                 <div className="absolute top-0 left-0 right-0 z-10 bg-blue-50 border-b border-blue-200 px-4 py-2 flex items-center justify-between">
                   <span className="text-sm text-blue-700 font-medium">
-                    Cargando datos... {Math.round(loadingProgress)}%
+                    Agregando datos... {Math.round(loadingProgress)}%
                   </span>
                   <div className="w-48 bg-blue-200 rounded-full h-2">
                     <div 
@@ -359,7 +339,7 @@ export default function DashboardPage() {
               )}
               <div className={chartLoading ? "mt-12" : ""}>
                 <DashboardClient
-                  machineComponents={[selectedComponent]}
+                  machineComponents={selectedComponent ? [selectedComponent] : []}
                   data={chartData}
                   aprilData={[]}
                 />
