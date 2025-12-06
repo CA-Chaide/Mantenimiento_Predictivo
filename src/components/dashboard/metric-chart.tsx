@@ -78,9 +78,9 @@ export function MetricChart({
       date: d.date, 
       [valueKey as string]: d.isProjection ? null : (d[valueKey] as number | null),
       [limitKey as string]: d[limitKey] as number | null,
-      [predictionKey as string]: d.isProjection ? d[predictionKey] : null,
-      [predictionPesimisticKey as string]: d.isProjection ? d[predictionPesimisticKey] : null,
-      [predictionOptimisticKey as string]: d.isProjection ? d[predictionOptimisticKey] : null,
+      [predictionKey as string]: d[predictionKey],
+      [predictionPesimisticKey as string]: d[predictionPesimisticKey],
+      [predictionOptimisticKey as string]: d[predictionOptimisticKey],
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 

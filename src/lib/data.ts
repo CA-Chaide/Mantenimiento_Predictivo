@@ -299,6 +299,10 @@ export async function useRealMaintenanceData(
       return { data: aggregatedData };
     }
     
+    const lastKnownCurrentLimit = [...aggregatedData].reverse().find(d => d['Corriente Máxima'] != null)?.['Corriente Máxima'];
+    const lastKnownUnbalanceLimit = [...aggregatedData].reverse().find(d => d['Umbral Desbalance'] != null)?.['Umbral Desbalance'];
+    const lastKnownLoadFactorLimit = [...aggregatedData].reverse().find(d => d['Umbral Factor Carga'] != null)?.['Umbral Factor Carga'];
+
     // Calculate projections for all metrics
     const { trend: projCorriente, pessimistic: projCorrientePes, optimistic: projCorrienteOpt } = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado");
     const { trend: projDesbalance, pessimistic: projDesbalancePes, optimistic: projDesbalanceOpt } = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado");
@@ -308,33 +312,28 @@ export async function useRealMaintenanceData(
     const projectionMap = new Map<string, ChartDataPoint>();
     
     const allProjections = [
-      { key: 'proyeccion_corriente_tendencia', data: projCorriente },
-      { key: 'proyeccion_corriente_pesimista', data: projCorrientePes },
-      { key: 'proyeccion_corriente_optimista', data: projCorrienteOpt },
-      { key: 'proyeccion_desbalance_tendencia', data: projDesbalance },
-      { key: 'proyeccion_desbalance_pesimista', data: projDesbalancePes },
-      { key: 'proyeccion_desbalance_optimista', data: projDesbalanceOpt },
-      { key: 'proyeccion_factor_carga_tendencia', data: projFactorCarga },
-      { key: 'proyeccion_factor_carga_pesimista', data: projFactorCargaPes },
-      { key: 'proyeccion_factor_carga_optimista', data: projFactorCargaOpt },
+      { key: 'proyeccion_corriente_tendencia', data: projCorriente, valueKey: 'predictedValue' },
+      { key: 'proyeccion_corriente_pesimista', data: projCorrientePes, valueKey: 'predictedValuePesimistic' },
+      { key: 'proyeccion_corriente_optimista', data: projCorrienteOpt, valueKey: 'predictedValueOptimistic' },
+      { key: 'proyeccion_desbalance_tendencia', data: projDesbalance, valueKey: 'predictedValue' },
+      { key: 'proyeccion_desbalance_pesimista', data: projDesbalancePes, valueKey: 'predictedValuePesimistic' },
+      { key: 'proyeccion_desbalance_optimista', data: projDesbalanceOpt, valueKey: 'predictedValueOptimistic' },
+      { key: 'proyeccion_factor_carga_tendencia', data: projFactorCarga, valueKey: 'predictedValue' },
+      { key: 'proyeccion_factor_carga_pesimista', data: projFactorCargaPes, valueKey: 'predictedValuePesimistic' },
+      { key: 'proyeccion_factor_carga_optimista', data: projFactorCargaOpt, valueKey: 'predictedValueOptimistic' },
     ];
 
-    allProjections.forEach(({ key, data }) => {
+    allProjections.forEach(({ key, data, valueKey }) => {
         data.forEach(p => {
-            const existing = projectionMap.get(p.date) || { ...p, date: p.date, isProjection: true, componentId: p.componentId };
-            if (key.includes('corriente')) {
-              if (key.endsWith('tendencia')) existing['proyeccion_corriente_tendencia'] = p.predictedValue;
-              if (key.endsWith('pesimista')) existing['proyeccion_corriente_pesimista'] = p.predictedValuePesimistic;
-              if (key.endsWith('optimista')) existing['proyeccion_corriente_optimista'] = p.predictedValueOptimistic;
-            } else if (key.includes('desbalance')) {
-                if (key.endsWith('tendencia')) existing['proyeccion_desbalance_tendencia'] = p.predictedValue;
-                if (key.endsWith('pesimista')) existing['proyeccion_desbalance_pesimista'] = p.predictedValuePesimistic;
-                if (key.endsWith('optimista')) existing['proyeccion_desbalance_optimista'] = p.predictedValueOptimistic;
-            } else if (key.includes('factor_carga')) {
-                if (key.endsWith('tendencia')) existing['proyeccion_factor_carga_tendencia'] = p.predictedValue;
-                if (key.endsWith('pesimista')) existing['proyeccion_factor_carga_pesimista'] = p.predictedValuePesimistic;
-                if (key.endsWith('optimista')) existing['proyeccion_factor_carga_optimista'] = p.predictedValueOptimistic;
-            }
+            const existing = projectionMap.get(p.date) || { 
+              date: p.date, 
+              isProjection: true, 
+              componentId: p.componentId,
+              'Corriente Máxima': lastKnownCurrentLimit,
+              'Umbral Desbalance': lastKnownUnbalanceLimit,
+              'Umbral Factor Carga': lastKnownLoadFactorLimit,
+            };
+            (existing as any)[key] = (p as any)[valueKey];
             projectionMap.set(p.date, existing);
         })
     });
