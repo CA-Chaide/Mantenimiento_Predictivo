@@ -83,8 +83,13 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             from = subYears(today, 1);
             break;
         case 'sinceStart':
-            from = sinceStartDate;
-            break;
+            const endDate = subDays(new Date(), 1);
+            from = subDays(endDate, 30);
+            const sinceStartRange = { from, to: endDate };
+            setDate(sinceStartRange);
+            updateURL(sinceStartRange);
+            setPopoverOpen(false);
+            return; 
     }
     const newRange = { from, to };
     setDate(newRange);
