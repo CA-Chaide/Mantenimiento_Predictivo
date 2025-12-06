@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfMonth, subMonths, max, startOfYear, differenceInDays } from "date-fns";
+import { format, startOfMonth, subMonths, max, startOfYear, differenceInDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon, RotateCcw } from "lucide-react";
@@ -33,8 +33,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const [timeZone, setTimeZone] = React.useState('UTC');
   const [popoverOpen, setPopoverOpen] = React.useState(false);
 
-  const maxDate = new Date('2025-11-26T00:00:00Z');
-  // A generic start date instead of a hardcoded one.
+  const yesterday = subDays(new Date(), 1);
   const sinceStartDate = new Date('2024-01-01T00:00:00Z');
 
   React.useEffect(() => {
@@ -69,25 +68,26 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   };
 
   const handlePreset = (preset: 'thisMonth' | 'last3Months' | 'thisYear' | 'sinceStart') => {
-    const simulatedToday = maxDate;
+    const today = new Date();
     let from: Date;
-    const to = simulatedToday;
+    const to = today;
 
     switch (preset) {
         case 'thisMonth':
-            from = startOfMonth(simulatedToday);
+            from = startOfMonth(today);
             break;
         case 'last3Months':
-            from = subMonths(simulatedToday, 3);
+            from = subMonths(today, 3);
             break;
         case 'thisYear':
-            from = startOfYear(simulatedToday);
+            from = startOfYear(today);
             break;
         case 'sinceStart':
             from = sinceStartDate;
             break;
     }
-    const newRange = { from, to };
+    // Ensure the preset range does not go into the future
+    const newRange = { from, to: max([from, to]) > yesterday ? yesterday : to };
     setDate(newRange);
     updateURL(newRange);
     setPopoverOpen(false);
@@ -152,18 +152,18 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                 <Calendar
                     initialFocus
                     mode="range"
-                    defaultMonth={date?.from || new Date('2025-10-01T00:00:00Z')}
+                    defaultMonth={date?.from || subDays(new Date(), 30)}
                     selected={date}
                     onSelect={handleSelect}
                     numberOfMonths={2}
-                    toDate={maxDate}
+                    toDate={new Date()}
                     locale={es}
                     classNames={{
                         day_range_start: "day-range-start",
                         day_range_end: "day-range-end",
                         day_range_middle: "day-range-middle"
                     }}
-                    disabled={{ after: maxDate }}
+                    disabled={{ after: new Date() }}
                 />
                 <div className="border-t text-center text-xs text-slate-500 py-2">
                     {selectedDays > 0 ? `Periodo seleccionado: ${selectedDays} días` : 'Seleccione un rango de fechas'}

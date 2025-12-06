@@ -6,7 +6,7 @@ import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDay } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subDays } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, LogOut, MousePointerClick, Loader } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
@@ -157,7 +157,8 @@ export default function DashboardPage() {
   
   const fromDate = useMemo(() => {
     try {
-      return fromDateString ? parseISO(fromDateString) : undefined;
+      if (fromDateString) return parseISO(fromDateString);
+      return undefined;
     } catch (e) {
       return undefined;
     }
@@ -165,7 +166,8 @@ export default function DashboardPage() {
   
   const toDate = useMemo(() => {
     try {
-      return toDateString ? parseISO(toDateString) : undefined;
+      if (toDateString) return parseISO(toDateString);
+      return undefined;
     } catch (e) {
       return undefined;
     }
@@ -209,13 +211,10 @@ export default function DashboardPage() {
           displayRange,
           calculosCorrientesDatosMantenimientoService,
           (partialData, progress) => {
-            // This callback gives us a sense of progress, but the final aggregation
-            // should happen once, after all data is fetched.
-            // For now, let's just update the progress.
             setLoadingProgress(progress);
-            if(progress < 100) {
+            if (progress < 100) {
               const aggregatedData = aggregateDataByDay(partialData);
-              setChartData(aggregatedData); // Temporarily update with aggregated data
+              setChartData(aggregatedData);
             }
             if (partialData.length > 0) {
               setNoDataAvailable(false);
@@ -223,7 +222,6 @@ export default function DashboardPage() {
           }
         );
         
-        // The result.data already includes the projection
         if (result.data.length > 0) {
           setChartData(result.data);
           setNoDataAvailable(false);
