@@ -26,7 +26,6 @@ interface MetricChartProps {
   valueKey: keyof ChartDataPoint;
   limitKey: keyof ChartDataPoint;
   limitLabel: string;
-  refKey: keyof ChartDataPoint;
   predictionKey: keyof ChartDataPoint;
   predictionPesimisticKey: keyof ChartDataPoint;
   predictionOptimisticKey: keyof ChartDataPoint;
@@ -66,7 +65,6 @@ export function MetricChart({
   valueKey,
   limitKey,
   limitLabel,
-  refKey,
   predictionKey,
   predictionPesimisticKey,
   predictionOptimisticKey,
@@ -80,7 +78,6 @@ export function MetricChart({
       date: d.date, 
       [valueKey as string]: d.isProjection ? null : (d[valueKey] as number | null),
       [limitKey as string]: d[limitKey] as number | null,
-      [refKey as string]: d[refKey] as number | null,
       [predictionKey as string]: d.isProjection ? d[predictionKey] : null,
       [predictionPesimisticKey as string]: d.isProjection ? d[predictionPesimisticKey] : null,
       [predictionOptimisticKey as string]: d.isProjection ? d[predictionOptimisticKey] : null,
@@ -142,16 +139,6 @@ export function MetricChart({
               name={limitLabel}
               stroke="#dc2626"
               strokeWidth={2}
-              dot={false}
-            />
-            
-            <Line
-              type="monotone"
-              dataKey={refKey as string}
-              name="Referencia"
-              stroke="#64748b"
-              strokeWidth={2}
-              strokeDasharray="3 3"
               dot={false}
             />
 

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +50,6 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                   valueKey="Corriente Promedio Suavizado"
                   limitKey="Corriente Máxima"
                   limitLabel="Corriente Max"
-                  refKey="Referencia Corriente Promedio Suavizado"
                   predictionKey="proyeccion_corriente_tendencia"
                   predictionPesimisticKey="proyeccion_corriente_pesimista"
                   predictionOptimisticKey="proyeccion_corriente_optimista"
@@ -72,7 +72,6 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                   valueKey="Desbalance Suavizado"
                   limitKey="Umbral Desbalance"
                   limitLabel="Umbral Max"
-                  refKey="Referencia Desbalance Suavizado"
                   predictionKey="proyeccion_desbalance_tendencia"
                   predictionPesimisticKey="proyeccion_desbalance_pesimista"
                   predictionOptimisticKey="proyeccion_desbalance_optimista"
@@ -95,7 +94,6 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                   valueKey="Factor De Carga Suavizado"
                   limitKey="Umbral Factor Carga"
                   limitLabel="Umbral Max"
-                  refKey="Referencia Factor De Carga Suavizado"
                   predictionKey="proyeccion_factor_carga_tendencia"
                   predictionPesimisticKey="proyeccion_factor_carga_pesimista"
                   predictionOptimisticKey="proyeccion_factor_carga_optimista"
