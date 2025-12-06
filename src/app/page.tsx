@@ -309,28 +309,6 @@ export default function DashboardPage() {
                 <SidebarNav machines={machineList} components={componentList} />
                 </SidebarContent>
             </div>
-
-            <div className="mt-auto">
-                <div className="border-t border-sidebar-border p-2">
-                    <div className="group-data-[collapsible=icon]:hidden p-2 flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                            <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground">AD</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="text-sm font-semibold text-sidebar-foreground">Admin Planta</p>
-                            <p className="text-xs text-sidebar-foreground/80">Supervisor</p>
-                        </div>
-                        <Button variant="ghost" size="icon" className="ml-auto text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-                            <LogOut className="size-4" />
-                        </Button>
-                    </div>
-                    <div className="hidden group-data-[collapsible=icon]:flex justify-center p-2">
-                         <Button variant="ghost" size="icon" className="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-                            <LogOut className="size-5" />
-                        </Button>
-                    </div>
-                </div>
-            </div>
         </div>
       </Sidebar>
       <SidebarInset className="bg-slate-50">
