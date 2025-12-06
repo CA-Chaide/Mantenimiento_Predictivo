@@ -137,7 +137,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       limit: params.limit || 1000,
     };
 
-    const response = await fetch(APIURL + '/machineComponentDates', {
+    const response = await fetch(API_URL + '/machineComponentDates', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -162,7 +162,7 @@ export const calculosCorrientesDatosMantenimientoService = {
       fecha_fin: params.fecha_fin,
     };
   
-    const response = await fetch(API_URL + '/machineComponentDatesAggregated', {
+    const response = await fetch(API_URL + '/dataByMachineComponentDatesAggregated', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
