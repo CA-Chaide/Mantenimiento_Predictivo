@@ -23,9 +23,17 @@ export type ChartDataPoint = {
   "Umbral Factor Carga"?: number;
   "Referencia Factor De Carga Suavizado"?: number;
 
-  predictedValue?: number | null;
-  predictedValuePesimistic?: number | null;
-  predictedValueOptimistic?: number | null;
+  "proyeccion_corriente_tendencia"?: number | null;
+  "proyeccion_corriente_pesimista"?: number | null;
+  "proyeccion_corriente_optimista"?: number | null;
+  
+  "proyeccion_desbalance_tendencia"?: number | null;
+  "proyeccion_desbalance_pesimista"?: number | null;
+  "proyeccion_desbalance_optimista"?: number | null;
+
+  "proyeccion_factor_carga_tendencia"?: number | null;
+  "proyeccion_factor_carga_pesimista"?: number | null;
+  "proyeccion_factor_carga_optimista"?: number | null;
   [key: string]: any; 
 };
 
@@ -156,9 +164,9 @@ export function calculateLinearRegressionAndProject(
       x: i,
       y: p[metricKey] as number,
       date: p.date,
-    })).filter(p => p.y !== null && !isNaN(p.y));
+    })).filter(p => p.y !== null && !isNaN(p.y) && p.y > 0); // Filter out zero/null values
 
-    if (cleanData.length < 2) {
+    if (cleanData.length < 5) { // Increased minimum points for a more stable trend
       return { trend: [], pessimistic: [], optimistic: [] };
     }
 
@@ -184,7 +192,7 @@ export function calculateLinearRegressionAndProject(
     const residuals = cleanData.map(p => p.y - (slope * p.x + intercept));
     const meanResidual = residuals.reduce((sum, r) => sum + r, 0) / residuals.length;
     const squaredErrors = residuals.map(r => (r - meanResidual) ** 2);
-    const variance = squaredErrors.reduce((sum, e) => sum + e, 0) / (squaredErrors.length - 1);
+    const variance = squaredErrors.reduce((sum, e) => sum + e, 0) / (squaredErrors.length > 1 ? squaredErrors.length - 1 : 1);
     const stdDev = Math.sqrt(variance);
     const noiseFactor = stdDev / 2; // Reduce noise amplitude
 
@@ -203,28 +211,54 @@ export function calculateLinearRegressionAndProject(
         
         const noise = (Math.random() - 0.5) * 2 * noiseFactor;
 
-        const trendValue = slope * x + intercept + noise;
-        const pessimisticValue = (slope * pessimisticFactor) * x + intercept + noise;
-        const optimisticValue = (slope * optimisticFactor) * x + intercept + noise;
+        // Ensure slope is not negative to prevent decreasing trends
+        const nonNegativeSlope = Math.max(0, slope);
+
+        const trendValue = nonNegativeSlope * x + intercept + noise;
+        const pessimisticValue = (nonNegativeSlope * pessimisticFactor) * x + intercept + noise;
+        const optimisticValue = (nonNegativeSlope * optimisticFactor) * x + intercept + noise;
 
         const basePoint = data[0]; 
 
-        const createProjectionPoint = (value: number) => ({
-          date: formatISO(newDate, { representation: 'date' }),
-          isProjection: true,
-          componentId: data[0].componentId,
-          predictedValue: value > 0 ? value : 0, // Ensure non-negative
-          "Corriente Máxima": basePoint["Corriente Máxima"],
-          "Referencia Corriente Promedio Suavizado": basePoint["Referencia Corriente Promedio Suavizado"],
-          "Umbral Desbalance": basePoint["Umbral Desbalance"],
-          "Referencia Desbalance Suavizado": basePoint["Referencia Desbalance Suavizado"],
-          "Umbral Factor Carga": basePoint["Umbral Factor Carga"],
-          "Referencia Factor De Carga Suavizado": basePoint["Referencia Factor De Carga Suavizado"],
-        });
+        const createProjectionPoint = (value: number, type: 'trend' | 'pessimistic' | 'optimistic') => {
+          const point: ChartDataPoint = {
+              date: formatISO(newDate, { representation: 'date' }),
+              isProjection: true,
+              componentId: data[0].componentId,
+              // Use specific keys for each projection
+              [metricKey]: null, // Real value is null for projections
+          };
 
-        trend.push(createProjectionPoint(trendValue));
-        pessimistic.push(createProjectionPoint(pessimisticValue));
-        optimistic.push(createProjectionPoint(optimisticValue));
+          const key = `proyeccion_${metricKey.toString().toLowerCase().replace(/ /g, '_')}_${type}` as keyof ChartDataPoint;
+          point[key] = value > 0 ? value : 0;
+          return point;
+        };
+        
+        const createFullProjectionPoint = (
+            trendVal: number,
+            pessimisticVal: number,
+            optimisticVal: number
+        ) => {
+            const point: ChartDataPoint = {
+                date: formatISO(newDate, { representation: 'date' }),
+                isProjection: true,
+                componentId: data[0].componentId,
+                 "Corriente Máxima": basePoint["Corriente Máxima"],
+                "Referencia Corriente Promedio Suavizado": basePoint["Referencia Corriente Promedio Suavizado"],
+                "Umbral Desbalance": basePoint["Umbral Desbalance"],
+                "Referencia Desbalance Suavizado": basePoint["Referencia Desbalance Suavizado"],
+                "Umbral Factor Carga": basePoint["Umbral Factor Carga"],
+                "Referencia Factor De Carga Suavizado": basePoint["Referencia Factor De Carga Suavizado"],
+                predictedValue: trendVal > 0 ? trendVal : 0,
+                predictedValuePesimistic: pessimisticVal > 0 ? pessimisticVal : 0,
+                predictedValueOptimistic: optimisticVal > 0 ? optimisticVal : 0,
+            };
+            return point;
+        }
+
+        trend.push(createFullProjectionPoint(trendValue, pessimisticValue, optimisticValue));
+        pessimistic.push(createFullProjectionPoint(trendValue, pessimisticValue, optimisticValue));
+        optimistic.push(createFullProjectionPoint(trendValue, pessimisticValue, optimisticValue));
     }
 
     return { trend, pessimistic, optimistic };
@@ -296,140 +330,44 @@ export async function useRealMaintenanceData(
     const { trend: projDesbalance, pessimistic: projDesbalancePes, optimistic: projDesbalanceOpt } = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado");
     const { trend: projFactorCarga, pessimistic: projFactorCargaPes, optimistic: projFactorCargaOpt } = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado");
 
-    const mergeProjections = (baseData: ChartDataPoint[], projections: { [key: string]: ChartDataPoint[] }) => {
-      const projectionMap = new Map<string, Partial<ChartDataPoint>>();
-
-      Object.entries(projections).forEach(([key, projArray]) => {
-        projArray.forEach(p => {
-          if (!projectionMap.has(p.date)) {
-            const basePoint = p;
-            projectionMap.set(p.date, { ...basePoint });
-          }
-          const existing = projectionMap.get(p.date)!;
-          existing[key] = p.predictedValue;
-        });
-      });
-
-      const finalProjections: ChartDataPoint[] = [];
-      projectionMap.forEach(p => {
-        finalProjections.push({ ...p, isProjection: true } as ChartDataPoint);
-      })
-      
-      finalProjections.sort((a,b) => a.date.localeCompare(b.date));
-
-      return [...baseData, ...finalProjections];
-    };
-
-    let combinedData = mergeProjections(aggregatedData, {});
-
-    // This logic is a bit naive. It should merge projections for the selected component's metrics.
-    // For now, let's assume we're projecting all three.
-    
-    const projections = {
-      "Corriente Promedio Suavizado": projCorriente,
-      "Desbalance Suavizado": projDesbalance,
-      "Factor De Carga Suavizado": projFactorCarga,
-    };
-    
-    // We need to merge projections smartly.
-    const allProjections = [
-      ...projCorriente.map(p => ({ ...p, metric: 'current' })),
-      ...projCorrientePes.map(p => ({ ...p, metric: 'current_pes' })),
-      ...projCorrienteOpt.map(p => ({ ...p, metric: 'current_opt' })),
-      
-      ...projDesbalance.map(p => ({ ...p, metric: 'unbalance' })),
-      ...projDesbalancePes.map(p => ({ ...p, metric: 'unbalance_pes' })),
-      ...projDesbalanceOpt.map(p => ({ ...p, metric: 'unbalance_opt' })),
-
-      ...projFactorCarga.map(p => ({ ...p, metric: 'load' })),
-      ...projFactorCargaPes.map(p => ({ ...p, metric: 'load_pes' })),
-      ...projFactorCargaOpt.map(p => ({ ...p, metric: 'load_opt' })),
-    ];
-    
-    const finalProjectionMap = new Map<string, Partial<ChartDataPoint>>();
-    
-    allProjections.forEach(p => {
-      if (!finalProjectionMap.has(p.date)) {
-        finalProjectionMap.set(p.date, { ...p, isProjection: true });
-      }
-      const existing = finalProjectionMap.get(p.date)!;
-      
-      if (p.metric.startsWith('current')) {
-        if(p.metric.endsWith('_pes')) existing.predictedValuePesimistic = p.predictedValue;
-        else if (p.metric.endsWith('_opt')) existing.predictedValueOptimistic = p.predictedValue;
-        else existing.predictedValue = p.predictedValue;
-      }
-      // This is still not quite right. A single point can't hold all projections.
-      // We'll let the chart handle different keys.
-    });
-
-
-    const mergedProjections: ChartDataPoint[] = [];
-    const dateKeys = new Set([...projCorriente.map(p => p.date)]);
-    
-    dateKeys.forEach(date => {
-      const pCor = projCorriente.find(p => p.date === date);
-      const pCorPes = projCorrientePes.find(p => p.date === date);
-      const pCorOpt = projCorrienteOpt.find(p => p.date === date);
-
-      const pDes = projDesbalance.find(p => p.date === date);
-      const pDesPes = projDesbalancePes.find(p => p.date === date);
-      const pDesOpt = projDesbalanceOpt.find(p => p.date === date);
-
-      const pFc = projFactorCarga.find(p => p.date === date);
-      const pFcPes = projFactorCargaPes.find(p => p.date === date);
-      const pFcOpt = projFactorCargaOpt.find(p => p.date === date);
-      
-      // We have an issue: predictedValue, predictedValuePesimistic etc are single fields
-      // but we need to show them per metric.
-      // The chart will filter by metric, so let's restructure the output
-      // For now, this just merges the first metric. It's not ideal.
-
-      const baseProj = pCor || pDes || pFc;
-      if (!baseProj) return;
-
-      const newProjPoint: ChartDataPoint = {
-        ...baseProj,
-        predictedValue: pCor?.predictedValue,
-        predictedValuePesimistic: pCorPes?.predictedValue,
-        predictedValueOptimistic: pCorOpt?.predictedValue,
-        
-        // This is where it gets tricky, the chart expects one value key.
-        // Let's just project one metric for now, and the UI will show it.
-        // The request is to have 3 lines per chart. So we need to store them.
-      };
-      
-      mergedProjections.push(newProjPoint);
-    });
-
-    // Let's try a different approach. The projection function returns 3 arrays.
-    // Let's add them to the main array. The chart component will need to know which keys to use.
-
-    const finalData = [...aggregatedData];
-    const trendData = projCorriente; // Let's focus on current for now
-    const pesData = projCorrientePes;
-    const optData = projCorrienteOpt;
-
-    // This is getting complicated. The simplest way is to have separate keys in the SAME object.
+    // Merge all projections into one array of points
     const projectionMap = new Map<string, ChartDataPoint>();
     
-    projCorriente.forEach(p => projectionMap.set(p.date, { ...p, predictedValue: p.predictedValue }));
-    projCorrientePes.forEach(p => {
-        const existing = projectionMap.get(p.date) || { ...p, date: p.date, isProjection: true, componentId: p.componentId };
-        existing.predictedValuePesimistic = p.predictedValue;
-        projectionMap.set(p.date, existing);
-    });
-    projCorrienteOpt.forEach(p => {
-        const existing = projectionMap.get(p.date) || { ...p, date: p.date, isProjection: true, componentId: p.componentId };
-        existing.predictedValueOptimistic = p.predictedValue;
-        projectionMap.set(p.date, existing);
-    });
-    
-    // This only projects one metric. A more robust solution would be needed for all 3 metrics.
-    // For now, this will work for the "Corriente" chart.
-    const allProjectedPoints = Array.from(projectionMap.values()).sort((a,b) => a.date.localeCompare(b.date));
+    const allProjections = [
+      { key: 'proyeccion_corriente_tendencia', data: projCorriente },
+      { key: 'proyeccion_corriente_pesimista', data: projCorrientePes },
+      { key: 'proyeccion_corriente_optimista', data: projCorrienteOpt },
+      { key: 'proyeccion_desbalance_tendencia', data: projDesbalance },
+      { key: 'proyeccion_desbalance_pesimista', data: projDesbalancePes },
+      { key: 'proyeccion_desbalance_optimista', data: projDesbalanceOpt },
+      { key: 'proyeccion_factor_carga_tendencia', data: projFactorCarga },
+      { key: 'proyeccion_factor_carga_pesimista', data: projFactorCargaPes },
+      { key: 'proyeccion_factor_carga_optimista', data: projFactorCargaOpt },
+    ];
 
-    combinedData = [...aggregatedData, ...allProjectedPoints];
+    allProjections.forEach(({ key, data }) => {
+        data.forEach(p => {
+            const existing = projectionMap.get(p.date) || { ...p, date: p.date, isProjection: true, componentId: p.componentId };
+            if (key.includes('corriente')) {
+              if (key.endsWith('tendencia')) existing['proyeccion_corriente_tendencia'] = p.predictedValue;
+              if (key.endsWith('pesimista')) existing['proyeccion_corriente_pesimista'] = p.predictedValuePesimistic;
+              if (key.endsWith('optimista')) existing['proyeccion_corriente_optimista'] = p.predictedValueOptimistic;
+            } else if (key.includes('desbalance')) {
+                if (key.endsWith('tendencia')) existing['proyeccion_desbalance_tendencia'] = p.predictedValue;
+                if (key.endsWith('pesimista')) existing['proyeccion_desbalance_pesimista'] = p.predictedValuePesimistic;
+                if (key.endsWith('optimista')) existing['proyeccion_desbalance_optimista'] = p.predictedValueOptimistic;
+            } else if (key.includes('factor_carga')) {
+                if (key.endsWith('tendencia')) existing['proyeccion_factor_carga_tendencia'] = p.predictedValue;
+                if (key.endsWith('pesimista')) existing['proyeccion_factor_carga_pesimista'] = p.predictedValuePesimistic;
+                if (key.endsWith('optimista')) existing['proyeccion_factor_carga_optimista'] = p.predictedValueOptimistic;
+            }
+            projectionMap.set(p.date, existing);
+        })
+    });
+
+    const allProjectedPoints = Array.from(projectionMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    
+    let combinedData = [...aggregatedData, ...allProjectedPoints];
 
     onProgressUpdate?.(rawTransformedData, 100);
     

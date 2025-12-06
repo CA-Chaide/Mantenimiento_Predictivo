@@ -27,7 +27,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
   return (
     <div className="space-y-8">
       {machineComponents.map((component) => {
-        const componentData = data.filter(d => d.componentId === component.id);
+        const componentData = data; // Data is already filtered by component in page.tsx
         const statusInfo = getComponentStatus(componentData, component.name);
         
         return (
@@ -46,14 +46,14 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
               <CardContent className="p-6">
                 <MetricChart
                   data={data}
-                  aprilData={aprilData}
                   valueKey="Corriente Promedio Suavizado"
                   limitKey="Corriente Máxima"
                   limitLabel="Corriente Max"
                   refKey="Referencia Corriente Promedio Suavizado"
-                  predictionKey="predictedValue"
-                  aprilKey="aprilBaseline"
-                  yAxisLabel=""
+                  predictionKey="proyeccion_corriente_tendencia"
+                  predictionPesimisticKey="proyeccion_corriente_pesimista"
+                  predictionOptimisticKey="proyeccion_corriente_optimista"
+                  yAxisLabel="Amperios"
                   componentId={component.id}
                   metric="current"
                 />
@@ -69,14 +69,14 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
               <CardContent className="p-6">
                 <MetricChart
                   data={data}
-                  aprilData={aprilData}
                   valueKey="Desbalance Suavizado"
                   limitKey="Umbral Desbalance"
                   limitLabel="Umbral Max"
                   refKey="Referencia Desbalance Suavizado"
-                  predictionKey="predictedValue"
-                  aprilKey="aprilBaseline"
-                  yAxisLabel=""
+                  predictionKey="proyeccion_desbalance_tendencia"
+                  predictionPesimisticKey="proyeccion_desbalance_pesimista"
+                  predictionOptimisticKey="proyeccion_desbalance_optimista"
+                  yAxisLabel="%"
                   componentId={component.id}
                   metric="unbalance"
                 />
@@ -92,13 +92,13 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
               <CardContent className="p-6">
                 <MetricChart
                   data={data}
-                  aprilData={aprilData}
                   valueKey="Factor De Carga Suavizado"
                   limitKey="Umbral Factor Carga"
                   limitLabel="Umbral Max"
                   refKey="Referencia Factor De Carga Suavizado"
-                  predictionKey="predictedValue"
-                  aprilKey="aprilBaseline"
+                  predictionKey="proyeccion_factor_carga_tendencia"
+                  predictionPesimisticKey="proyeccion_factor_carga_pesimista"
+                  predictionOptimisticKey="proyeccion_factor_carga_optimista"
                   yAxisLabel="Factor"
                   componentId={component.id}
                   metric="load_factor"

@@ -74,31 +74,32 @@ const getMetricName = (metric: 'current' | 'unbalance' | 'load_factor') => {
   }
 };
 
-type MetricInfo = { real: number | null; limit: number | undefined };
-const getMetricInfo = (metric: ChartDataPoint): MetricInfo => {
-  if (metric.metric === 'current') {
-    return { 
-      real: metric["Corriente Promedio Suavizado"] as number | null, 
-      limit: metric["Corriente Máxima"] 
-    };
+const getMetricKeys = (metric: 'current' | 'unbalance' | 'load_factor') => {
+  switch (metric) {
+    case 'current':
+      return {
+        valueKey: 'Corriente Promedio Suavizado',
+        limitKey: 'Corriente Máxima',
+        projKey: 'proyeccion_corriente_tendencia',
+      };
+    case 'unbalance':
+      return {
+        valueKey: 'Desbalance Suavizado',
+        limitKey: 'Umbral Desbalance',
+        projKey: 'proyeccion_desbalance_tendencia',
+      };
+    case 'load_factor':
+      return {
+        valueKey: 'Factor De Carga Suavizado',
+        limitKey: 'Umbral Factor Carga',
+        projKey: 'proyeccion_factor_carga_tendencia',
+      };
   }
-  if (metric.metric === 'unbalance') {
-    return { 
-      real: metric["Desbalance Suavizado"] as number | null, 
-      limit: metric["Umbral Desbalance"]
-    };
-  }
-  if (metric.metric === 'load_factor') {
-    return { 
-      real: metric["Factor De Carga Suavizado"] as number | null, 
-      limit: metric["Umbral Factor Carga"]
-    };
-  }
-  return { real: null, limit: undefined };
 };
 
-const getLastRealPoint = (metricData: ChartDataPoint[]): ChartDataPoint | undefined => {
-    return [...metricData].reverse().find(d => !d.isProjection && d.realValue != null);
+
+const getLastRealPoint = (componentData: ChartDataPoint[]): ChartDataPoint | undefined => {
+    return [...componentData].reverse().find(d => !d.isProjection);
 }
 
 export const getComponentStatus = (componentData: ChartDataPoint[], componentName: string): ComponentStatus => {
@@ -119,19 +120,18 @@ export const getComponentStatus = (componentData: ChartDataPoint[], componentNam
 
   const metrics: ('current' | 'unbalance' | 'load_factor')[] = ['current', 'unbalance', 'load_factor'];
   const allMetricsData: ComponentStatus['allMetrics'] = [];
+  const lastRealPoint = getLastRealPoint(componentData);
 
   for (const metric of metrics) {
-    const metricData = componentData.filter(d => d.metric === metric);
-    const lastRealPoint = getLastRealPoint(metricData);
+    const { valueKey, limitKey, projKey } = getMetricKeys(metric);
     
     let metricStatus: Status = 'normal';
     let realVal = null;
     let limitVal = undefined;
 
     if (lastRealPoint) {
-        const info = getMetricInfo(lastRealPoint);
-        realVal = info.real;
-        limitVal = info.limit;
+        realVal = lastRealPoint[valueKey] as number | null;
+        limitVal = lastRealPoint[limitKey] as number | undefined;
     }
 
     // Check for Critical status
@@ -157,10 +157,12 @@ export const getComponentStatus = (componentData: ChartDataPoint[], componentNam
         }
 
         // 2. Check if projection hits the limit
-        const projectionData = metricData.filter(d => d.isProjection && d.predictedValue != null);
+        const projectionData = componentData.filter(d => d.isProjection && d[projKey] != null);
         for (const point of projectionData) {
-            const limit = getMetricInfo(point).limit;
-            if (point.predictedValue != null && limit != null && point.predictedValue >= limit) {
+            const limit = point[limitKey] as number | undefined;
+            const projValue = point[projKey] as number | undefined;
+
+            if (projValue != null && limit != null && projValue >= limit) {
                 metricStatus = 'warning';
                 if (worstStatus === 'normal') {
                     worstStatus = 'warning';

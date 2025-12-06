@@ -23,13 +23,13 @@ import React from "react";
 
 interface MetricChartProps {
   data: ChartDataPoint[];
-  aprilData: ChartDataPoint[];
   valueKey: keyof ChartDataPoint;
   limitKey: keyof ChartDataPoint;
   limitLabel: string;
   refKey: keyof ChartDataPoint;
   predictionKey: keyof ChartDataPoint;
-  aprilKey: keyof ChartDataPoint;
+  predictionPesimisticKey: keyof ChartDataPoint;
+  predictionOptimisticKey: keyof ChartDataPoint;
   yAxisLabel: string;
   componentId: string;
   metric: 'current' | 'unbalance' | 'load_factor';
@@ -68,8 +68,11 @@ export function MetricChart({
   limitLabel,
   refKey,
   predictionKey,
+  predictionPesimisticKey,
+  predictionOptimisticKey,
   componentId,
-  metric
+  metric,
+  yAxisLabel
 }: MetricChartProps) {
   
   const metricData = data
@@ -78,9 +81,9 @@ export function MetricChart({
       [valueKey as string]: d.isProjection ? null : (d[valueKey] as number | null),
       [limitKey as string]: d[limitKey] as number | null,
       [refKey as string]: d[refKey] as number | null,
-      [predictionKey as string]: d.isProjection ? d.predictedValue : null,
-      predictedValuePesimistic: d.isProjection ? d.predictedValuePesimistic : null,
-      predictedValueOptimistic: d.isProjection ? d.predictedValueOptimistic : null,
+      [predictionKey as string]: d.isProjection ? d[predictionKey] : null,
+      [predictionPesimisticKey as string]: d.isProjection ? d[predictionPesimisticKey] : null,
+      [predictionOptimisticKey as string]: d.isProjection ? d[predictionOptimisticKey] : null,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -105,9 +108,11 @@ export function MetricChart({
               minTickGap={40}
             />
             <YAxis
+              label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b' }}
               tick={{ fill: '#64748b' }}
               stroke="#e2e8f0"
-              domain={['dataMin - 1', 'dataMax + 1']}
+              domain={['dataMin - 1', 'auto']}
+              allowDataOverflow={true}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
@@ -163,7 +168,7 @@ export function MetricChart({
 
             <Line
               type="monotone"
-              dataKey="predictedValuePesimistic"
+              dataKey={predictionPesimisticKey.toString()}
               name="Proyección Pesimista"
               stroke="#f97316"
               strokeWidth={2}
@@ -174,7 +179,7 @@ export function MetricChart({
 
              <Line
               type="monotone"
-              dataKey="predictedValueOptimistic"
+              dataKey={predictionOptimisticKey.toString()}
               name="Proyección Optimista"
               stroke="#22c55e"
               strokeWidth={2}
