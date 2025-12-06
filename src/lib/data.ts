@@ -243,31 +243,25 @@ export async function useRealMaintenanceData(
     const limit = 1000;
     const totalPages = Math.ceil(totalRecords / limit);
     let allRecords: any[] = [];
+    
+    for (let page = 1; page <= totalPages; page++) {
+        const response = await calculosService.getDataByMachineComponentAndDates({
+            maquina: machineId,
+            componente: componentNameForAPI,
+            fecha_inicio: fromDateString,
+            fecha_fin: toDateString,
+            page,
+            limit,
+        });
 
-    const fetchPage = async (page: number) => {
-      return calculosService.getDataByMachineComponentAndDates({
-        maquina: machineId,
-        componente: componentNameForAPI,
-        fecha_inicio: fromDateString,
-        fecha_fin: toDateString,
-        page,
-        limit,
-      });
-    };
-    
-    // Fetch all pages in parallel
-    const pagePromises = Array.from({ length: totalPages }, (_, i) => fetchPage(i + 1));
-    
-    let pagesProcessed = 0;
-    for (const promise of pagePromises) {
-        const response = await promise;
         if (response.data && Array.isArray(response.data)) {
-          allRecords = allRecords.concat(response.data);
+            allRecords = allRecords.concat(response.data);
         }
-        pagesProcessed++;
+
         if (onProgressUpdate) {
             const transformedData = allRecords.map(recordToDataPoint(component));
-            onProgressUpdate(transformedData, (pagesProcessed / totalPages) * 90); // 90% for fetching
+            // Progress up to 90% for fetching data
+            onProgressUpdate(transformedData, (page / totalPages) * 90);
         }
     }
     
@@ -373,3 +367,5 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
+
+    
