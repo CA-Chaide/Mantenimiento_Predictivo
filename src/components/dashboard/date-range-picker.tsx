@@ -70,7 +70,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const handlePreset = (preset: 'thisMonth' | 'last3Months' | 'lastYear' | 'sinceStart') => {
     const today = new Date();
     let from: Date;
-    const to = today;
+    let to = today;
 
     switch (preset) {
         case 'thisMonth':
@@ -83,13 +83,9 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             from = subYears(today, 1);
             break;
         case 'sinceStart':
-            const endDate = subDays(new Date(), 1);
-            from = subDays(endDate, 30);
-            const sinceStartRange = { from, to: endDate };
-            setDate(sinceStartRange);
-            updateURL(sinceStartRange);
-            setPopoverOpen(false);
-            return; 
+            from = sinceStartDate;
+            to = subDays(new Date(), 1);
+            break;
     }
     const newRange = { from, to };
     setDate(newRange);

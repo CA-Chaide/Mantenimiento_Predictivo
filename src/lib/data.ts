@@ -280,49 +280,67 @@ export async function useRealMaintenanceData(
     const fromDateString = formatISO(dateRange.from, { representation: 'date' });
     const toDateString = formatISO(dateRange.to, { representation: 'date' });
     const componentNameForAPI = component.originalName;
+    const daysDifference = differenceInDays(dateRange.to, dateRange.from);
 
-    const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
-      machineId, 
-      componentNameForAPI,
-      fromDateString,
-      toDateString
-    );
-    const totalRecords = totalResponse.total || 0;
-
-    if (totalRecords === 0) {
-      onProgressUpdate?.([], 100);
-      return { data: [] };
-    }
-
-    const limit = 1000;
-    const totalPages = Math.ceil(totalRecords / limit);
     let allRecords: any[] = [];
-    
-    for (let page = 1; page <= totalPages; page++) {
-        const response = await calculosService.getDataByMachineComponentAndDates({
-            maquina: machineId,
-            componente: componentNameForAPI,
-            fecha_inicio: fromDateString,
-            fecha_fin: toDateString,
-            page,
-            limit,
-        });
+    let aggregatedData: ChartDataPoint[];
 
-        if (response.data && Array.isArray(response.data)) {
-            allRecords = allRecords.concat(response.data);
-        }
+    // Adaptive fetching strategy
+    if (daysDifference > 90) {
+      // For large date ranges, fetch pre-aggregated data
+      const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
+        maquina: machineId,
+        componente: componentNameForAPI,
+        fecha_inicio: fromDateString,
+        fecha_fin: toDateString,
+      });
+      if (response.data && Array.isArray(response.data)) {
+        allRecords = response.data;
+      }
+      onProgressUpdate?.([], 100);
+      aggregatedData = allRecords.map(recordToDataPoint(component));
+    } else {
+      // For smaller date ranges, fetch detailed data and aggregate on client
+      const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
+        machineId, 
+        componentNameForAPI,
+        fromDateString,
+        toDateString
+      );
+      const totalRecords = totalResponse.total || 0;
+      if (totalRecords === 0) {
+        onProgressUpdate?.([], 100);
+        return { data: [] };
+      }
+      
+      const limit = 1000;
+      const totalPages = Math.ceil(totalRecords / limit);
+      
+      for (let page = 1; page <= totalPages; page++) {
+          const response = await calculosService.getDataByMachineComponentAndDates({
+              maquina: machineId,
+              componente: componentNameForAPI,
+              fecha_inicio: fromDateString,
+              fecha_fin: toDateString,
+              page,
+              limit,
+          });
 
-        if (onProgressUpdate) {
-            const transformedData = allRecords.map(recordToDataPoint(component));
-            onProgressUpdate(transformedData, (page / totalPages) * 90);
-        }
+          if (response.data && Array.isArray(response.data)) {
+              allRecords = allRecords.concat(response.data);
+          }
+
+          if (onProgressUpdate) {
+              const transformedData = allRecords.map(recordToDataPoint(component));
+              onProgressUpdate(transformedData, (page / totalPages) * 90);
+          }
+      }
+      const rawTransformedData = allRecords.map(recordToDataPoint(component));
+      aggregatedData = aggregateDataByDay(rawTransformedData);
     }
-    
-    const rawTransformedData = allRecords.map(recordToDataPoint(component));
-    const aggregatedData = aggregateDataByDay(rawTransformedData);
     
     if (aggregatedData.length < 2) {
-      onProgressUpdate?.(rawTransformedData, 100);
+      onProgressUpdate?.([], 100);
       return { data: aggregatedData };
     }
 
@@ -369,7 +387,7 @@ export async function useRealMaintenanceData(
     
     let combinedData = [...aggregatedData, ...allProjectedPoints];
 
-    onProgressUpdate?.(rawTransformedData, 100);
+    onProgressUpdate?.([], 100);
     
     return { data: combinedData };
 
@@ -384,7 +402,26 @@ const recordToDataPoint = (component: Component) => (record: any): RawDataRecord
     const num = Number(value);
     return isNaN(num) ? null : num;
   };
+  
+  // Handle pre-aggregated data format
+  if (record.FECHA) {
+     return {
+      date: formatISO(parseISO(record.FECHA)),
+      isProjection: false,
+      componentId: component.id,
+      'Corriente Promedio Suavizado': safeNumber(record.PromedioSuavizado),
+      'Corriente Máxima': safeNumber(record.CORRIENTEMAX) ?? undefined,
+      'Referencia Corriente Promedio Suavizado': safeNumber(record.PROMEDIO) ?? undefined,
+      'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
+      'Umbral Desbalance': safeNumber(record.Umbral_Desbalance) ?? undefined,
+      'Referencia Desbalance Suavizado': safeNumber(record.DesbalancePorcentual) ?? undefined,
+      'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
+      'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga) ?? undefined,
+      'Referencia Factor De Carga Suavizado': safeNumber(record.FactorDeCarga) ?? undefined,
+    };
+  }
 
+  // Handle detailed data format
   let fechaDate;
   try {
     fechaDate = new Date(
