@@ -33,8 +33,9 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const [timeZone, setTimeZone] = React.useState('UTC');
   const [popoverOpen, setPopoverOpen] = React.useState(false);
 
-  const minDate = new Date('2025-04-10T00:00:00Z');
   const maxDate = new Date('2025-11-26T00:00:00Z');
+  // A generic start date instead of a hardcoded one.
+  const sinceStartDate = new Date('2024-01-01T00:00:00Z');
 
   React.useEffect(() => {
       setDate(initialDate);
@@ -74,16 +75,16 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
 
     switch (preset) {
         case 'thisMonth':
-            from = max([startOfMonth(simulatedToday), minDate]);
+            from = startOfMonth(simulatedToday);
             break;
         case 'last3Months':
-            from = max([subMonths(simulatedToday, 3), minDate]);
+            from = subMonths(simulatedToday, 3);
             break;
         case 'thisYear':
-            from = max([startOfYear(simulatedToday), minDate]);
+            from = startOfYear(simulatedToday);
             break;
         case 'sinceStart':
-            from = minDate;
+            from = sinceStartDate;
             break;
     }
     const newRange = { from, to };
@@ -155,7 +156,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     selected={date}
                     onSelect={handleSelect}
                     numberOfMonths={2}
-                    fromDate={minDate}
                     toDate={maxDate}
                     locale={es}
                     classNames={{
