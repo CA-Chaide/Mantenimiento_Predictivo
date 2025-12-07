@@ -155,14 +155,19 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         load_factor: { sum: 0, count: 0 },
       };
 
-      const findLimit = (key: keyof RawDataRecord): number | null => {
-        const recordWithValue = group.records.find(r => safeNumber(r[key]) !== null);
-        return recordWithValue ? safeNumber(recordWithValue[key]) : null;
+      const findFirstValidLimit = (key: keyof RawDataRecord): number | null => {
+        for (const record of group.records) {
+            const value = safeNumber(record[key]);
+            if (value !== null) {
+                return value;
+            }
+        }
+        return null;
       };
 
-      const currentLimit = findLimit("Corriente Máxima");
-      const unbalanceLimit = findLimit("Umbral Desbalance");
-      const loadFactorLimit = findLimit("Umbral Factor Carga");
+      const currentLimit = findFirstValidLimit("Corriente Máxima");
+      const unbalanceLimit = findFirstValidLimit("Umbral Desbalance");
+      const loadFactorLimit = findFirstValidLimit("Umbral Factor Carga");
   
       for (const record of group.records) {
         const current = safeNumber(record["Corriente Promedio Suavizado"]);
@@ -402,7 +407,7 @@ export async function useRealMaintenanceData(
 const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly' = 'daily') => (record: any): RawDataRecord => {
   const safeNumber = (value: any): number | null => {
     const num = Number(value);
-    return isNaN(num) ? null : num;
+    return isNaN(num) || value === null ? null : num;
   };
 
   let fechaDate;
@@ -433,13 +438,13 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     componentId: component.id,
     
     'Corriente Promedio Suavizado': safeNumber(record.PromedioSuavizado),
-    'Corriente Máxima': safeNumber(record.Umbral_Corriente) ?? null,
+    'Corriente Máxima': safeNumber(record.Umbral_Corriente),
 
     'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
-    'Umbral Desbalance': safeNumber(record.Umbral_Desbalance) ?? null,
+    'Umbral Desbalance': safeNumber(record.Umbral_Desbalance),
 
     'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
-    'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga) ?? null,
+    'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga),
   };
 };
 
