@@ -1,7 +1,7 @@
 
 'use client';
 
-import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger, SidebarFooter } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDay } from "@/lib/data";
@@ -301,14 +301,28 @@ export default function DashboardPage() {
                     </div>
                 </div>
                 </SidebarHeader>
-                <SidebarContent className="p-2">
+                <SidebarContent>
                     <div className="p-2 flex flex-col gap-2 group-data-[collapsible=icon]:hidden">
                         <label className="text-xs font-medium text-sidebar-foreground/80 px-2">Rango de Fechas</label>
                         <DateRangePicker initialDate={displayRange} className="w-full" />
                     </div>
-                <SidebarNav machines={machineList} components={componentList} />
+                    <SidebarNav machines={machineList} components={componentList} />
                 </SidebarContent>
             </div>
+            <SidebarFooter className="p-2 border-t border-sidebar-border group-data-[collapsible=icon]:hidden">
+                <div className="flex items-center gap-3 w-full">
+                    <Avatar className="h-9 w-9">
+                        <AvatarFallback>N</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 overflow-hidden">
+                        <p className="text-sm font-semibold text-sidebar-foreground truncate">Nombre Usuario</p>
+                        <p className="text-xs text-sidebar-foreground/70 truncate">usuario@email.com</p>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                        <LogOut className="h-4 w-4" />
+                    </Button>
+                </div>
+            </SidebarFooter>
         </div>
       </Sidebar>
       <SidebarInset className="bg-slate-50">

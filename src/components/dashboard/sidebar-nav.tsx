@@ -2,11 +2,10 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuSub, SidebarMenuSubButton, useSidebar } from "@/components/ui/sidebar";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Component, Machine } from "@/lib/data";
-import { HardDrive } from "lucide-react";
 import React from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "../ui/button";
 
 interface SidebarNavProps {
     machines: Machine[];
@@ -17,7 +16,6 @@ export function SidebarNav({ machines, components }: SidebarNavProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { state: sidebarState } = useSidebar();
 
   const currentMachine = searchParams.get("machine") || "";
   const currentComponent = searchParams.get("component");
@@ -25,7 +23,7 @@ export function SidebarNav({ machines, components }: SidebarNavProps) {
   const handleMachineChange = (machineId: string) => {
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.set("machine", machineId);
-    newParams.delete("component");
+    newParams.delete("component"); // Deselect component when machine changes
     router.push(`${pathname}?${newParams.toString()}`);
   };
 
@@ -44,69 +42,45 @@ export function SidebarNav({ machines, components }: SidebarNavProps) {
   }
 
   return (
-    <SidebarMenu>
-      <div className="px-4 pt-4 pb-2 text-xs font-medium text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
-        MÁQUINAS
-      </div>
-      <div className="px-2 group-data-[collapsible=icon]:hidden">
-        <Select onValueChange={handleMachineChange} defaultValue={currentMachine} value={currentMachine}>
-            <SelectTrigger className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white focus:ring-2 focus:ring-white">
-                <SelectValue placeholder="Seleccione una máquina" />
-            </SelectTrigger>
-            <SelectContent>
-                {machines.map((machine) => (
-                    <SelectItem key={machine.id} value={machine.id}>
+    <div className="w-full group-data-[collapsible=icon]:hidden px-2">
+        <Accordion 
+            type="single" 
+            collapsible 
+            className="w-full" 
+            value={currentMachine}
+            onValueChange={(value) => {
+                if (value) handleMachineChange(value);
+            }}
+        >
+            {machines.map((machine) => (
+                <AccordionItem value={machine.id} key={machine.id} className="border-b-0">
+                    <AccordionTrigger className="w-full text-sm font-semibold text-sidebar-foreground hover:bg-sidebar-accent hover:no-underline rounded-md px-3 py-2 [&[data-state=open]>svg]:text-primary">
                         {machine.name}
-                    </SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
-      </div>
-
-      <div className="px-4 pt-4 pb-2 text-xs font-medium text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
-        COMPONENTES
-      </div>
-      
-      {/* Icon-only view for collapsed sidebar */}
-      <div className="hidden group-data-[collapsible=icon]:flex flex-col gap-1">
-        {machines.map((machine) => {
-          const isActive = currentMachine === machine.id;
-          return (
-            <SidebarMenuItem key={machine.id}>
-                <SidebarMenuButton
-                onClick={() => handleMachineChange(machine.id)}
-                isActive={isActive}
-                tooltip={{ children: machine.name, side: 'right' }}
-                >
-                <HardDrive />
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-          )
-        })}
-      </div>
-      
-      {/* Expanded view */}
-      <div className="group-data-[collapsible=icon]:hidden">
-        {currentMachine && components.length > 0 && (
-            <SidebarMenuSub>
-                {components.map(component => (
-                    <SidebarMenuItem key={component.id}>
-                        <SidebarMenuSubButton 
-                            onClick={() => handleComponentSelect(component.id)}
-                            isActive={currentComponent === component.id}
-                        >
-                            <span>{component.name}</span>
-                        </SidebarMenuSubButton>
-                    </SidebarMenuItem>
-                ))}
-            </SidebarMenuSub>
-        )}
-        {currentMachine && components.length === 0 && (
-            <div className="p-4 text-xs text-sidebar-foreground/70">
-                No hay componentes para esta máquina.
-            </div>
-        )}
-      </div>
-    </SidebarMenu>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1">
+                        <div className="flex flex-col gap-1 pl-4 border-l-2 border-primary ml-2">
+                        {machine.id === currentMachine && components.length > 0 ? (
+                            components.map((component) => (
+                                <Button
+                                    key={component.id}
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleComponentSelect(component.id)}
+                                    className={`w-full justify-start h-auto py-1.5 px-2 text-left ${currentComponent === component.id ? 'bg-primary/20 text-primary-foreground font-semibold' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}`}
+                                >
+                                    {component.name}
+                                </Button>
+                            ))
+                        ) : machine.id === currentMachine ? (
+                            <div className="px-3 py-2 text-xs text-sidebar-foreground/60">
+                                No hay componentes.
+                            </div>
+                        ) : null}
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+            ))}
+        </Accordion>
+    </div>
   );
 }
