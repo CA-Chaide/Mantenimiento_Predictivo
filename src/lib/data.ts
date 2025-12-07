@@ -127,86 +127,76 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
 
 export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
     if (!rawData || rawData.length === 0) {
-      return [];
+        return [];
     }
-  
-    const safeNumber = (value: any): number | null => {
-      const num = Number(value);
-      return isNaN(num) || value === null ? null : num;
-    };
-  
-    const groupedByDay = rawData.reduce((acc, record) => {
-      const day = record.date.split('T')[0];
-  
-      if (!acc[day]) {
-        acc[day] = {
-          records: [],
-          componentId: record.componentId,
-        };
-      }
-      acc[day].records.push(record);
-      return acc;
-    }, {} as Record<string, { records: RawDataRecord[], componentId: string }>);
-  
-    const aggregatedResult = Object.entries(groupedByDay).map(([day, group]) => {
-      const dayMetrics = {
-        current: { sum: 0, count: 0 },
-        unbalance: { sum: 0, count: 0 },
-        load_factor: { sum: 0, count: 0 },
-      };
 
-      const findFirstValidLimit = (key: keyof RawDataRecord): number | null => {
+    const safeNumber = (value: any): number | null => {
+        const num = Number(value);
+        return isNaN(num) || value === null ? null : num;
+    };
+
+    const groupedByDay = rawData.reduce((acc, record) => {
+        const day = record.date.split('T')[0];
+        if (!acc[day]) {
+            acc[day] = { records: [], componentId: record.componentId };
+        }
+        acc[day].records.push(record);
+        return acc;
+    }, {} as Record<string, { records: RawDataRecord[], componentId: string }>);
+
+    const aggregatedResult = Object.entries(groupedByDay).map(([day, group]) => {
+        const dayMetrics = {
+            current: { sum: 0, count: 0 },
+            unbalance: { sum: 0, count: 0 },
+            load_factor: { sum: 0, count: 0 },
+        };
+
+        const findFirstValidLimit = (key: keyof RawDataRecord): number | null => {
+            for (const record of group.records) {
+                const value = safeNumber(record[key]);
+                if (value !== null && value > 0) {
+                    return value;
+                }
+            }
+            return null;
+        };
+
+        const currentLimit = findFirstValidLimit("Corriente Máxima");
+        const unbalanceLimit = findFirstValidLimit("Umbral Desbalance");
+        const loadFactorLimit = findFirstValidLimit("Umbral Factor Carga");
+
         for (const record of group.records) {
-            const value = safeNumber(record[key]);
-            if (value !== null && value > 0) {
-                return value;
+            const current = safeNumber(record["Corriente Promedio Suavizado"]);
+            if (current !== null) {
+                dayMetrics.current.sum += current;
+                dayMetrics.current.count++;
+            }
+            const unbalance = safeNumber(record["Desbalance Suavizado"]);
+            if (unbalance !== null) {
+                dayMetrics.unbalance.sum += unbalance;
+                dayMetrics.unbalance.count++;
+            }
+            const loadFactor = safeNumber(record["Factor De Carga Suavizado"]);
+            if (loadFactor !== null) {
+                dayMetrics.load_factor.sum += loadFactor;
+                dayMetrics.load_factor.count++;
             }
         }
-        return null;
-      };
 
-      const currentLimit = findFirstValidLimit("Corriente Máxima");
-      const unbalanceLimit = findFirstValidLimit("Umbral Desbalance");
-      const loadFactorLimit = findFirstValidLimit("Umbral Factor Carga");
-  
-      for (const record of group.records) {
-        const current = safeNumber(record["Corriente Promedio Suavizado"]);
-        if (current !== null) {
-          dayMetrics.current.sum += current;
-          dayMetrics.current.count++;
-        }
-  
-        const unbalance = safeNumber(record["Desbalance Suavizado"]);
-        if (unbalance !== null) {
-          dayMetrics.unbalance.sum += unbalance;
-          dayMetrics.unbalance.count++;
-        }
-  
-        const loadFactor = safeNumber(record["Factor De Carga Suavizado"]);
-        if (loadFactor !== null) {
-          dayMetrics.load_factor.sum += loadFactor;
-          dayMetrics.load_factor.count++;
-        }
-      }
-      
-      const newPoint: ChartDataPoint = {
-        date: day,
-        componentId: group.componentId,
-        isProjection: false,
-
-        "Corriente Promedio Suavizado": dayMetrics.current.count > 0 ? dayMetrics.current.sum / dayMetrics.current.count : null,
-        "Corriente Máxima": currentLimit,
-
-        "Desbalance Suavizado": dayMetrics.unbalance.count > 0 ? dayMetrics.unbalance.sum / dayMetrics.unbalance.count : null,
-        "Umbral Desbalance": unbalanceLimit,
-        
-        "Factor De Carga Suavizado": dayMetrics.load_factor.count > 0 ? dayMetrics.load_factor.sum / dayMetrics.load_factor.count : null,
-        "Umbral Factor Carga": loadFactorLimit,
-      };
-      
-      return newPoint;
+        const newPoint: ChartDataPoint = {
+            date: day,
+            componentId: group.componentId,
+            isProjection: false,
+            "Corriente Promedio Suavizado": dayMetrics.current.count > 0 ? dayMetrics.current.sum / dayMetrics.current.count : null,
+            "Corriente Máxima": currentLimit,
+            "Desbalance Suavizado": dayMetrics.unbalance.count > 0 ? dayMetrics.unbalance.sum / dayMetrics.unbalance.count : null,
+            "Umbral Desbalance": unbalanceLimit,
+            "Factor De Carga Suavizado": dayMetrics.load_factor.count > 0 ? dayMetrics.load_factor.sum / dayMetrics.load_factor.count : null,
+            "Umbral Factor Carga": loadFactorLimit,
+        };
+        return newPoint;
     });
-  
+
     return aggregatedResult.sort((a, b) => a.date.localeCompare(b.date));
 }
   
