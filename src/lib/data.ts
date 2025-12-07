@@ -308,6 +308,7 @@ export async function useRealMaintenanceData(
   component: Component,
   dateRange: DateRange | undefined,
   calculosService: any,
+  daysToProject: number = 90,
   onProgressUpdate?: (data: RawDataRecord[], progress: number) => void
 ): Promise<{ data: ChartDataPoint[] }> {
   if (!dateRange || !dateRange.from || !dateRange.to || !machineId || !component) {
@@ -393,9 +394,9 @@ export async function useRealMaintenanceData(
     const lastKnownLoadFactorLimit = [...aggregatedData].reverse().find(d => d['Umbral Factor Carga'] != null)?.['Umbral Factor Carga'];
 
     // Calculate projections for all metrics
-    const { trend: projCorriente, pessimistic: projCorrientePes, optimistic: projCorrienteOpt } = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado");
-    const { trend: projDesbalance, pessimistic: projDesbalancePes, optimistic: projDesbalanceOpt } = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado");
-    const { trend: projFactorCarga, pessimistic: projFactorCargaPes, optimistic: projFactorCargaOpt } = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado");
+    const { trend: projCorriente, pessimistic: projCorrientePes, optimistic: projCorrienteOpt } = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado", daysToProject);
+    const { trend: projDesbalance, pessimistic: projDesbalancePes, optimistic: projDesbalanceOpt } = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado", daysToProject);
+    const { trend: projFactorCarga, pessimistic: projFactorCargaPes, optimistic: projFactorCargaOpt } = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado", daysToProject);
 
     // Merge all projections into one array of points
     const projectionMap = new Map<string, ChartDataPoint>();

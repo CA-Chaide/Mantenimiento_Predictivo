@@ -6,7 +6,7 @@ import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDay } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
-import { format, parseISO, subDays, subYears } from "date-fns";
+import { format, parseISO, subDays, subYears, differenceInDays } from "date-fns";
 import { Bot, MousePointerClick, Loader } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
@@ -218,11 +218,16 @@ export default function DashboardPage() {
           return;
         }
 
+        // Dynamic projection duration
+        const dateDiff = differenceInDays(displayRange.to, displayRange.from);
+        const projectionDays = dateDiff <= 31 ? 30 : 90;
+
         const result = await useRealMaintenanceData(
           machineId,
           selectedComp,
           displayRange,
           calculosCorrientesDatosMantenimientoService,
+          projectionDays,
           (partialData, progress) => {
             setLoadingProgress(progress);
             if (progress < 100) {
