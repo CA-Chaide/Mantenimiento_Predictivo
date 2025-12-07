@@ -5,7 +5,7 @@ import * as React from "react";
 import { format, startOfMonth, subMonths, max, startOfYear, differenceInDays, subDays, subYears } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
-import { Calendar as CalendarIcon, RotateCcw } from "lucide-react";
+import { Calendar as CalendarIcon, X } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -33,7 +33,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const [timeZone, setTimeZone] = React.useState('UTC');
   const [popoverOpen, setPopoverOpen] = React.useState(false);
 
-  const yesterday = subDays(new Date(), 1);
   const sinceStartDate = new Date('2025-04-10T00:00:00Z');
 
   React.useEffect(() => {
@@ -93,7 +92,9 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     setPopoverOpen(false);
   }
 
-  const handleClear = () => {
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDate(undefined);
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.delete("from");
     newParams.delete("to");
@@ -102,6 +103,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   }
 
   const selectedDays = date?.from && date?.to ? differenceInDays(date.to, date.from) + 1 : 0;
+  const hasSelection = date?.from && date?.to;
 
   return (
     <div className={cn("grid gap-2", className)}>
@@ -111,41 +113,40 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             id="date"
             variant={"outline"}
             className={cn(
-              "w-full justify-start text-left font-normal bg-white border-slate-200 text-slate-900 hover:bg-slate-100 hover:text-slate-900 focus:ring-2 focus:ring-primary",
+              "w-full justify-start text-left font-normal bg-white border-slate-200 text-slate-900 hover:bg-slate-100 hover:text-slate-900 focus:ring-2 focus:ring-primary group",
               !date && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4 text-slate-500" />
-            {isClient && date?.from ? (
-              date.to && date.from.getTime() !== date.to.getTime() ? (
-                <>
-                  {formatInTimeZone(date.from, "dd MMM yyyy", timeZone)} - {formatInTimeZone(date.to, "dd MMM yyyy", timeZone)}
-                </>
+            <span className="flex-1">
+              {isClient && date?.from ? (
+                date.to && date.from.getTime() !== date.to.getTime() ? (
+                  <>
+                    {formatInTimeZone(date.from, "dd MMM yyyy", timeZone)} - {formatInTimeZone(date.to, "dd MMM yyyy", timeZone)}
+                  </>
+                ) : (
+                  formatInTimeZone(date.from, "dd MMM yyyy", timeZone)
+                )
               ) : (
-                formatInTimeZone(date.from, "dd MMM yyyy", timeZone)
-              )
-            ) : (
-              <span>Seleccione un rango</span>
+                <span>Seleccione un rango</span>
+              )}
+            </span>
+             {hasSelection && (
+              <X
+                className="h-4 w-4 ml-2 text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={handleClear}
+              />
             )}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0 flex" align="start">
-            <div className="flex flex-col justify-between p-2 border-r h-full">
-                <div>
-                    <div className="px-2 py-1.5 text-xs font-semibold text-slate-500">Atajos</div>
-                    <div className="flex flex-col gap-1">
-                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
-                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
-                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('lastYear')}>Último Año</Button>
-                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
-                    </div>
-                </div>
-                <div>
-                    <Separator className="my-2" />
-                    <Button variant="ghost" className="justify-start text-sm h-8 w-full text-slate-600 hover:text-slate-700" onClick={handleClear}>
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                        Restablecer
-                    </Button>
+            <div className="flex flex-col justify-start p-2 border-r">
+                <div className="px-2 py-1.5 text-xs font-semibold text-slate-500">Atajos</div>
+                <div className="flex flex-col gap-1">
+                    <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
+                    <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
+                    <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('lastYear')}>Último Año</Button>
+                    <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
                 </div>
             </div>
             <div>
@@ -155,7 +156,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     defaultMonth={date?.from || subDays(new Date(), 30)}
                     selected={date}
                     onSelect={handleSelect}
-                    numberOfMonths={2}
+                    numberOfMonths={1}
                     toDate={new Date()}
                     locale={es}
                     classNames={{
@@ -175,4 +176,3 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   );
 }
 
-    
