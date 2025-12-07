@@ -66,15 +66,15 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     }
   };
 
-  const handlePreset = (preset: 'thisMonth' | 'last3Months' | 'lastYear' | 'sinceStart') => {
+  const handlePreset = (preset: 'last30days' | 'last3Months' | 'lastYear' | 'sinceStart') => {
     const today = new Date();
     let from: Date;
-    let to: Date;
+    let to: Date = today;
 
     switch (preset) {
-        case 'thisMonth':
-            from = startOfMonth(today);
-            to = endOfMonth(today);
+        case 'last30days':
+            from = subDays(today, 30);
+            to = today;
             break;
         case 'last3Months':
             from = subMonths(today, 3);
@@ -146,7 +146,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             <div className="flex flex-col justify-start p-2 border-r">
                 <div className="px-2 py-1.5 text-xs font-semibold text-slate-500">Atajos</div>
                 <div className="flex flex-col gap-1">
-                    <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
+                    <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last30days')}>Últimos 30 días</Button>
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('lastYear')}>Último Año</Button>
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
