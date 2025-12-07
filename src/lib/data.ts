@@ -253,7 +253,7 @@ export async function useRealMaintenanceData(
 
     let allRecords: any[] = [];
     
-    // Use detailed endpoint for smaller date ranges, with pagination
+    // Use detailed endpoint with pagination
     const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
       machineId,
       componentNameForAPI,
@@ -285,12 +285,12 @@ export async function useRealMaintenanceData(
       }
 
       if (onProgressUpdate) {
-        const transformedData = allRecords.map(recordToDataPoint(component, false));
+        const transformedData = allRecords.map(recordToDataPoint(component));
         onProgressUpdate(transformedData, (page / totalPages) * 90);
       }
     }
     
-    const rawTransformedData = allRecords.map(recordToDataPoint(component, false));
+    const rawTransformedData = allRecords.map(recordToDataPoint(component));
     const aggregatedData = aggregateDataByDay(rawTransformedData);
     
     if (aggregatedData.length < 2) {
@@ -298,6 +298,7 @@ export async function useRealMaintenanceData(
       return { data: aggregatedData };
     }
     
+    // Get last known limits from aggregated data
     const lastKnownCurrentLimit = [...aggregatedData].reverse().find(d => d['Corriente Máxima'] != null)?.['Corriente Máxima'];
     const lastKnownUnbalanceLimit = [...aggregatedData].reverse().find(d => d['Umbral Desbalance'] != null)?.['Umbral Desbalance'];
     const lastKnownLoadFactorLimit = [...aggregatedData].reverse().find(d => d['Umbral Factor Carga'] != null)?.['Umbral Factor Carga'];
@@ -352,29 +353,12 @@ export async function useRealMaintenanceData(
 }
 
 // Helper to transform a single API record into our data point format.
-const recordToDataPoint = (component: Component, isAggregated: boolean) => (record: any): RawDataRecord => {
+const recordToDataPoint = (component: Component) => (record: any): RawDataRecord => {
   const safeNumber = (value: any): number | null => {
     const num = Number(value);
     return isNaN(num) ? null : num;
   };
   
-  if (isAggregated) {
-    return {
-      date: record.fecha, // Already in "YYYY-MM-DD" format
-      isProjection: false,
-      componentId: component.id,
-
-      'Corriente Promedio Suavizado': safeNumber(record.promedio_corriente_suavizado),
-      'Corriente Máxima': safeNumber(record.umbral_corriente) ?? null,
-
-      'Desbalance Suavizado': safeNumber(record.promedio_desbalance_suavizado),
-      'Umbral Desbalance': safeNumber(record.umbral_desbalance) ?? null,
-      
-      'Factor De Carga Suavizado': safeNumber(record.promedio_factor_carga_suavizado),
-      'Umbral Factor Carga': safeNumber(record.umbral_factor_carga) ?? null,
-    };
-  }
-
   // Handle detailed data format
   let fechaDate;
   try {
@@ -417,3 +401,5 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
+
+    

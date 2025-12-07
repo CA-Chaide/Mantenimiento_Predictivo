@@ -84,7 +84,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             break;
         case 'sinceStart':
             from = sinceStartDate;
-            to = subDays(new Date(), 1);
+            to = subDays(new Date(), 1); // Use yesterday to avoid partial data
             break;
     }
     const newRange = { from, to };
@@ -136,7 +136,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     <div className="flex flex-col gap-1">
                         <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('thisMonth')}>Este Mes</Button>
                         <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
-                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('lastYear')}>Este Año</Button>
+                        <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('lastYear')}>Último Año</Button>
                         <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
                     </div>
                 </div>
@@ -174,3 +174,5 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     </div>
   );
 }
+
+    

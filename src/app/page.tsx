@@ -6,12 +6,10 @@ import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDay } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
-import { format, parseISO, subDays } from "date-fns";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, LogOut, MousePointerClick, Loader } from "lucide-react";
+import { format, parseISO, subDays, subYears } from "date-fns";
+import { Bot, MousePointerClick, Loader } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { Button } from "@/components/ui/button";
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
@@ -175,23 +173,16 @@ export default function DashboardPage() {
   const fromDateString = searchParams.get('from');
   const toDateString = searchParams.get('to');
   
-  const fromDate = useMemo(() => {
+  const { fromDate, toDate } = useMemo(() => {
     try {
-      if (fromDateString) return parseISO(fromDateString);
-      return undefined;
+      const from = fromDateString ? parseISO(fromDateString) : subYears(new Date(), 1);
+      const to = toDateString ? parseISO(toDateString) : new Date();
+      return { fromDate: from, toDate: to };
     } catch (e) {
-      return undefined;
+      // Fallback to default if parsing fails
+      return { fromDate: subYears(new Date(), 1), toDate: new Date() };
     }
-  }, [fromDateString]);
-  
-  const toDate = useMemo(() => {
-    try {
-      if (toDateString) return parseISO(toDateString);
-      return undefined;
-    } catch (e) {
-      return undefined;
-    }
-  }, [toDateString]);
+  }, [fromDateString, toDateString]);
 
   const displayRange: DateRange | undefined = useMemo(() => {
     if (!fromDate || !toDate) return undefined;
@@ -245,10 +236,6 @@ export default function DashboardPage() {
         if (result.data.length > 0) {
           setChartData(result.data);
           setNoDataAvailable(false);
-          toast({
-            title: "Carga de Datos Completa",
-            description: "La información ha sido actualizada correctamente.",
-          });
         } else {
           setChartData([]);
           setNoDataAvailable(true);
@@ -270,7 +257,7 @@ export default function DashboardPage() {
     }
 
     loadChartData();
-  }, [machineId, componentId, fromDateString, toDateString, componentList, displayRange, toast]);
+  }, [machineId, componentId, fromDate, toDate, componentList, toast]);
 
   // Early return after all hooks
   if (loading) {
@@ -364,7 +351,3 @@ export default function DashboardPage() {
     </SidebarProvider>
   );
 }
-
-    
-
-    
