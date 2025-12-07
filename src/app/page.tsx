@@ -328,18 +328,6 @@ export default function DashboardPage() {
                 </SidebarContent>
             </div>
             <SidebarFooter className="p-2 border-t border-sidebar-border group-data-[collapsible=icon]:hidden">
-                <div className="flex items-center gap-3 w-full">
-                    <Avatar className="h-9 w-9">
-                        <AvatarFallback>N</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 overflow-hidden">
-                        <p className="text-sm font-semibold text-sidebar-foreground truncate">Nombre Usuario</p>
-                        <p className="text-xs text-sidebar-foreground/70 truncate">usuario@email.com</p>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-                        <LogOut className="h-4 w-4" />
-                    </Button>
-                </div>
             </SidebarFooter>
         </div>
       </Sidebar>
