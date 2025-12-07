@@ -132,7 +132,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
   
     const safeNumber = (value: any): number | null => {
       const num = Number(value);
-      return isNaN(num) ? null : num;
+      return isNaN(num) || value === null ? null : num;
     };
   
     const groupedByDay = rawData.reduce((acc, record) => {
@@ -155,7 +155,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         load_factor: { sum: 0, count: 0 },
       };
 
-      const findLimit = (key: keyof RawDataRecord) => {
+      const findLimit = (key: keyof RawDataRecord): number | null => {
         for (const record of group.records) {
             const value = safeNumber(record[key]);
             if (value !== null) {
@@ -208,7 +208,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
     });
   
     return aggregatedResult.sort((a, b) => a.date.localeCompare(b.date));
-  }
+}
   
 export function calculateLinearRegressionAndProject(
   data: ChartDataPoint[],
