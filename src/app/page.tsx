@@ -72,6 +72,15 @@ function NoDataState() {
   );
 }
 
+// Mapa para corregir nombres de componentes
+const componentNameMapping: Record<string, Record<string, string>> = {
+  "PUENTE GRUA": {
+    "MOTOR ELEVACION DER": "Motor elevacion derecha",
+    "MOTOR ELEVACION IZQ": "Motor elevacion izquierda",
+    "MOTOR TRASLACION DER/IZQ": "Motor traslacion der/izq",
+  },
+};
+
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -132,11 +141,15 @@ export default function DashboardPage() {
           const transformedComponents = response.data
           .filter((c: any) => c.COMPONENTE)
           .map((c: any) => {
-            const componentName = c.COMPONENTE;
+            const originalName = c.COMPONENTE.toString();
+            // Verificar si hay un mapeo para la máquina y componente actual
+            const nameMappingForMachine = componentNameMapping[machineId];
+            const correctedName = nameMappingForMachine ? nameMappingForMachine[originalName] || originalName : originalName;
+
             return {
-              id: componentName.toString().toLowerCase().replace(/ /g, '_'),
-              name: componentName.toString(),
-              originalName: componentName.toString()
+              id: correctedName.toLowerCase().replace(/ /g, '_'),
+              name: correctedName,
+              originalName: originalName,
             };
           });
           setComponentList(transformedComponents);
@@ -358,3 +371,5 @@ export default function DashboardPage() {
     </SidebarProvider>
   );
 }
+
+    
