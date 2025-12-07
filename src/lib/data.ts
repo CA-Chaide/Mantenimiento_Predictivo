@@ -142,9 +142,9 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         acc[day] = {
           records: [],
           componentId: record.componentId,
-          "Corriente Máxima": record["Corriente Máxima"],
-          "Umbral Desbalance": record["Umbral Desbalance"],
-          "Umbral Factor Carga": record["Umbral Factor Carga"],
+          "Corriente Máxima": safeNumber(record["Corriente Máxima"]),
+          "Umbral Desbalance": safeNumber(record["Umbral Desbalance"]),
+          "Umbral Factor Carga": safeNumber(record["Umbral Factor Carga"]),
         };
       }
       acc[day].records.push(record);
@@ -207,13 +207,12 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
   
 export function calculateLinearRegressionAndProject(
   data: ChartDataPoint[],
-  metricKey: keyof ChartDataPoint,
+  valueKey: keyof ChartDataPoint,
   daysToProject: number = 90
-): { trend: ChartDataPoint[], pessimistic: ChartDataPoint[], optimistic: ChartDataPoint[] } {
+): { [key: string]: (number | null)[] } {
     const cleanData = data.map((p, i) => ({
       x: i,
-      y: p[metricKey] as number,
-      date: p.date,
+      y: p[valueKey] as number,
     })).filter(p => p.y !== null && !isNaN(p.y) && p.y > 0);
 
     if (cleanData.length < 5) {
@@ -244,51 +243,27 @@ export function calculateLinearRegressionAndProject(
     const stdDev = Math.sqrt(variance);
     const noiseFactor = stdDev / 2;
 
-    const lastPoint = cleanData[n - 1];
-    const lastDate = parseISO(lastPoint.date);
-    const trend: ChartDataPoint[] = [];
-    const pessimistic: ChartDataPoint[] = [];
-    const optimistic: ChartDataPoint[] = [];
+    const lastPointX = cleanData[n - 1].x;
+    const trend: (number | null)[] = [];
+    const pessimistic: (number | null)[] = [];
+    const optimistic: (number | null)[] = [];
     
     const pessimisticFactor = 1.5; 
     const optimisticFactor = 0.5;
 
     for (let i = 1; i <= daysToProject; i++) {
-        const x = lastPoint.x + i;
-        const newDate = addDays(lastDate, i);
+        const x = lastPointX + i;
         
         const noise = (Math.random() - 0.5) * 2 * noiseFactor;
-
         const nonNegativeSlope = Math.max(0, slope);
 
         const trendValue = nonNegativeSlope * x + intercept + noise;
         const pessimisticValue = (nonNegativeSlope * pessimisticFactor) * x + intercept + noise;
         const optimisticValue = (nonNegativeSlope * optimisticFactor) * x + intercept + noise;
 
-        const basePoint = data[0]; 
-
-        const createFullProjectionPoint = (
-            trendVal: number,
-            pessimisticVal: number,
-            optimisticVal: number
-        ) => {
-            const point: ChartDataPoint = {
-                date: formatISO(newDate, { representation: 'date' }),
-                isProjection: true,
-                componentId: data[0].componentId,
-                'Corriente Máxima': basePoint['Corriente Máxima'],
-                'Umbral Desbalance': basePoint['Umbral Desbalance'],
-                'Umbral Factor Carga': basePoint['Umbral Factor Carga'],
-                predictedValue: trendVal > 0 ? trendVal : 0,
-                predictedValuePesimistic: pessimisticVal > 0 ? pessimisticVal : 0,
-                predictedValueOptimistic: optimisticVal > 0 ? optimisticVal : 0,
-            };
-            return point;
-        }
-
-        trend.push(createFullProjectionPoint(trendValue, pessimisticValue, optimisticValue));
-        pessimistic.push(createFullProjectionPoint(trendValue, pessimisticValue, optimisticValue));
-        optimistic.push(createFullProjectionPoint(trendValue, pessimisticValue, optimisticValue));
+        trend.push(trendValue > 0 ? trendValue : 0);
+        pessimistic.push(pessimisticValue > 0 ? pessimisticValue : 0);
+        optimistic.push(optimisticValue > 0 ? optimisticValue : 0);
     }
 
     return { trend, pessimistic, optimistic };
@@ -382,42 +357,39 @@ export async function useRealMaintenanceData(
     const lastKnownUnbalanceLimit = [...aggregatedData].reverse().find(d => d['Umbral Desbalance'] != null)?.['Umbral Desbalance'];
     const lastKnownLoadFactorLimit = [...aggregatedData].reverse().find(d => d['Umbral Factor Carga'] != null)?.['Umbral Factor Carga'];
 
-    const { trend: projCorriente, pessimistic: projCorrientePes, optimistic: projCorrienteOpt } = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado", daysToProject);
-    const { trend: projDesbalance, pessimistic: projDesbalancePes, optimistic: projDesbalanceOpt } = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado", daysToProject);
-    const { trend: projFactorCarga, pessimistic: projFactorCargaPes, optimistic: projFactorCargaOpt } = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado", daysToProject);
+    const projCorriente = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado", daysToProject);
+    const projDesbalance = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado", daysToProject);
+    const projFactorCarga = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado", daysToProject);
 
-    const projectionMap = new Map<string, ChartDataPoint>();
+    const projectionPoints: ChartDataPoint[] = [];
+    const lastDate = parseISO(aggregatedData[aggregatedData.length - 1].date);
+
+    for (let i = 0; i < daysToProject; i++) {
+        const newDate = addDays(lastDate, i + 1);
+        const newPoint: ChartDataPoint = {
+            date: formatISO(newDate, { representation: 'date' }),
+            isProjection: true,
+            componentId: component.id,
+
+            "Corriente Máxima": lastKnownCurrentLimit,
+            "proyeccion_corriente_tendencia": projCorriente.trend[i],
+            "proyeccion_corriente_pesimista": projCorriente.pessimistic[i],
+            "proyeccion_corriente_optimista": projCorriente.optimistic[i],
+            
+            "Umbral Desbalance": lastKnownUnbalanceLimit,
+            "proyeccion_desbalance_tendencia": projDesbalance.trend[i],
+            "proyeccion_desbalance_pesimista": projDesbalance.pessimistic[i],
+            "proyeccion_desbalance_optimista": projDesbalance.optimistic[i],
+
+            "Umbral Factor Carga": lastKnownLoadFactorLimit,
+            "proyeccion_factor_carga_tendencia": projFactorCarga.trend[i],
+            "proyeccion_factor_carga_pesimista": projFactorCarga.pessimistic[i],
+            "proyeccion_factor_carga_optimista": projFactorCarga.optimistic[i],
+        };
+        projectionPoints.push(newPoint);
+    }
     
-    const allProjections = [
-      { key: 'proyeccion_corriente_tendencia', data: projCorriente, valueKey: 'predictedValue' },
-      { key: 'proyeccion_corriente_pesimista', data: projCorrientePes, valueKey: 'predictedValuePesimistic' },
-      { key: 'proyeccion_corriente_optimista', data: projCorrienteOpt, valueKey: 'predictedValueOptimistic' },
-      { key: 'proyeccion_desbalance_tendencia', data: projDesbalance, valueKey: 'predictedValue' },
-      { key: 'proyeccion_desbalance_pesimista', data: projDesbalancePes, valueKey: 'predictedValuePesimistic' },
-      { key: 'proyeccion_desbalance_optimista', data: projDesbalanceOpt, valueKey: 'predictedValueOptimistic' },
-      { key: 'proyeccion_factor_carga_tendencia', data: projFactorCarga, valueKey: 'predictedValue' },
-      { key: 'proyeccion_factor_carga_pesimista', data: projFactorCargaPes, valueKey: 'predictedValuePesimistic' },
-      { key: 'proyeccion_factor_carga_optimista', data: projFactorCargaOpt, valueKey: 'predictedValueOptimistic' },
-    ];
-
-    allProjections.forEach(({ key, data, valueKey }) => {
-        data.forEach(p => {
-            const existing = projectionMap.get(p.date) || { 
-              date: p.date, 
-              isProjection: true, 
-              componentId: p.componentId,
-              'Corriente Máxima': lastKnownCurrentLimit,
-              'Umbral Desbalance': lastKnownUnbalanceLimit,
-              'Umbral Factor Carga': lastKnownLoadFactorLimit,
-            };
-            (existing as any)[key] = (p as any)[valueKey];
-            projectionMap.set(p.date, existing);
-        })
-    });
-
-    const allProjectedPoints = Array.from(projectionMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-    
-    let combinedData = [...aggregatedData, ...allProjectedPoints];
+    let combinedData = [...aggregatedData, ...projectionPoints];
 
     onProgressUpdate?.([], 100);
     
