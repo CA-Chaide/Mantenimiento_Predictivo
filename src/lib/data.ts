@@ -1,5 +1,4 @@
 
-
 import { formatISO, parseISO, addDays, differenceInDays } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 
@@ -215,9 +214,9 @@ export function calculateLinearRegressionAndProject(
                 date: formatISO(newDate, { representation: 'date' }),
                 isProjection: true,
                 componentId: data[0].componentId,
-                "Corriente Máxima": basePoint["Corriente Máxima"],
-                "Umbral Desbalance": basePoint["Umbral Desbalance"],
-                "Umbral Factor Carga": basePoint["Umbral Factor Carga"],
+                'Corriente Máxima': basePoint['Corriente Máxima'],
+                'Umbral Desbalance': basePoint['Umbral Desbalance'],
+                'Umbral Factor Carga': basePoint['Umbral Factor Carga'],
                 predictedValue: trendVal > 0 ? trendVal : 0,
                 predictedValuePesimistic: pessimisticVal > 0 ? pessimisticVal : 0,
                 predictedValueOptimistic: optimisticVal > 0 ? optimisticVal : 0,
