@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfMonth, subMonths, max, startOfYear, differenceInDays, subDays, subYears } from "date-fns";
+import { format, startOfMonth, subMonths, max, startOfYear, differenceInDays, subDays, subYears, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon, X } from "lucide-react";
@@ -69,17 +69,20 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const handlePreset = (preset: 'thisMonth' | 'last3Months' | 'lastYear' | 'sinceStart') => {
     const today = new Date();
     let from: Date;
-    let to = today;
+    let to: Date;
 
     switch (preset) {
         case 'thisMonth':
             from = startOfMonth(today);
+            to = endOfMonth(today);
             break;
         case 'last3Months':
             from = subMonths(today, 3);
+            to = today;
             break;
         case 'lastYear':
             from = subYears(today, 1);
+            to = today;
             break;
         case 'sinceStart':
             from = sinceStartDate;
@@ -175,4 +178,3 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     </div>
   );
 }
-
