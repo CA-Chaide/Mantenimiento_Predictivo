@@ -156,13 +156,8 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
       };
 
       const findLimit = (key: keyof RawDataRecord): number | null => {
-        for (const record of group.records) {
-            const value = safeNumber(record[key]);
-            if (value !== null) {
-                return value;
-            }
-        }
-        return null;
+        const recordWithValue = group.records.find(r => safeNumber(r[key]) !== null);
+        return recordWithValue ? safeNumber(recordWithValue[key]) : null;
       };
 
       const currentLimit = findLimit("Corriente Máxima");
