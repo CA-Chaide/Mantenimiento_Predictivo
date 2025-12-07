@@ -78,6 +78,7 @@ const componentNameMapping: Record<string, Record<string, string>> = {
     "MOTOR ELEVACION DER": "Motor elevacion derecha",
     "MOTOR ELEVACION IZQ": "Motor elevacion izquierda",
     "MOTOR TRASLACION DER/IZQ": "Motor traslacion der/izq",
+    "MOTOR TRASLACION": "Motor traslacion der/izq"
   },
 };
 
@@ -138,21 +139,25 @@ export default function DashboardPage() {
       try {
         const response = await calculosCorrientesDatosMantenimientoService.getComponentsByMachine({ maquina: machineId });
         if (response.data && Array.isArray(response.data)) {
+          const nameMappingForMachine = componentNameMapping[machineId] || {};
+          
           const transformedComponents = response.data
-          .filter((c: any) => c.COMPONENTE)
-          .map((c: any) => {
-            const originalName = c.COMPONENTE.toString();
-            // Verificar si hay un mapeo para la máquina y componente actual
-            const nameMappingForMachine = componentNameMapping[machineId];
-            const correctedName = nameMappingForMachine ? nameMappingForMachine[originalName] || originalName : originalName;
+            .filter((c: any) => c.COMPONENTE)
+            .map((c: any) => {
+              const originalName = c.COMPONENTE.toString();
+              const correctedName = nameMappingForMachine[originalName] || originalName;
 
-            return {
-              id: correctedName.toLowerCase().replace(/ /g, '_'),
-              name: correctedName,
-              originalName: originalName,
-            };
-          });
-          setComponentList(transformedComponents);
+              return {
+                id: correctedName.toLowerCase().replace(/ /g, '_').replace(/\//g, '_'),
+                name: correctedName,
+                originalName: originalName,
+              };
+            });
+
+          // Eliminar duplicados basados en el `id` corregido
+          const uniqueComponents = Array.from(new Map(transformedComponents.map(c => [c.id, c])).values());
+          
+          setComponentList(uniqueComponents);
         } else {
           console.error("Formato de respuesta inesperado para componentes:", response);
           setComponentList([]);
@@ -371,5 +376,7 @@ export default function DashboardPage() {
     </SidebarProvider>
   );
 }
+
+    
 
     
