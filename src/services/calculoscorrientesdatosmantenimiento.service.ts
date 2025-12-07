@@ -1,4 +1,5 @@
 
+
 import { environment } from "@/environments/environments.prod";
 import type { BodyListResponse } from "@/types/body-list-response";
 
@@ -26,6 +27,13 @@ interface GetDataByDateRangeParamsAndComponent {
   fecha_fin: string;
   page?: number;
   limit?: number;
+}
+
+interface GetDataByDateRangeParamsAndComponentAggregated {
+    maquina: string;
+    componente: string;
+    fecha_inicio: string;
+    fecha_fin: string;
 }
 
 interface GetComponentsByMachineParams {
@@ -151,6 +159,31 @@ export const calculosCorrientesDatosMantenimientoService = {
       throw new Error(errorBody.message || `Error ${response.status}: ${response.statusText}`);
     }
 
+    return response.json();
+  },
+
+  async getDataByMachineComponentAndDatesAggregated(params: GetDataByDateRangeParamsAndComponentAggregated): Promise<BodyListResponse<any>> {
+    const requestBody = {
+      maquina: params.maquina,
+      componente: params.componente,
+      fecha_inicio: params.fecha_inicio,
+      fecha_fin: params.fecha_fin,
+    };
+  
+    const response = await fetch(API_URL + '/dataByMachineComponentDatesAggregated', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKEN}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+  
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({ message: 'Error desconocido en el servidor' }));
+      throw new Error(errorBody.message || `Error ${response.status}: ${response.statusText}`);
+    }
+  
     return response.json();
   },
 

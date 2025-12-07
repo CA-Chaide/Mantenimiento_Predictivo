@@ -1,4 +1,5 @@
 
+
 import { formatISO, parseISO, addDays, differenceInDays } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 
@@ -214,7 +215,7 @@ export function calculateLinearRegressionAndProject(
                 date: formatISO(newDate, { representation: 'date' }),
                 isProjection: true,
                 componentId: data[0].componentId,
-                 "Corriente Máxima": basePoint["Corriente Máxima"],
+                "Corriente Máxima": basePoint["Corriente Máxima"],
                 "Umbral Desbalance": basePoint["Umbral Desbalance"],
                 "Umbral Factor Carga": basePoint["Umbral Factor Carga"],
                 predictedValue: trendVal > 0 ? trendVal : 0,
@@ -254,46 +255,66 @@ export async function useRealMaintenanceData(
     let allRecords: any[] = [];
     let aggregatedData: ChartDataPoint[];
 
-    const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
-      machineId,
-      componentNameForAPI,
-      fromDateString,
-      toDateString
-    );
+    const daysDiff = differenceInDays(toDate, fromDate);
+    const useAggregatedEndpoint = daysDiff > 90;
 
-    const totalRecords = totalResponse.total || 0;
-    if (totalRecords === 0) {
-      onProgressUpdate?.([], 100);
-      return { data: [] };
-    }
+    if (useAggregatedEndpoint) {
+        // Use aggregated endpoint for large date ranges
+        const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
+            maquina: machineId,
+            componente: componentNameForAPI,
+            fecha_inicio: fromDateString,
+            fecha_fin: toDateString,
+        });
 
-    const limit = 1000;
-    const totalPages = Math.ceil(totalRecords / limit);
+        if (response.data && Array.isArray(response.data)) {
+            aggregatedData = response.data.map(recordToDataPoint(component, true));
+        } else {
+            aggregatedData = [];
+        }
+        onProgressUpdate?.([], 90);
+    } else {
+        // Use detailed endpoint for smaller date ranges, with pagination
+        const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
+          machineId,
+          componentNameForAPI,
+          fromDateString,
+          toDateString
+        );
 
-    for (let page = 1; page <= totalPages; page++) {
-      const response = await calculosService.getDataByMachineComponentAndDates({
-        maquina: machineId,
-        componente: componentNameForAPI,
-        fecha_inicio: fromDateString,
-        fecha_fin: toDateString,
-        page,
-        limit,
-      });
+        const totalRecords = totalResponse.total || 0;
+        if (totalRecords === 0) {
+          onProgressUpdate?.([], 100);
+          return { data: [] };
+        }
 
-      if (response.data && Array.isArray(response.data)) {
-        allRecords = allRecords.concat(response.data);
-      }
+        const limit = 1000;
+        const totalPages = Math.ceil(totalRecords / limit);
 
-      if (onProgressUpdate) {
-        const transformedData = allRecords.map(recordToDataPoint(component, false));
-        onProgressUpdate(transformedData, (page / totalPages) * 90);
-      }
+        for (let page = 1; page <= totalPages; page++) {
+          const response = await calculosService.getDataByMachineComponentAndDates({
+            maquina: machineId,
+            componente: componentNameForAPI,
+            fecha_inicio: fromDateString,
+            fecha_fin: toDateString,
+            page,
+            limit,
+          });
+
+          if (response.data && Array.isArray(response.data)) {
+            allRecords = allRecords.concat(response.data);
+          }
+
+          if (onProgressUpdate) {
+            const transformedData = allRecords.map(recordToDataPoint(component, false));
+            onProgressUpdate(transformedData, (page / totalPages) * 90);
+          }
+        }
+        
+        const rawTransformedData = allRecords.map(recordToDataPoint(component, false));
+        aggregatedData = aggregateDataByDay(rawTransformedData);
     }
     
-    const rawTransformedData = allRecords.map(recordToDataPoint(component, false));
-    aggregatedData = aggregateDataByDay(rawTransformedData);
-    
-
     if (aggregatedData.length < 2) {
       onProgressUpdate?.([], 100);
       return { data: aggregatedData };
