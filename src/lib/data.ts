@@ -396,7 +396,7 @@ const recordToDataPoint = (component: Component, isAggregated: boolean) => (reco
     componentId: component.id,
     
     'Corriente Promedio Suavizado': safeNumber(record.PromedioSuavizado),
-    'Corriente Máxima': safeNumber(record.CORRIENTEMAX) ?? null,
+    'Corriente Máxima': safeNumber(record.Umbral_Corriente) ?? null,
 
     'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
     'Umbral Desbalance': safeNumber(record.Umbral_Desbalance) ?? null,
