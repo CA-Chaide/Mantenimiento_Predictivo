@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -56,7 +57,10 @@ export function StatusIndicator({ status, message }: StatusIndicatorProps) {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className={cn("size-5 rounded-full", color, status === 'critical' && 'animate-pulse')} />
+          <div className="flex items-center gap-2">
+            <div className={cn("size-3 rounded-full", color, status === 'critical' && 'animate-pulse')} />
+            <span className="text-sm font-medium text-slate-600">{label}</span>
+          </div>
         </TooltipTrigger>
         <TooltipContent>
           <p>Estado: {label} ({message})</p>
@@ -184,3 +188,5 @@ export const getComponentStatus = (componentData: ChartDataPoint[], componentNam
 
   return { status: worstStatus, message: worstMessage, componentName, details, allMetrics: allMetricsData };
 };
+
+    

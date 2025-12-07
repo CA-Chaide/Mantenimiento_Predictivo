@@ -307,10 +307,6 @@ export default function DashboardPage() {
                 </div>
                 </SidebarHeader>
                 <SidebarContent>
-                    <div className="p-2 flex flex-col gap-2 group-data-[collapsible=icon]:hidden">
-                        <label className="text-xs font-medium text-sidebar-foreground/80 px-2">Rango de Fechas</label>
-                        <DateRangePicker initialDate={displayRange} className="w-full" />
-                    </div>
                     <SidebarNav machines={machineList} components={componentList} />
                 </SidebarContent>
             </div>
@@ -319,7 +315,9 @@ export default function DashboardPage() {
         </div>
       </Sidebar>
       <SidebarInset className="bg-slate-50">
-        <DashboardHeader title={headerTitle} />
+        <DashboardHeader title={headerTitle}>
+            <DateRangePicker initialDate={displayRange} />
+        </DashboardHeader>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           {!selectedComponent || !machineId || !displayRange ? (
             <EmptyState />
@@ -351,3 +349,5 @@ export default function DashboardPage() {
     </SidebarProvider>
   );
 }
+
+    

@@ -102,3 +102,5 @@ export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProp
     </Dialog>
   );
 }
+
+    

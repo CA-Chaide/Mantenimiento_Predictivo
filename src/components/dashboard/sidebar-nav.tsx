@@ -84,3 +84,5 @@ export function SidebarNav({ machines, components }: SidebarNavProps) {
     </div>
   );
 }
+
+    

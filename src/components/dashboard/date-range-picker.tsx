@@ -111,11 +111,11 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             id="date"
             variant={"outline"}
             className={cn(
-              "w-full justify-start text-left font-normal bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white focus:ring-2 focus:ring-white",
+              "w-full justify-start text-left font-normal bg-white border-slate-200 text-slate-900 hover:bg-slate-100 hover:text-slate-900 focus:ring-2 focus:ring-primary",
               !date && "text-muted-foreground"
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4 text-white" />
+            <CalendarIcon className="mr-2 h-4 w-4 text-slate-500" />
             {isClient && date?.from ? (
               date.to && date.from.getTime() !== date.to.getTime() ? (
                 <>
