@@ -75,17 +75,6 @@ export function MetricChart({
   metric,
   yAxisLabel
 }: MetricChartProps) {
-  
-  const metricData = data
-    .map(d => ({
-      date: d.date, 
-      [valueKey as string]: d.isProjection ? null : (d[valueKey] as number | null),
-      [limitKey as string]: d[limitKey] as number | null,
-      [predictionKey as string]: d[predictionKey],
-      [predictionPesimisticKey as string]: d[predictionPesimisticKey],
-      [predictionOptimisticKey as string]: d[predictionOptimisticKey],
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
 
   const tickFormatter = (str: string) => {
     try {
@@ -98,11 +87,17 @@ export function MetricChart({
     }
   };
 
+  const finalData = data.map(d => ({
+    ...d,
+    [valueKey as string]: d.isProjection ? null : d[valueKey],
+  })).sort((a, b) => a.date.localeCompare(b.date));
+
+
   return (
     <div className="space-y-4">
       <div className="h-[400px] w-full">
         <ResponsiveContainer>
-          <ComposedChart data={metricData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart data={finalData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
