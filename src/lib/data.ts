@@ -130,21 +130,18 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
       return [];
     }
   
-    // Helper to safely parse numbers
     const safeNumber = (value: any): number | null => {
       const num = Number(value);
       return isNaN(num) ? null : num;
     };
   
-    // Step 1: Group data by day
     const groupedByDay = rawData.reduce((acc, record) => {
-      const day = record.date.split('T')[0]; // "YYYY-MM-DD"
+      const day = record.date.split('T')[0];
   
       if (!acc[day]) {
         acc[day] = {
           records: [],
           componentId: record.componentId,
-          // Store first limit and ref values, assuming they are constant for the day
           "Corriente Máxima": record["Corriente Máxima"],
           "Umbral Desbalance": record["Umbral Desbalance"],
           "Umbral Factor Carga": record["Umbral Factor Carga"],
@@ -160,7 +157,6 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         "Umbral Factor Carga"?: number | null,
     }>);
   
-    // Step 2 & 3: Calculate averages for each group
     const aggregatedResult = Object.entries(groupedByDay).map(([day, group]) => {
       const dayMetrics = {
         current: { sum: 0, count: 0 },
@@ -206,7 +202,6 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
       return newPoint;
     });
   
-    // Sort by date just in case
     return aggregatedResult.sort((a, b) => a.date.localeCompare(b.date));
   }
   
@@ -219,13 +214,12 @@ export function calculateLinearRegressionAndProject(
       x: i,
       y: p[metricKey] as number,
       date: p.date,
-    })).filter(p => p.y !== null && !isNaN(p.y) && p.y > 0); // Filter out zero/null values
+    })).filter(p => p.y !== null && !isNaN(p.y) && p.y > 0);
 
-    if (cleanData.length < 5) { // Increased minimum points for a more stable trend
+    if (cleanData.length < 5) {
       return { trend: [], pessimistic: [], optimistic: [] };
     }
 
-    // Simple linear regression calculation
     let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
     const n = cleanData.length;
 
@@ -243,13 +237,12 @@ export function calculateLinearRegressionAndProject(
       return { trend: [], pessimistic: [], optimistic: [] };
     }
     
-    // Calculate residuals and standard deviation for noise generation
     const residuals = cleanData.map(p => p.y - (slope * p.x + intercept));
     const meanResidual = residuals.reduce((sum, r) => sum + r, 0) / residuals.length;
     const squaredErrors = residuals.map(r => (r - meanResidual) ** 2);
     const variance = squaredErrors.reduce((sum, e) => sum + e, 0) / (squaredErrors.length > 1 ? squaredErrors.length - 1 : 1);
     const stdDev = Math.sqrt(variance);
-    const noiseFactor = stdDev / 2; // Reduce noise amplitude
+    const noiseFactor = stdDev / 2;
 
     const lastPoint = cleanData[n - 1];
     const lastDate = parseISO(lastPoint.date);
@@ -266,7 +259,6 @@ export function calculateLinearRegressionAndProject(
         
         const noise = (Math.random() - 0.5) * 2 * noiseFactor;
 
-        // Ensure slope is not negative to prevent decreasing trends
         const nonNegativeSlope = Math.max(0, slope);
 
         const trendValue = nonNegativeSlope * x + intercept + noise;
@@ -328,7 +320,6 @@ export async function useRealMaintenanceData(
     let aggregatedData: ChartDataPoint[];
 
     if (useAggregatedEndpoint) {
-        // Use the new aggregated endpoint for large date ranges
         const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
             maquina: machineId,
             componente: componentNameForAPI,
@@ -338,11 +329,10 @@ export async function useRealMaintenanceData(
         if (response.data && Array.isArray(response.data)) {
             allRecords = response.data;
         }
-        onProgressUpdate?.([], 90); // Update progress
+        onProgressUpdate?.([], 90);
         const rawTransformedData = allRecords.map(recordToDataPoint(component, 'monthly'));
         aggregatedData = aggregateDataByMonth(rawTransformedData);
     } else {
-        // Use detailed endpoint with pagination for smaller ranges
         const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
             machineId,
             componentNameForAPI,
@@ -388,17 +378,14 @@ export async function useRealMaintenanceData(
       return { data: aggregatedData };
     }
     
-    // Get last known limits from aggregated data
     const lastKnownCurrentLimit = [...aggregatedData].reverse().find(d => d['Corriente Máxima'] != null)?.['Corriente Máxima'];
     const lastKnownUnbalanceLimit = [...aggregatedData].reverse().find(d => d['Umbral Desbalance'] != null)?.['Umbral Desbalance'];
     const lastKnownLoadFactorLimit = [...aggregatedData].reverse().find(d => d['Umbral Factor Carga'] != null)?.['Umbral Factor Carga'];
 
-    // Calculate projections for all metrics
     const { trend: projCorriente, pessimistic: projCorrientePes, optimistic: projCorrienteOpt } = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado", daysToProject);
     const { trend: projDesbalance, pessimistic: projDesbalancePes, optimistic: projDesbalanceOpt } = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado", daysToProject);
     const { trend: projFactorCarga, pessimistic: projFactorCargaPes, optimistic: projFactorCargaOpt } = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado", daysToProject);
 
-    // Merge all projections into one array of points
     const projectionMap = new Map<string, ChartDataPoint>();
     
     const allProjections = [
@@ -442,7 +429,6 @@ export async function useRealMaintenanceData(
   }
 }
 
-// Helper to transform a single API record into our data point format.
 const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly' = 'daily') => (record: any): RawDataRecord => {
   const safeNumber = (value: any): number | null => {
     const num = Number(value);
@@ -451,15 +437,12 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
 
   let fechaDate;
   if (aggregation === 'monthly') {
-      // For monthly aggregated data from the new endpoint
       try {
-          // Assuming the record has year and month properties
-          fechaDate = new Date(record.AÑO, record.MES - 1, 15); // Use mid-month for plotting
+          fechaDate = new Date(record.AÑO, record.MES - 1, 15);
       } catch {
           fechaDate = new Date();
       }
   } else {
-      // For daily/detailed data
       try {
           fechaDate = new Date(
               record.AÑO,
@@ -475,7 +458,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
   }
 
   return {
-    date: formatISO(fechaDate), // Keep full ISO string for grouping
+    date: formatISO(fechaDate),
     isProjection: false,
     componentId: component.id,
     
@@ -500,3 +483,5 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
+
+    
