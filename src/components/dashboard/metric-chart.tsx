@@ -87,17 +87,16 @@ export function MetricChart({
     }
   };
 
-  const finalData = data.map(d => ({
-    ...d,
-    [valueKey as string]: d.isProjection ? null : d[valueKey],
-  })).sort((a, b) => a.date.localeCompare(b.date));
-
+  const sortedData = React.useMemo(() => 
+    [...data].sort((a, b) => a.date.localeCompare(b.date)),
+    [data]
+  );
 
   return (
     <div className="space-y-4">
       <div className="h-[400px] w-full">
         <ResponsiveContainer>
-          <ComposedChart data={finalData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart data={sortedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
@@ -126,7 +125,7 @@ export function MetricChart({
 
             <Area
               type="monotone"
-              dataKey={valueKey.toString()}
+              dataKey={(point) => point.isProjection ? null : point[valueKey]}
               name="Promedio Diario"
               stroke="#0284c7"
               fillOpacity={1}
