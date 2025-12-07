@@ -158,7 +158,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
       const findFirstValidLimit = (key: keyof RawDataRecord): number | null => {
         for (const record of group.records) {
             const value = safeNumber(record[key]);
-            if (value !== null) {
+            if (value !== null && value > 0) {
                 return value;
             }
         }
@@ -458,5 +458,3 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
-
-    
