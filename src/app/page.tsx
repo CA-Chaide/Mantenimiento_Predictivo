@@ -86,7 +86,7 @@ export default function DashboardPage() {
   const [machineList, setMachineList] = useState<Machine[]>([]);
   const [componentList, setComponentList] = useState<Component[]>([]);
   const [loading, setLoading] = useState(true);
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [cachedData, setCachedData] = useState<Record<string, any[]>>({});
   const [chartLoading, setChartLoading] = useState(false);
   const [noDataAvailable, setNoDataAvailable] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -195,23 +195,25 @@ export default function DashboardPage() {
       setNoDataAvailable(false);
       setLoadingProgress(0);
       
-      if (!machineId || !componentId || !displayRange) {
-        setChartData([]);
-        setChartLoading(false);
+      if (!machineId || !componentId || !displayRange || !displayRange.from || !displayRange.to) {
         return;
+      }
+      
+      const cacheKey = `${machineId}-${componentId}-${format(displayRange.from, 'yyyy-MM-dd')}-${format(displayRange.to, 'yyyy-MM-dd')}`;
+      
+      if (cachedData[cacheKey]) {
+          // Data is already in cache, no need to fetch again
+          return;
       }
 
       const selectedComp = componentList.find(c => c.id === componentId);
       if (!selectedComp) {
-        setChartData([]);
-        setChartLoading(false);
         return;
       }
 
       setChartLoading(true);
       try {
         if (!displayRange.from || !displayRange.to) {
-          setChartData([]);
           setChartLoading(false);
           return;
         }
@@ -225,7 +227,8 @@ export default function DashboardPage() {
             setLoadingProgress(progress);
             if (progress < 100) {
               const aggregatedData = aggregateDataByDay(partialData);
-              setChartData(aggregatedData);
+              // Update cache with partial data for responsive UI
+              setCachedData(prev => ({...prev, [cacheKey]: aggregatedData }));
             }
             if (partialData.length > 0) {
               setNoDataAvailable(false);
@@ -234,16 +237,16 @@ export default function DashboardPage() {
         );
         
         if (result.data.length > 0) {
-          setChartData(result.data);
+          setCachedData(prev => ({ ...prev, [cacheKey]: result.data }));
           setNoDataAvailable(false);
         } else {
-          setChartData([]);
+          setCachedData(prev => ({ ...prev, [cacheKey]: [] }));
           setNoDataAvailable(true);
         }
         setLoadingProgress(100);
       } catch (error: any) {
         console.error("Error loading chart data:", error);
-        setChartData([]);
+        setCachedData(prev => ({ ...prev, [cacheKey]: [] }));
         setNoDataAvailable(true);
         setLoadingProgress(0);
         toast({
@@ -257,8 +260,14 @@ export default function DashboardPage() {
     }
 
     loadChartData();
-  }, [machineId, componentId, fromDate, toDate, componentList, toast]);
+  }, [machineId, componentId, fromDate, toDate, componentList, toast, cachedData]);
 
+  const currentCacheKey = machineId && componentId && displayRange?.from && displayRange?.to
+    ? `${machineId}-${componentId}-${format(displayRange.from, 'yyyy-MM-dd')}-${format(displayRange.to, 'yyyy-MM-dd')}`
+    : null;
+
+  const chartData = currentCacheKey ? cachedData[currentCacheKey] || [] : [];
+  
   // Early return after all hooks
   if (loading) {
     return (
@@ -349,5 +358,7 @@ export default function DashboardPage() {
     </SidebarProvider>
   );
 }
+
+    
 
     
