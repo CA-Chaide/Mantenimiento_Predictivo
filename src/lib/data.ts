@@ -142,20 +142,11 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         acc[day] = {
           records: [],
           componentId: record.componentId,
-          "Corriente Máxima": safeNumber(record["Corriente Máxima"]),
-          "Umbral Desbalance": safeNumber(record["Umbral Desbalance"]),
-          "Umbral Factor Carga": safeNumber(record["Umbral Factor Carga"]),
         };
       }
       acc[day].records.push(record);
       return acc;
-    }, {} as Record<string, { 
-        records: RawDataRecord[], 
-        componentId: string,
-        "Corriente Máxima"?: number | null,
-        "Umbral Desbalance"?: number | null,
-        "Umbral Factor Carga"?: number | null,
-    }>);
+    }, {} as Record<string, { records: RawDataRecord[], componentId: string }>);
   
     const aggregatedResult = Object.entries(groupedByDay).map(([day, group]) => {
       const dayMetrics = {
@@ -163,6 +154,16 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         unbalance: { sum: 0, count: 0 },
         load_factor: { sum: 0, count: 0 },
       };
+
+      // Find the first non-null value for each limit in the day's records
+      const findLimit = (key: keyof RawDataRecord) => {
+        const found = group.records.find(r => r[key] != null);
+        return found ? safeNumber(found[key]) : null;
+      };
+
+      const currentLimit = findLimit("Corriente Máxima");
+      const unbalanceLimit = findLimit("Umbral Desbalance");
+      const loadFactorLimit = findLimit("Umbral Factor Carga");
   
       for (const record of group.records) {
         const current = safeNumber(record["Corriente Promedio Suavizado"]);
@@ -190,13 +191,13 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         isProjection: false,
 
         "Corriente Promedio Suavizado": dayMetrics.current.count > 0 ? dayMetrics.current.sum / dayMetrics.current.count : null,
-        "Corriente Máxima": group["Corriente Máxima"],
+        "Corriente Máxima": currentLimit,
 
         "Desbalance Suavizado": dayMetrics.unbalance.count > 0 ? dayMetrics.unbalance.sum / dayMetrics.unbalance.count : null,
-        "Umbral Desbalance": group["Umbral Desbalance"],
+        "Umbral Desbalance": unbalanceLimit,
         
         "Factor De Carga Suavizado": dayMetrics.load_factor.count > 0 ? dayMetrics.load_factor.sum / dayMetrics.load_factor.count : null,
-        "Umbral Factor Carga": group["Umbral Factor Carga"],
+        "Umbral Factor Carga": loadFactorLimit,
       };
       
       return newPoint;
@@ -291,8 +292,7 @@ export async function useRealMaintenanceData(
     const daysDifference = differenceInDays(toDate, fromDate);
     const useAggregatedEndpoint = daysDifference > 365;
 
-    let allRecords: any[] = [];
-    let aggregatedData: ChartDataPoint[];
+    let allApiRecords: any[] = [];
 
     if (useAggregatedEndpoint) {
         const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
@@ -302,11 +302,9 @@ export async function useRealMaintenanceData(
             fecha_fin: toDateString,
         });
         if (response.data && Array.isArray(response.data)) {
-            allRecords = response.data;
+            allApiRecords = response.data;
         }
         onProgressUpdate?.([], 90);
-        const rawTransformedData = allRecords.map(recordToDataPoint(component, 'monthly'));
-        aggregatedData = aggregateDataByMonth(rawTransformedData);
     } else {
         const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
             machineId,
@@ -335,27 +333,28 @@ export async function useRealMaintenanceData(
             });
 
             if (response.data && Array.isArray(response.data)) {
-                allRecords = allRecords.concat(response.data);
+                allApiRecords = allApiRecords.concat(response.data);
             }
 
             if (onProgressUpdate) {
-                const transformedData = allRecords.map(recordToDataPoint(component));
+                const transformedData = allApiRecords.map(recordToDataPoint(component));
                 onProgressUpdate(transformedData, (page / totalPages) * 90);
             }
         }
-        
-        const rawTransformedData = allRecords.map(recordToDataPoint(component));
-        aggregatedData = aggregateDataByDay(rawTransformedData);
     }
+    
+    const rawTransformedData = allApiRecords.map(recordToDataPoint(component, useAggregatedEndpoint ? 'monthly' : 'daily'));
+    const aggregatedData = useAggregatedEndpoint ? aggregateDataByMonth(rawTransformedData) : aggregateDataByDay(rawTransformedData);
+
 
     if (aggregatedData.length < 2) {
       onProgressUpdate?.([], 100);
       return { data: aggregatedData };
     }
     
-    const lastKnownCurrentLimit = [...aggregatedData].reverse().find(d => d['Corriente Máxima'] != null)?.['Corriente Máxima'];
-    const lastKnownUnbalanceLimit = [...aggregatedData].reverse().find(d => d['Umbral Desbalance'] != null)?.['Umbral Desbalance'];
-    const lastKnownLoadFactorLimit = [...aggregatedData].reverse().find(d => d['Umbral Factor Carga'] != null)?.['Umbral Factor Carga'];
+    const lastKnownCurrentLimit = [...aggregatedData].reverse().find(d => d['Corriente Máxima'] != null)?.['Corriente Máxima'] ?? null;
+    const lastKnownUnbalanceLimit = [...aggregatedData].reverse().find(d => d['Umbral Desbalance'] != null)?.['Umbral Desbalance'] ?? null;
+    const lastKnownLoadFactorLimit = [...aggregatedData].reverse().find(d => d['Umbral Factor Carga'] != null)?.['Umbral Factor Carga'] ?? null;
 
     const projCorriente = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado", daysToProject);
     const projDesbalance = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado", daysToProject);
@@ -455,5 +454,3 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
-
-    
