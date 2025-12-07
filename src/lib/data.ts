@@ -155,10 +155,14 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         load_factor: { sum: 0, count: 0 },
       };
 
-      // Find the first non-null value for each limit in the day's records
       const findLimit = (key: keyof RawDataRecord) => {
-        const found = group.records.find(r => r[key] != null);
-        return found ? safeNumber(found[key]) : null;
+        for (const record of group.records) {
+            const value = safeNumber(record[key]);
+            if (value !== null) {
+                return value;
+            }
+        }
+        return null;
       };
 
       const currentLimit = findLimit("Corriente Máxima");
@@ -454,3 +458,5 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
+
+    
