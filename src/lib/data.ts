@@ -1,5 +1,6 @@
 
-import { formatISO, parseISO, addDays, differenceInDays } from 'date-fns';
+import { format, formatISO, parseISO, addDays, differenceInDays } from 'date-fns';
+import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 
 export type Machine = { id: string; name: string };
@@ -7,7 +8,7 @@ export type MachineId = string;
 export type Component = { id: string; name: string; originalName: string };
 
 export type ChartDataPoint = {
-  date: string; // "YYYY-MM-DD"
+  date: string; // "YYYY-MM-DD" or "YYYY-MM"
   isProjection: boolean;
   componentId: string;
   
@@ -50,11 +51,80 @@ export type RawDataRecord = {
     "Umbral Factor Carga"?: number | null;
   };
 
-/**
- * Aggregates a large array of time-series data into daily summaries (average and max).
- * @param rawData The raw data array from the API.
- * @returns An array of aggregated data points, one for each day.
- */
+export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[] {
+    if (!rawData || rawData.length === 0) {
+      return [];
+    }
+
+    const groupedByMonth = rawData.reduce((acc, record) => {
+      const month = format(parseISO(record.date), 'yyyy-MM');
+      if (!acc[month]) {
+        acc[month] = { records: [], componentId: record.componentId };
+      }
+      acc[month].records.push(record);
+      return acc;
+    }, {} as Record<string, { records: RawDataRecord[], componentId: string }>);
+
+    const aggregatedResult = Object.entries(groupedByMonth).map(([month, group]) => {
+      const metrics = {
+        current: { sum: 0, count: 0 },
+        unbalance: { sum: 0, count: 0 },
+        load_factor: { sum: 0, count: 0 },
+        current_limit: { sum: 0, count: 0 },
+        unbalance_limit: { sum: 0, count: 0 },
+        load_factor_limit: { sum: 0, count: 0 },
+      };
+
+      for (const record of group.records) {
+        const current = Number(record["Corriente Promedio Suavizado"]);
+        if (!isNaN(current)) {
+          metrics.current.sum += current;
+          metrics.current.count++;
+        }
+        const unbalance = Number(record["Desbalance Suavizado"]);
+        if (!isNaN(unbalance)) {
+          metrics.unbalance.sum += unbalance;
+          metrics.unbalance.count++;
+        }
+        const loadFactor = Number(record["Factor De Carga Suavizado"]);
+        if (!isNaN(loadFactor)) {
+          metrics.load_factor.sum += loadFactor;
+          metrics.load_factor.count++;
+        }
+        // Also average the limits in case they change over time
+        const currentLimit = Number(record["Corriente Máxima"]);
+        if (!isNaN(currentLimit)) {
+            metrics.current_limit.sum += currentLimit;
+            metrics.current_limit.count++;
+        }
+        const unbalanceLimit = Number(record["Umbral Desbalance"]);
+        if (!isNaN(unbalanceLimit)) {
+            metrics.unbalance_limit.sum += unbalanceLimit;
+            metrics.unbalance_limit.count++;
+        }
+        const loadFactorLimit = Number(record["Umbral Factor Carga"]);
+        if (!isNaN(loadFactorLimit)) {
+            metrics.load_factor_limit.sum += loadFactorLimit;
+            metrics.load_factor_limit.count++;
+        }
+      }
+      
+      return {
+        date: month,
+        componentId: group.componentId,
+        isProjection: false,
+        "Corriente Promedio Suavizado": metrics.current.count > 0 ? metrics.current.sum / metrics.current.count : null,
+        "Corriente Máxima": metrics.current_limit.count > 0 ? metrics.current_limit.sum / metrics.current_limit.count : null,
+        "Desbalance Suavizado": metrics.unbalance.count > 0 ? metrics.unbalance.sum / metrics.unbalance.count : null,
+        "Umbral Desbalance": metrics.unbalance_limit.count > 0 ? metrics.unbalance_limit.sum / metrics.unbalance_limit.count : null,
+        "Factor De Carga Suavizado": metrics.load_factor.count > 0 ? metrics.load_factor.sum / metrics.load_factor.count : null,
+        "Umbral Factor Carga": metrics.load_factor_limit.count > 0 ? metrics.load_factor_limit.sum / metrics.load_factor_limit.count : null,
+      };
+    });
+
+    return aggregatedResult.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
     if (!rawData || rawData.length === 0) {
       return [];
@@ -250,49 +320,68 @@ export async function useRealMaintenanceData(
     const fromDateString = formatISO(fromDate, { representation: 'date' });
     const toDateString = formatISO(toDate, { representation: 'date' });
     const componentNameForAPI = component.originalName;
+    const daysDifference = differenceInDays(toDate, fromDate);
+    const useAggregatedEndpoint = daysDifference > 365;
 
     let allRecords: any[] = [];
-    
-    // Use detailed endpoint with pagination
-    const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
-      machineId,
-      componentNameForAPI,
-      fromDateString,
-      toDateString
-    );
+    let aggregatedData: ChartDataPoint[];
 
-    const totalRecords = totalResponse.total || 0;
-    if (totalRecords === 0) {
-      onProgressUpdate?.([], 100);
-      return { data: [] };
+    if (useAggregatedEndpoint) {
+        // Use the new aggregated endpoint for large date ranges
+        const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
+            maquina: machineId,
+            componente: componentNameForAPI,
+            fecha_inicio: fromDateString,
+            fecha_fin: toDateString,
+        });
+        if (response.data && Array.isArray(response.data)) {
+            allRecords = response.data;
+        }
+        onProgressUpdate?.([], 90); // Update progress
+        const rawTransformedData = allRecords.map(recordToDataPoint(component, 'monthly'));
+        aggregatedData = aggregateDataByMonth(rawTransformedData);
+    } else {
+        // Use detailed endpoint with pagination for smaller ranges
+        const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
+            machineId,
+            componentNameForAPI,
+            fromDateString,
+            toDateString
+        );
+
+        const totalRecords = totalResponse.total || 0;
+        if (totalRecords === 0) {
+            onProgressUpdate?.([], 100);
+            return { data: [] };
+        }
+
+        const limit = 1000;
+        const totalPages = Math.ceil(totalRecords / limit);
+
+        for (let page = 1; page <= totalPages; page++) {
+            const response = await calculosService.getDataByMachineComponentAndDates({
+                maquina: machineId,
+                componente: componentNameForAPI,
+                fecha_inicio: fromDateString,
+                fecha_fin: toDateString,
+                page,
+                limit,
+            });
+
+            if (response.data && Array.isArray(response.data)) {
+                allRecords = allRecords.concat(response.data);
+            }
+
+            if (onProgressUpdate) {
+                const transformedData = allRecords.map(recordToDataPoint(component));
+                onProgressUpdate(transformedData, (page / totalPages) * 90);
+            }
+        }
+        
+        const rawTransformedData = allRecords.map(recordToDataPoint(component));
+        aggregatedData = aggregateDataByDay(rawTransformedData);
     }
 
-    const limit = 1000;
-    const totalPages = Math.ceil(totalRecords / limit);
-
-    for (let page = 1; page <= totalPages; page++) {
-      const response = await calculosService.getDataByMachineComponentAndDates({
-        maquina: machineId,
-        componente: componentNameForAPI,
-        fecha_inicio: fromDateString,
-        fecha_fin: toDateString,
-        page,
-        limit,
-      });
-
-      if (response.data && Array.isArray(response.data)) {
-        allRecords = allRecords.concat(response.data);
-      }
-
-      if (onProgressUpdate) {
-        const transformedData = allRecords.map(recordToDataPoint(component));
-        onProgressUpdate(transformedData, (page / totalPages) * 90);
-      }
-    }
-    
-    const rawTransformedData = allRecords.map(recordToDataPoint(component));
-    const aggregatedData = aggregateDataByDay(rawTransformedData);
-    
     if (aggregatedData.length < 2) {
       onProgressUpdate?.([], 100);
       return { data: aggregatedData };
@@ -353,25 +442,35 @@ export async function useRealMaintenanceData(
 }
 
 // Helper to transform a single API record into our data point format.
-const recordToDataPoint = (component: Component) => (record: any): RawDataRecord => {
+const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly' = 'daily') => (record: any): RawDataRecord => {
   const safeNumber = (value: any): number | null => {
     const num = Number(value);
     return isNaN(num) ? null : num;
   };
-  
-  // Handle detailed data format
+
   let fechaDate;
-  try {
-    fechaDate = new Date(
-      record.AÑO,
-      record.MES - 1,
-      record.DIA,
-      record.HORA || 0,
-      record.MINUTO || 0,
-      record.SEGUNDO || 0
-    );
-  } catch {
-    fechaDate = new Date();
+  if (aggregation === 'monthly') {
+      // For monthly aggregated data from the new endpoint
+      try {
+          // Assuming the record has year and month properties
+          fechaDate = new Date(record.AÑO, record.MES - 1, 15); // Use mid-month for plotting
+      } catch {
+          fechaDate = new Date();
+      }
+  } else {
+      // For daily/detailed data
+      try {
+          fechaDate = new Date(
+              record.AÑO,
+              record.MES - 1,
+              record.DIA,
+              record.HORA || 0,
+              record.MINUTO || 0,
+              record.SEGUNDO || 0
+          );
+      } catch {
+          fechaDate = new Date();
+      }
   }
 
   return {
@@ -390,7 +489,6 @@ const recordToDataPoint = (component: Component) => (record: any): RawDataRecord
   };
 };
 
-// ============ SMOOTHING FUNCTIONS (NOT USED WITH AGGREGATED DATA) ============
 
 export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   if (values.length === 0) return [];
@@ -401,5 +499,3 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
-
-    

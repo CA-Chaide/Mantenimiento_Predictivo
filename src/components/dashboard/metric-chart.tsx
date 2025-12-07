@@ -38,8 +38,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     let formattedLabel = label;
     try {
-      // Assuming label is a date string like "2025-10-20"
-      formattedLabel = format(parseISO(label), "PPP", { locale: es });
+      if (label.length === 7) { // YYYY-MM
+        formattedLabel = format(parseISO(label + '-01'), "MMM yyyy", { locale: es });
+      } else { // YYYY-MM-DD
+        formattedLabel = format(parseISO(label), "PPP", { locale: es });
+      }
     } catch {
       // fallback if parsing fails
     }
@@ -84,6 +87,17 @@ export function MetricChart({
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  const tickFormatter = (str: string) => {
+    try {
+      if (str.length === 7) { // YYYY-MM
+        return format(parseISO(str + '-01'), "MMM yy", { locale: es });
+      }
+      return format(parseISO(str), "dd MMM", { locale: es });
+    } catch {
+      return str;
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="h-[400px] w-full">
@@ -92,13 +106,7 @@ export function MetricChart({
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
-              tickFormatter={(str) => {
-                try {
-                  return format(parseISO(str), "dd MMM", { locale: es });
-                } catch {
-                  return str;
-                }
-              }}
+              tickFormatter={tickFormatter}
               tick={{ fill: '#64748b' }}
               stroke="#e2e8f0"
               interval="preserveStartEnd"

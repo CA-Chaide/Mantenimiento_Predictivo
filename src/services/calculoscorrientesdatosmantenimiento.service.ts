@@ -162,6 +162,31 @@ export const calculosCorrientesDatosMantenimientoService = {
     return response.json();
   },
 
+  async getDataByMachineComponentAndDatesAggregated(params: GetDataByDateRangeParamsAndComponentAggregated): Promise<BodyListResponse<any>> {
+    const requestBody = {
+      maquina: params.maquina,
+      componente: params.componente,
+      fecha_inicio: params.fecha_inicio,
+      fecha_fin: params.fecha_fin,
+    };
+  
+    const response = await fetch(API_URL + '/machineComponentDatesAggregated', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKEN}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+  
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({ message: 'Error desconocido en el servidor' }));
+      throw new Error(errorBody.message || `Error ${response.status}: ${response.statusText}`);
+    }
+  
+    return response.json();
+  },
+
   async getMachines(params?: GetAllParams): Promise<BodyListResponse<any>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
