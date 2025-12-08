@@ -508,22 +508,22 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     isProjection: false,
     componentId: component.id,
     
+    // Para el gráfico de CORRIENTE, se usa la columna PROMEDIO de la API.
     'Corriente Promedio Suavizado': safeNumber(record.PROMEDIO || record.promedio),
     
-    // =========================================================================
-    // CORRECCIÓN CRÍTICA: Añadimos 'CORREINTEMAX' (tu nombre real en DB)
-    // También añadimos 'correintemax' en minúsculas por si la API normaliza el nombre.
-    // =========================================================================
+    // Lógica para el límite de corriente
     'Corriente Máxima': safeNumber(
-        record.CORREINTEMAX ||      // Tal cual en la base de datos
-        record.correintemax ||      // Por si la API lo hace minúscula
-        record.Corriente_Max ||     // Intentos anteriores
+        record.CORREINTEMAX ||
+        record.correintemax ||
+        record.Corriente_Max ||
         record.Umbral_Corriente
     ), 
 
+    // Para el gráfico de DESBALANCE, se usa la columna DesbalanceSuavizado de la API.
     'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
     'Umbral Desbalance': safeNumber(record.Umbral_Desbalance),
 
+    // Para el gráfico de FACTOR DE CARGA, se usa la columna FactorDeCargaSuavizado de la API.
     'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
     'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga),
   };
