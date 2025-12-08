@@ -514,7 +514,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
   let fechaDate;
   
   const year = safeNumber(record.AÑO);
-  const month = safeNumber(record.MES);
+  const month = safeNumber(record.MES_REFERENCIA) || safeNumber(record.MES); // Prioriza MES_REFERENCIA
   const day = aggregation === 'daily' ? safeNumber(record.DIA) : 15;
 
   if (!isValidNumber(year) || !isValidNumber(month) || !isValidNumber(day)) {
@@ -553,11 +553,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
 
     // --- Límites ---
-    'Corriente Máxima': safeNumber(
-        record.Corriente_Max ||
-        record.CORREINTEMAX ||
-        record.correintemax 
-    ), 
+    'Corriente Máxima': safeNumber(record.Corriente_Max),
     'Umbral Desbalance': safeNumber(record.Umbral_Desbalance),
     'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga),
   };
@@ -573,3 +569,4 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
+
