@@ -2,6 +2,7 @@
 
 import { environment } from "@/environments/environments.prod";
 import type { BodyListResponse } from "@/types/body-list-response";
+import { BodyResponse } from "@/types/body-response";
 
 const API_URL = `${environment.apiURL}/api/CalculosCorrientesDatosMantenimiento`;
 const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImludGVsaWdlbnRpYSIsImlhdCI6MTcyMTM0NjQzMiwiZXhwIjoxNzMyODgyNDMyfQ.5Z5aQj1fG4f4i-rL8p3g4n-X_VwE-b-T9tC2a1iH3xY";
@@ -48,6 +49,24 @@ interface GetAllParams {
 }
 
 export const calculosCorrientesDatosMantenimientoService = {
+
+  async getLastAvailableDate(): Promise<BodyResponse<{ FECHA: string }>> {
+    const response = await fetch(API_URL + '/lastAvailableDate', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${TOKEN}`,
+        },
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({ message: 'Error desconocido al obtener la última fecha' }));
+        throw new Error(errorBody.message || `Error ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
   async getTotalByMaquina(maquina: string): Promise<{ total: number }> {
     const response = await fetch(API_URL + '/totalByMaquina', {
       method: 'POST',

@@ -90,14 +90,19 @@ export default function DashboardPage() {
   const [chartLoading, setChartLoading] = useState(false);
   const [noDataAvailable, setNoDataAvailable] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [initialToDate, setInitialToDate] = useState<Date | null>(null);
 
-  // Fetch machines
+  // Fetch machines and last available date
   useEffect(() => {
-    async function fetchMachines() {
+    async function fetchInitialData() {
       try {
-        const response = await calculosCorrientesDatosMantenimientoService.getMachines();
-        if (response.data && Array.isArray(response.data)) {
-          const transformedMachines = response.data
+        const [machinesResponse, lastDateResponse] = await Promise.all([
+          calculosCorrientesDatosMantenimientoService.getMachines(),
+          calculosCorrientesDatosMantenimientoService.getLastAvailableDate()
+        ]);
+        
+        if (machinesResponse.data && Array.isArray(machinesResponse.data)) {
+          const transformedMachines = machinesResponse.data
           .filter((m: any) => m.MAQUINA)
           .map((m: any) => {
             const machineName = m.MAQUINA;
@@ -108,18 +113,31 @@ export default function DashboardPage() {
           });
           setMachineList(transformedMachines);
         } else {
-          console.error("Formato de respuesta inesperado para máquinas:", response);
+          console.error("Formato de respuesta inesperado para máquinas:", machinesResponse);
           setMachineList([]);
         }
+
+        if(lastDateResponse.data && lastDateResponse.data.FECHA) {
+            setInitialToDate(parseISO(lastDateResponse.data.FECHA));
+        } else {
+            setInitialToDate(new Date());
+        }
+
       } catch (error) {
-        console.error("Error fetching machines:", error);
-        setMachineList([]); 
+        console.error("Error fetching initial data:", error);
+        setMachineList([]);
+        setInitialToDate(new Date());
+        toast({
+            variant: "destructive",
+            title: "Error de Conexión",
+            description: "No se pudo cargar la configuración inicial del servidor.",
+        });
       } finally {
         setLoading(false);
       }
     }
-    fetchMachines();
-  }, []);
+    fetchInitialData();
+  }, [toast]);
   
   const machineId = (
     typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
@@ -175,14 +193,14 @@ export default function DashboardPage() {
   
   const { fromDate, toDate } = useMemo(() => {
     try {
-      const from = fromDateString ? parseISO(fromDateString) : subYears(new Date(), 1);
-      const to = toDateString ? parseISO(toDateString) : new Date();
-      return { fromDate: from, toDate: to };
+        const to = toDateString ? parseISO(toDateString) : initialToDate || new Date();
+        const from = fromDateString ? parseISO(fromDateString) : subYears(to, 1);
+        return { fromDate: from, toDate: to };
     } catch (e) {
-      // Fallback to default if parsing fails
-      return { fromDate: subYears(new Date(), 1), toDate: new Date() };
+      const to = initialToDate || new Date();
+      return { fromDate: subYears(to, 1), toDate: to };
     }
-  }, [fromDateString, toDateString]);
+  }, [fromDateString, toDateString, initialToDate]);
 
   const displayRange: DateRange | undefined = useMemo(() => {
     if (!fromDate || !toDate) return undefined;
@@ -367,3 +385,4 @@ export default function DashboardPage() {
     
 
     
+
