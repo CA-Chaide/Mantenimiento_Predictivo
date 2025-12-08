@@ -50,23 +50,6 @@ interface GetAllParams {
 
 export const calculosCorrientesDatosMantenimientoService = {
 
-  async getLastAvailableDate(): Promise<BodyResponse<{ FECHA: string }>> {
-    const response = await fetch(API_URL + '/lastAvailableDate', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${TOKEN}`,
-        },
-    });
-
-    if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({ message: 'Error desconocido al obtener la última fecha' }));
-        throw new Error(errorBody.message || `Error ${response.status}: ${response.statusText}`);
-    }
-
-    return response.json();
-  },
-
   async getTotalByMaquina(maquina: string): Promise<{ total: number }> {
     const response = await fetch(API_URL + '/totalByMaquina', {
       method: 'POST',
@@ -251,3 +234,5 @@ export const calculosCorrientesDatosMantenimientoService = {
     return response.json();
   },
 };
+
+    

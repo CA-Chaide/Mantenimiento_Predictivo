@@ -90,16 +90,12 @@ export default function DashboardPage() {
   const [chartLoading, setChartLoading] = useState(false);
   const [noDataAvailable, setNoDataAvailable] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [initialToDate, setInitialToDate] = useState<Date | null>(null);
 
-  // Fetch machines and last available date
+  // Fetch machines
   useEffect(() => {
     async function fetchInitialData() {
       try {
-        const [machinesResponse, lastDateResponse] = await Promise.all([
-          calculosCorrientesDatosMantenimientoService.getMachines(),
-          calculosCorrientesDatosMantenimientoService.getLastAvailableDate()
-        ]);
+        const machinesResponse = await calculosCorrientesDatosMantenimientoService.getMachines();
         
         if (machinesResponse.data && Array.isArray(machinesResponse.data)) {
           const transformedMachines = machinesResponse.data
@@ -117,16 +113,9 @@ export default function DashboardPage() {
           setMachineList([]);
         }
 
-        if(lastDateResponse.data && lastDateResponse.data.FECHA) {
-            setInitialToDate(parseISO(lastDateResponse.data.FECHA));
-        } else {
-            setInitialToDate(new Date());
-        }
-
       } catch (error) {
         console.error("Error fetching initial data:", error);
         setMachineList([]);
-        setInitialToDate(new Date());
         toast({
             variant: "destructive",
             title: "Error de Conexión",
@@ -193,14 +182,13 @@ export default function DashboardPage() {
   
   const { fromDate, toDate } = useMemo(() => {
     try {
-        const to = toDateString ? parseISO(toDateString) : initialToDate || new Date();
+        const to = toDateString ? parseISO(toDateString) : new Date();
         const from = fromDateString ? parseISO(fromDateString) : subYears(to, 1);
         return { fromDate: from, toDate: to };
     } catch (e) {
-      const to = initialToDate || new Date();
-      return { fromDate: subYears(to, 1), toDate: to };
+      return { fromDate: subYears(new Date(), 1), toDate: new Date() };
     }
-  }, [fromDateString, toDateString, initialToDate]);
+  }, [fromDateString, toDateString]);
 
   const displayRange: DateRange | undefined = useMemo(() => {
     if (!fromDate || !toDate) return undefined;
@@ -383,6 +371,3 @@ export default function DashboardPage() {
 }
 
     
-
-    
-
