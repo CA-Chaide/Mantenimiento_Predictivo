@@ -68,13 +68,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function MetricChart({
   data,
   valueKey,
-  referenceKey,
   limitKey,
   limitLabel,
   predictionKey,
   predictionPesimisticKey,
   predictionOptimisticKey,
-  referencePredictionKey,
   componentId,
   metric,
   yAxisLabel
@@ -139,18 +137,6 @@ export function MetricChart({
               connectNulls={false}
             />
 
-            {referenceKey && (
-              <Line
-                type="monotone"
-                dataKey={(point) => point.isProjection ? null : point[referenceKey]}
-                name="Referencia Suavizado (API)"
-                stroke="#f97316"
-                strokeWidth={2}
-                dot={false}
-                connectNulls={true}
-              />
-            )}
-
             <Line
               type="monotone"
               dataKey={limitKey as string}
@@ -193,19 +179,6 @@ export function MetricChart({
               dot={false}
               connectNulls={false}
             />
-
-            {referencePredictionKey && (
-              <Line
-                type="monotone"
-                dataKey={referencePredictionKey.toString()}
-                name="Proyección Referencia"
-                stroke="#ca8a04"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={false}
-                connectNulls={false}
-              />
-            )}
 
           </ComposedChart>
         </ResponsiveContainer>
