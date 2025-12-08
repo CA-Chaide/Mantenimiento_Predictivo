@@ -529,7 +529,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     componentId: component.id,
     
     'Corriente Promedio Suavizado': safeNumber(record.PROMEDIO || record.promedio),
-    'Referencia Corriente Promedio Suavizado': safeNumber(record.PromedioSuavizado),
+    'Referencia Corriente Promedio Suavizado': safeNumber(record.Referencia_CorrientePromedioSuavizado || record.referencia_corrientepromediosuavizado),
     
     // =========================================================================
     // CORRECCIÓN CRÍTICA: Añadimos 'CORREINTEMAX' (tu nombre real en DB)

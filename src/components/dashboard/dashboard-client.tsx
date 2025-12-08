@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,11 +49,13 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                 <MetricChart
                   data={data}
                   valueKey="Corriente Promedio Suavizado"
+                  referenceKey="Referencia Corriente Promedio Suavizado"
                   limitKey="Corriente Máxima"
                   limitLabel="Corriente Max"
                   predictionKey="proyeccion_corriente_tendencia"
                   predictionPesimisticKey="proyeccion_corriente_pesimista"
                   predictionOptimisticKey="proyeccion_corriente_optimista"
+                  referencePredictionKey="proyeccion_referencia_corriente_tendencia"
                   yAxisLabel="Amperios"
                   componentId={component.id}
                   metric="current"
