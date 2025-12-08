@@ -34,7 +34,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const [popoverOpen, setPopoverOpen] = React.useState(false);
 
   const sinceStartDate = new Date('2025-04-10T00:00:00Z');
-  const dataEndDate = new Date('2025-11-26T00:00:00Z');
 
   React.useEffect(() => {
       setDate(initialDate);
@@ -68,13 +67,13 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   };
 
   const handlePreset = (preset: 'last30days' | 'last3Months' | 'lastYear' | 'sinceStart') => {
-    const today = dataEndDate; // Use data end date as reference
+    const today = new Date();
     let from: Date;
     let to: Date = today;
 
     switch (preset) {
         case 'last30days':
-            from = subDays(today, 30);
+            from = subDays(today, 29); // 30 days including today
             to = today;
             break;
         case 'last3Months':
@@ -87,7 +86,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             break;
         case 'sinceStart':
             from = sinceStartDate;
-            to = dataEndDate; // Use the actual end date of the data
+            to = today; 
             break;
     }
     const newRange = { from, to };
@@ -161,7 +160,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     selected={date}
                     onSelect={handleSelect}
                     numberOfMonths={1}
-                    toDate={new Date()}
                     locale={es}
                     classNames={{
                         day_range_start: "day-range-start",

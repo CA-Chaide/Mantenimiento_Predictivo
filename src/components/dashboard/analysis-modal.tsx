@@ -25,7 +25,6 @@ export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProp
   if (!statusInfo) return null;
 
   const { status, componentName, details, allMetrics } = statusInfo;
-  const simulatedToday = new Date('2025-11-26T00:00:00Z');
 
   const statusConfig = {
     normal: { color: "bg-green-500", text: 'text-green-700', label: "Normal", badge: 'default' },
@@ -38,8 +37,10 @@ export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProp
 
   let timeToFailureMessage = null;
   if (status === 'warning' && details.projectedDate) {
-    const daysToFailure = differenceInDays(parseISO(details.projectedDate), simulatedToday);
-    timeToFailureMessage = `Proyección IA: Cruce de límite en ~${daysToFailure} días.`;
+    const daysToFailure = differenceInDays(parseISO(details.projectedDate), new Date());
+    if (daysToFailure >= 0) {
+      timeToFailureMessage = `Proyección IA: Cruce de límite en ~${daysToFailure} días.`;
+    }
   }
   
   return (
@@ -102,5 +103,3 @@ export function AnalysisModal({ isOpen, onClose, statusInfo }: AnalysisModalProp
     </Dialog>
   );
 }
-
-    
