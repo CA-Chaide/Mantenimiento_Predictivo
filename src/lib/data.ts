@@ -394,6 +394,11 @@ export async function useRealMaintenanceData(
       }
   }
   
+  if (allApiRecords.length === 0) {
+    onProgressUpdate?.([], 100);
+    return { data: [] };
+  }
+
   const rawTransformedData = allApiRecords.map(recordToDataPoint(component, useAggregatedEndpoint ? 'monthly' : 'daily'));
   const aggregatedData = useAggregatedEndpoint ? aggregateDataByMonth(rawTransformedData) : aggregateDataByDay(rawTransformedData);
 
