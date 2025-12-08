@@ -14,6 +14,7 @@ export type ChartDataPoint = {
   componentId: string;
   
   "Corriente Promedio Suavizado"?: number | null;
+  "Referencia Corriente Promedio Suavizado"?: number | null;
   "Corriente Máxima"?: number | null;
   
   "Desbalance Suavizado"?: number | null;
@@ -33,6 +34,9 @@ export type ChartDataPoint = {
   "proyeccion_factor_carga_tendencia"?: number | null;
   "proyeccion_factor_carga_pesimista"?: number | null;
   "proyeccion_factor_carga_optimista"?: number | null;
+
+  "proyeccion_referencia_corriente_tendencia"?: number | null;
+
   [key: string]: any; 
 };
 
@@ -43,6 +47,7 @@ export type RawDataRecord = {
     componentId: string;
     
     "Corriente Promedio Suavizado"?: number | null;
+    "Referencia Corriente Promedio Suavizado"?: number | null;
     "Corriente Máxima"?: number | null;
     
     "Desbalance Suavizado"?: number | null;
@@ -109,6 +114,7 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
     const aggregatedResult = Object.entries(groupedByMonth).map(([month, group]) => {
       const metrics = {
         current: { sum: 0, count: 0 },
+        ref_current: { sum: 0, count: 0 },
         unbalance: { sum: 0, count: 0 },
         load_factor: { sum: 0, count: 0 },
         current_limit: { sum: 0, count: 0 },
@@ -121,6 +127,11 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
         if (!isNaN(current)) {
           metrics.current.sum += current;
           metrics.current.count++;
+        }
+        const refCurrent = Number(record["Referencia Corriente Promedio Suavizado"]);
+        if (!isNaN(refCurrent)) {
+          metrics.ref_current.sum += refCurrent;
+          metrics.ref_current.count++;
         }
         const unbalance = Number(record["Desbalance Suavizado"]);
         if (!isNaN(unbalance)) {
@@ -155,6 +166,7 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
         componentId: group.componentId,
         isProjection: false,
         "Corriente Promedio Suavizado": metrics.current.count > 0 ? metrics.current.sum / metrics.current.count : null,
+        "Referencia Corriente Promedio Suavizado": metrics.ref_current.count > 0 ? metrics.ref_current.sum / metrics.ref_current.count : null,
         "Corriente Máxima": metrics.current_limit.count > 0 ? metrics.current_limit.sum / metrics.current_limit.count : null,
         "Desbalance Suavizado": metrics.unbalance.count > 0 ? metrics.unbalance.sum / metrics.unbalance.count : null,
         "Umbral Desbalance": metrics.unbalance_limit.count > 0 ? metrics.unbalance_limit.sum / metrics.unbalance_limit.count : null,
@@ -188,6 +200,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
     const aggregatedResult = Object.entries(groupedByDay).map(([day, group]) => {
         const dayMetrics = {
             current: { sum: 0, count: 0 },
+            ref_current: { sum: 0, count: 0 },
             unbalance: { sum: 0, count: 0 },
             load_factor: { sum: 0, count: 0 },
         };
@@ -212,6 +225,11 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
                 dayMetrics.current.sum += current;
                 dayMetrics.current.count++;
             }
+            const refCurrent = safeNumber(record["Referencia Corriente Promedio Suavizado"]);
+            if (refCurrent !== null) {
+                dayMetrics.ref_current.sum += refCurrent;
+                dayMetrics.ref_current.count++;
+            }
             const unbalance = safeNumber(record["Desbalance Suavizado"]);
             if (unbalance !== null) {
                 dayMetrics.unbalance.sum += unbalance;
@@ -229,6 +247,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
             componentId: group.componentId,
             isProjection: false,
             "Corriente Promedio Suavizado": dayMetrics.current.count > 0 ? dayMetrics.current.sum / dayMetrics.current.count : null,
+            "Referencia Corriente Promedio Suavizado": dayMetrics.ref_current.count > 0 ? dayMetrics.ref_current.sum / dayMetrics.ref_current.count : null,
             "Corriente Máxima": currentLimit,
             "Desbalance Suavizado": dayMetrics.unbalance.count > 0 ? dayMetrics.unbalance.sum / dayMetrics.unbalance.count : null,
             "Umbral Desbalance": unbalanceLimit,
@@ -388,7 +407,6 @@ export async function useRealMaintenanceData(
               }
           } catch (error) {
               console.error(`Error fetching page ${page}:`, error);
-              // Instead of throwing an error, we break the loop and proceed with the data we have.
               break;
           }
       }
@@ -436,6 +454,7 @@ export async function useRealMaintenanceData(
   });
 
   const projCorriente = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado", daysToProject);
+  const projRefCorriente = calculateLinearRegressionAndProject(aggregatedData, "Referencia Corriente Promedio Suavizado", daysToProject);
   const projDesbalance = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado", daysToProject);
   const projFactorCarga = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado", daysToProject);
 
@@ -453,6 +472,7 @@ export async function useRealMaintenanceData(
           "proyeccion_corriente_tendencia": projCorriente.trend[i],
           "proyeccion_corriente_pesimista": projCorriente.pessimistic[i],
           "proyeccion_corriente_optimista": projCorriente.optimistic[i],
+          "proyeccion_referencia_corriente_tendencia": projRefCorriente.trend[i],
           
           "Umbral Desbalance": lastKnownUnbalanceLimit,
           "proyeccion_desbalance_tendencia": projDesbalance.trend[i],
@@ -509,6 +529,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     componentId: component.id,
     
     'Corriente Promedio Suavizado': safeNumber(record.PROMEDIO || record.promedio),
+    'Referencia Corriente Promedio Suavizado': safeNumber(record.PromedioSuavizado),
     
     // =========================================================================
     // CORRECCIÓN CRÍTICA: Añadimos 'CORREINTEMAX' (tu nombre real en DB)
