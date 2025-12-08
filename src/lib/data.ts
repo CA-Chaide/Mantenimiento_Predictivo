@@ -394,7 +394,7 @@ export async function useRealMaintenanceData(
       }
   }
   
-  if (allApiRecords.length === 0) {
+  if (!allApiRecords || allApiRecords.length === 0) {
     onProgressUpdate?.([], 100);
     return { data: [] };
   }
@@ -403,9 +403,9 @@ export async function useRealMaintenanceData(
   const aggregatedData = useAggregatedEndpoint ? aggregateDataByMonth(rawTransformedData) : aggregateDataByDay(rawTransformedData);
 
 
-  if (aggregatedData.length < 2) {
+  if (!aggregatedData || aggregatedData.length < 2) {
     onProgressUpdate?.([], 100);
-    return { data: aggregatedData };
+    return { data: aggregatedData || [] };
   }
   
   // --- LÓGICA FINAL ROBUSTA ---
@@ -508,7 +508,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     isProjection: false,
     componentId: component.id,
     
-    'Corriente Promedio Suavizado': safeNumber(record.PromedioSuavizado),
+    'Corriente Promedio Suavizado': safeNumber(record.PROMEDIO || record.promedio),
     
     // =========================================================================
     // CORRECCIÓN CRÍTICA: Añadimos 'CORREINTEMAX' (tu nombre real en DB)
