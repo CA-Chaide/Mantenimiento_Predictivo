@@ -14,7 +14,7 @@ export type ChartDataPoint = {
   componentId: string;
   
   "Corriente Promedio Suavizado"?: number | null;
-  "Referencia Corriente Promedio Suavizado"?: number | null; // Usado para mostrar el PromedioSuavizado de la API
+  "Referencia Corriente Promedio Suavizado"?: number | null;
   "Corriente Máxima"?: number | null;
   
   "Desbalance Suavizado"?: number | null;
@@ -540,8 +540,11 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     isProjection: false,
     componentId: component.id,
     
-    // Gráfico de Corriente: usa la columna PROMEDIO de la API.
-    'Corriente Promedio Suavizado': safeNumber(record.PROMEDIO || record.promedio),
+    // Gráfico de Corriente: usa la columna CorrientePromedioSuavizado de la API.
+    'Corriente Promedio Suavizado': safeNumber(record.CorrientePromedioSuavizado),
+    
+    // Gráfico de Corriente (Referencia): usa la columna Referencia_CorrientePromedioSuavizado de la API.
+    'Referencia Corriente Promedio Suavizado': safeNumber(record.Referencia_CorrientePromedioSuavizado),
 
     // Gráfico de Desbalance: usa la columna DesbalanceSuavizado de la API.
     'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
@@ -551,10 +554,9 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
 
     // --- Límites ---
     'Corriente Máxima': safeNumber(
-        record.CORREINTEMAX ||
-        record.correintemax ||
         record.Corriente_Max ||
-        record.Umbral_Corriente
+        record.CORREINTEMAX ||
+        record.correintemax 
     ), 
     'Umbral Desbalance': safeNumber(record.Umbral_Desbalance),
     'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga),
