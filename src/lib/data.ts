@@ -14,6 +14,7 @@ export type ChartDataPoint = {
   componentId: string;
   
   "Corriente Promedio Suavizado"?: number | null;
+  "Referencia Corriente Promedio Suavizado"?: number | null; // Usado para mostrar el PromedioSuavizado de la API
   "Corriente Máxima"?: number | null;
   
   "Desbalance Suavizado"?: number | null;
@@ -25,6 +26,8 @@ export type ChartDataPoint = {
   "proyeccion_corriente_tendencia"?: number | null;
   "proyeccion_corriente_pesimista"?: number | null;
   "proyeccion_corriente_optimista"?: number | null;
+  
+  "proyeccion_referencia_corriente_tendencia"?: number | null;
   
   "proyeccion_desbalance_tendencia"?: number | null;
   "proyeccion_desbalance_pesimista"?: number | null;
@@ -44,6 +47,7 @@ export type RawDataRecord = {
     componentId: string;
     
     "Corriente Promedio Suavizado"?: number | null;
+    "Referencia Corriente Promedio Suavizado"?: number | null;
     "Corriente Máxima"?: number | null;
     
     "Desbalance Suavizado"?: number | null;
@@ -99,6 +103,7 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
     }
 
     const groupedByMonth = rawData.reduce((acc, record) => {
+      if (!record.date) return acc;
       const month = format(parseISO(record.date), 'yyyy-MM');
       if (!acc[month]) {
         acc[month] = { records: [], componentId: record.componentId };
@@ -110,6 +115,7 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
     const aggregatedResult = Object.entries(groupedByMonth).map(([month, group]) => {
       const metrics = {
         current: { sum: 0, count: 0 },
+        refCurrent: { sum: 0, count: 0 },
         unbalance: { sum: 0, count: 0 },
         load_factor: { sum: 0, count: 0 },
         current_limit: { sum: 0, count: 0 },
@@ -122,6 +128,11 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
         if (!isNaN(current)) {
           metrics.current.sum += current;
           metrics.current.count++;
+        }
+        const refCurrent = Number(record["Referencia Corriente Promedio Suavizado"]);
+        if (!isNaN(refCurrent)) {
+            metrics.refCurrent.sum += refCurrent;
+            metrics.refCurrent.count++;
         }
         const unbalance = Number(record["Desbalance Suavizado"]);
         if (!isNaN(unbalance)) {
@@ -156,6 +167,7 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
         componentId: group.componentId,
         isProjection: false,
         "Corriente Promedio Suavizado": metrics.current.count > 0 ? metrics.current.sum / metrics.current.count : null,
+        "Referencia Corriente Promedio Suavizado": metrics.refCurrent.count > 0 ? metrics.refCurrent.sum / metrics.refCurrent.count : null,
         "Corriente Máxima": metrics.current_limit.count > 0 ? metrics.current_limit.sum / metrics.current_limit.count : null,
         "Desbalance Suavizado": metrics.unbalance.count > 0 ? metrics.unbalance.sum / metrics.unbalance.count : null,
         "Umbral Desbalance": metrics.unbalance_limit.count > 0 ? metrics.unbalance_limit.sum / metrics.unbalance_limit.count : null,
@@ -173,6 +185,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
     }
 
     const groupedByDay = rawData.reduce((acc, record) => {
+        if (!record.date) return acc;
         const day = record.date.split('T')[0];
         if (!acc[day]) {
             acc[day] = { records: [], componentId: record.componentId };
@@ -189,6 +202,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
     const aggregatedResult = Object.entries(groupedByDay).map(([day, group]) => {
         const dayMetrics = {
             current: { sum: 0, count: 0 },
+            refCurrent: { sum: 0, count: 0 },
             unbalance: { sum: 0, count: 0 },
             load_factor: { sum: 0, count: 0 },
         };
@@ -213,6 +227,11 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
                 dayMetrics.current.sum += current;
                 dayMetrics.current.count++;
             }
+            const refCurrent = safeNumber(record["Referencia Corriente Promedio Suavizado"]);
+            if (refCurrent !== null) {
+                dayMetrics.refCurrent.sum += refCurrent;
+                dayMetrics.refCurrent.count++;
+            }
             const unbalance = safeNumber(record["Desbalance Suavizado"]);
             if (unbalance !== null) {
                 dayMetrics.unbalance.sum += unbalance;
@@ -230,6 +249,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
             componentId: group.componentId,
             isProjection: false,
             "Corriente Promedio Suavizado": dayMetrics.current.count > 0 ? dayMetrics.current.sum / dayMetrics.current.count : null,
+            "Referencia Corriente Promedio Suavizado": dayMetrics.refCurrent.count > 0 ? dayMetrics.refCurrent.sum / dayMetrics.refCurrent.count : null,
             "Corriente Máxima": currentLimit,
             "Desbalance Suavizado": dayMetrics.unbalance.count > 0 ? dayMetrics.unbalance.sum / dayMetrics.unbalance.count : null,
             "Umbral Desbalance": unbalanceLimit,
@@ -357,7 +377,7 @@ export async function useRealMaintenanceData(
           totalRecords = totalResponse.total || 0;
       } catch (error) {
           console.error("Error fetching total records:", error);
-          throw new Error("Failed to fetch total records from API.");
+          // Do not throw here, allow the process to continue with 0 records
       }
 
       if (totalRecords === 0) {
@@ -384,7 +404,7 @@ export async function useRealMaintenanceData(
               }
 
               if (onProgressUpdate) {
-                  const transformedData = allApiRecords.map(recordToDataPoint(component));
+                  const transformedData = allApiRecords.map(recordToDataPoint(component)).filter(Boolean) as RawDataRecord[];
                   onProgressUpdate(transformedData, (page / totalPages) * 90);
               }
           } catch (error) {
@@ -399,7 +419,13 @@ export async function useRealMaintenanceData(
     return { data: [] };
   }
 
-  const rawTransformedData = allApiRecords.map(recordToDataPoint(component, useAggregatedEndpoint ? 'monthly' : 'daily'));
+  const rawTransformedData = allApiRecords.map(recordToDataPoint(component, useAggregatedEndpoint ? 'monthly' : 'daily')).filter(Boolean) as RawDataRecord[];
+  
+  if (rawTransformedData.length === 0) {
+    onProgressUpdate?.([], 100);
+    return { data: [] };
+  }
+
   const aggregatedData = useAggregatedEndpoint ? aggregateDataByMonth(rawTransformedData) : aggregateDataByDay(rawTransformedData);
 
 
@@ -420,7 +446,7 @@ export async function useRealMaintenanceData(
 
   // 3. Fallback de emergencia (estimación)
   if (!finalCurrentLimit) {
-       const maxHistorico = Math.max(...aggregatedData.map(d => d['Corriente Promedio Suavizado'] || 0));
+       const maxHistorico = Math.max(...aggregatedData.map(d => d['Corriente Promedio Suavizado'] || 0).filter(v => v !== null));
        finalCurrentLimit = maxHistorico > 0 ? maxHistorico * 1.25 : 0;
   }
   
@@ -436,6 +462,7 @@ export async function useRealMaintenanceData(
   });
 
   const projCorriente = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado", daysToProject);
+  const projRefCorriente = calculateLinearRegressionAndProject(aggregatedData, "Referencia Corriente Promedio Suavizado", daysToProject);
   const projDesbalance = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado", daysToProject);
   const projFactorCarga = calculateLinearRegressionAndProject(aggregatedData, "Factor De Carga Suavizado", daysToProject);
 
@@ -453,7 +480,8 @@ export async function useRealMaintenanceData(
           "proyeccion_corriente_tendencia": projCorriente.trend[i],
           "proyeccion_corriente_pesimista": projCorriente.pessimistic[i],
           "proyeccion_corriente_optimista": projCorriente.optimistic[i],
-          
+          "proyeccion_referencia_corriente_tendencia": projRefCorriente.trend[i],
+
           "Umbral Desbalance": lastKnownUnbalanceLimit,
           "proyeccion_desbalance_tendencia": projDesbalance.trend[i],
           "proyeccion_desbalance_pesimista": projDesbalance.pessimistic[i],
@@ -475,32 +503,36 @@ export async function useRealMaintenanceData(
 
 }
 
-const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly' = 'daily') => (record: any): RawDataRecord => {
+const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly' = 'daily') => (record: any): RawDataRecord | null => {
   const safeNumber = (value: any): number | null => {
     const num = Number(value);
     return isNaN(num) || value === null ? null : num;
   };
+  
+  const isValidNumber = (value: any): value is number => typeof value === 'number' && !isNaN(value);
 
   let fechaDate;
+  
+  const year = safeNumber(record.AÑO);
+  const month = safeNumber(record.MES);
+  const day = aggregation === 'daily' ? safeNumber(record.DIA) : 15;
+
+  if (!isValidNumber(year) || !isValidNumber(month) || !isValidNumber(day)) {
+    return null; // Si la fecha es inválida, descartamos el registro completo.
+  }
+
   if (aggregation === 'monthly') {
-      try {
-          fechaDate = new Date(record.AÑO, record.MES - 1, 15);
-      } catch {
-          fechaDate = new Date();
-      }
+      fechaDate = new Date(year, month - 1, 15);
   } else {
-      try {
-          fechaDate = new Date(
-              record.AÑO,
-              record.MES - 1,
-              record.DIA,
-              record.HORA || 0,
-              record.MINUTO || 0,
-              record.SEGUNDO || 0
-          );
-      } catch {
-          fechaDate = new Date();
-      }
+      const hour = safeNumber(record.HORA) || 0;
+      const minute = safeNumber(record.MINUTO) || 0;
+      const second = safeNumber(record.SEGUNDO) || 0;
+      fechaDate = new Date(year, month - 1, day, hour, minute, second);
+  }
+
+  // Comprobación final por si la fecha sigue siendo inválida por alguna razón (ej. día 32)
+  if (isNaN(fechaDate.getTime())) {
+    return null;
   }
 
   return {
@@ -508,23 +540,23 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     isProjection: false,
     componentId: component.id,
     
-    // Para el gráfico de CORRIENTE, se usa la columna PROMEDIO de la API.
+    // Gráfico de Corriente: usa la columna PROMEDIO de la API.
     'Corriente Promedio Suavizado': safeNumber(record.PROMEDIO || record.promedio),
-    
-    // Lógica para el límite de corriente
+
+    // Gráfico de Desbalance: usa la columna DesbalanceSuavizado de la API.
+    'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
+
+    // Gráfico de Factor de Carga: usa la columna FactorDeCargaSuavizado de la API.
+    'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
+
+    // --- Límites ---
     'Corriente Máxima': safeNumber(
         record.CORREINTEMAX ||
         record.correintemax ||
         record.Corriente_Max ||
         record.Umbral_Corriente
     ), 
-
-    // Para el gráfico de DESBALANCE, se usa la columna DesbalanceSuavizado de la API.
-    'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
     'Umbral Desbalance': safeNumber(record.Umbral_Desbalance),
-
-    // Para el gráfico de FACTOR DE CARGA, se usa la columna FactorDeCargaSuavizado de la API.
-    'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
     'Umbral Factor Carga': safeNumber(record.Umbral_FactorCarga),
   };
 };
