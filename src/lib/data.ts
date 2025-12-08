@@ -1,4 +1,5 @@
 
+
 import { format, formatISO, parseISO, addDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -387,7 +388,8 @@ export async function useRealMaintenanceData(
               }
           } catch (error) {
               console.error(`Error fetching page ${page}:`, error);
-              throw new Error(`Failed to fetch page ${page} from API.`);
+              // Instead of throwing an error, we break the loop and proceed with the data we have.
+              break;
           }
       }
   }
