@@ -1,3 +1,4 @@
+
 import { format, formatISO, parseISO, addDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -169,11 +170,6 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         return [];
     }
 
-    const safeNumber = (value: any): number | null => {
-        const num = Number(value);
-        return isNaN(num) || value === null ? null : num;
-    };
-
     const groupedByDay = rawData.reduce((acc, record) => {
         const day = record.date.split('T')[0];
         if (!acc[day]) {
@@ -183,13 +179,18 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         return acc;
     }, {} as Record<string, { records: RawDataRecord[], componentId: string }>);
 
+    const safeNumber = (value: any): number | null => {
+        const num = Number(value);
+        return isNaN(num) || value === null ? null : num;
+    };
+    
     const aggregatedResult = Object.entries(groupedByDay).map(([day, group]) => {
         const dayMetrics = {
             current: { sum: 0, count: 0 },
             unbalance: { sum: 0, count: 0 },
             load_factor: { sum: 0, count: 0 },
         };
-
+        
         const findFirstValidLimit = (key: keyof RawDataRecord): number | null => {
             for (const record of group.records) {
                 const value = safeNumber(record[key]);
@@ -221,7 +222,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
                 dayMetrics.load_factor.count++;
             }
         }
-
+        
         const newPoint: ChartDataPoint = {
             date: day,
             componentId: group.componentId,
@@ -326,6 +327,7 @@ export async function useRealMaintenanceData(
     const useAggregatedEndpoint = daysDifference > 365;
 
     let allApiRecords: any[] = [];
+    let totalRecords = 0;
 
     if (useAggregatedEndpoint) {
         const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
@@ -339,14 +341,20 @@ export async function useRealMaintenanceData(
         }
         onProgressUpdate?.([], 90);
     } else {
-        const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
-            machineId,
-            componentNameForAPI,
-            fromDateString,
-            toDateString
-        );
+        try {
+            const totalResponse = await calculosService.getTotalByMaquinaAndComponente(
+                machineId,
+                componentNameForAPI,
+                fromDateString,
+                toDateString
+            );
+            totalRecords = totalResponse.total || 0;
+        } catch (error) {
+            console.error("Error fetching total records:", error);
+            onProgressUpdate?.([], 100);
+            return { data: [] }; // Return empty on error
+        }
 
-        const totalRecords = totalResponse.total || 0;
         if (totalRecords === 0) {
             onProgressUpdate?.([], 100);
             return { data: [] };
@@ -356,22 +364,28 @@ export async function useRealMaintenanceData(
         const totalPages = Math.ceil(totalRecords / limit);
 
         for (let page = 1; page <= totalPages; page++) {
-            const response = await calculosService.getDataByMachineComponentAndDates({
-                maquina: machineId,
-                componente: componentNameForAPI,
-                fecha_inicio: fromDateString,
-                fecha_fin: toDateString,
-                page,
-                limit,
-            });
+            try {
+                const response = await calculosService.getDataByMachineComponentAndDates({
+                    maquina: machineId,
+                    componente: componentNameForAPI,
+                    fecha_inicio: fromDateString,
+                    fecha_fin: toDateString,
+                    page,
+                    limit,
+                });
 
-            if (response.data && Array.isArray(response.data)) {
-                allApiRecords = allApiRecords.concat(response.data);
-            }
+                if (response.data && Array.isArray(response.data)) {
+                    allApiRecords = allApiRecords.concat(response.data);
+                }
 
-            if (onProgressUpdate) {
-                const transformedData = allApiRecords.map(recordToDataPoint(component));
-                onProgressUpdate(transformedData, (page / totalPages) * 90);
+                if (onProgressUpdate) {
+                    const transformedData = allApiRecords.map(recordToDataPoint(component));
+                    onProgressUpdate(transformedData, (page / totalPages) * 90);
+                }
+            } catch (error) {
+                console.error(`Error fetching page ${page}:`, error);
+                // Continue to next page or stop? For now, we stop and process what we have.
+                break;
             }
         }
     }
@@ -400,16 +414,17 @@ export async function useRealMaintenanceData(
          const maxHistorico = Math.max(...aggregatedData.map(d => d['Corriente Promedio Suavizado'] || 0));
          finalCurrentLimit = maxHistorico > 0 ? maxHistorico * 1.25 : 0;
     }
-
-    // 4. Rellenamos datos históricos para continuidad visual
-    if (finalCurrentLimit && finalCurrentLimit > 0) {
-        aggregatedData.forEach(d => d['Corriente Máxima'] = finalCurrentLimit);
-    }
     
-    const lastKnownCurrentLimit = finalCurrentLimit ?? 0;
-
+    const lastKnownCurrentLimit = finalCurrentLimit || 0;
     const lastKnownUnbalanceLimit = [...aggregatedData].reverse().find(d => typeof d['Umbral Desbalance'] === 'number' && d['Umbral Desbalance'] > 0)?.['Umbral Desbalance'] ?? 0;
     const lastKnownLoadFactorLimit = [...aggregatedData].reverse().find(d => typeof d['Umbral Factor Carga'] === 'number' && d['Umbral Factor Carga'] > 0)?.['Umbral Factor Carga'] ?? 0;
+
+    // 4. Rellenamos datos históricos para continuidad visual
+    aggregatedData.forEach(d => {
+        if (lastKnownCurrentLimit > 0) d['Corriente Máxima'] = lastKnownCurrentLimit;
+        if (lastKnownUnbalanceLimit > 0) d['Umbral Desbalance'] = lastKnownUnbalanceLimit;
+        if (lastKnownLoadFactorLimit > 0) d['Umbral Factor Carga'] = lastKnownLoadFactorLimit;
+    });
 
     const projCorriente = calculateLinearRegressionAndProject(aggregatedData, "Corriente Promedio Suavizado", daysToProject);
     const projDesbalance = calculateLinearRegressionAndProject(aggregatedData, "Desbalance Suavizado", daysToProject);
