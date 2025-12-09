@@ -470,10 +470,10 @@ export async function useRealMaintenanceData(
   
     if (aggregatedData.length > 0) {
         const lastDate = parseISO(aggregatedData[aggregatedData.length - 1].date);
+        const lastRealPoint = aggregatedData[aggregatedData.length-1];
         
         const projectionKeys = {
             current: { value: 'Corriente Promedio Suavizado', trend: 'proyeccion_corriente_tendencia', pessimistic: 'proyeccion_corriente_pesimista', optimistic: 'proyeccion_corriente_optimista' },
-            refCurrent: { value: 'Referencia Corriente Promedio Suavizado', trend: 'proyeccion_referencia_corriente_tendencia' },
             unbalance: { value: 'Desbalance Suavizado', trend: 'proyeccion_desbalance_tendencia', pessimistic: 'proyeccion_desbalance_pesimista', optimistic: 'proyeccion_desbalance_optimista' },
             load_factor: { value: 'Factor De Carga Suavizado', trend: 'proyeccion_factor_carga_tendencia', pessimistic: 'proyeccion_factor_carga_pesimista', optimistic: 'proyeccion_factor_carga_optimista' },
         };
@@ -499,11 +499,14 @@ export async function useRealMaintenanceData(
               if (config.optimistic && projections[key].optimistic) projectionPoint[config.optimistic as keyof ChartDataPoint] = projections[key].optimistic[i];
           });
   
-          // Carry over last known limits to projections
-          const lastRealPoint = aggregatedData[aggregatedData.length-1];
+          // Carry over last known limits and references to projections
           projectionPoint['Corriente Máxima'] = lastRealPoint['Corriente Máxima'];
           projectionPoint['Umbral Desbalance'] = lastRealPoint['Umbral Desbalance'];
           projectionPoint['Umbral Factor Carga'] = lastRealPoint['Umbral Factor Carga'];
+
+          projectionPoint['Referencia Corriente Promedio Suavizado'] = lastRealPoint['Referencia Corriente Promedio Suavizado'];
+          projectionPoint['Referencia Desbalance Suavizado'] = lastRealPoint['Referencia Desbalance Suavizado'];
+          projectionPoint['Referencia Factor De Carga Suavizado'] = lastRealPoint['Referencia Factor De Carga Suavizado'];
   
           aggregatedData.push(projectionPoint);
         }

@@ -136,12 +136,12 @@ export function MetricChart({
             {referenceKey && (
               <Line
                 type="monotone"
-                dataKey={(point) => point.isProjection ? null : point[referenceKey]}
-                name="Referencia (API)"
+                dataKey={referenceKey as string}
+                name="Referencia"
                 stroke="#f59e0b" // Naranja
                 strokeWidth={2}
                 dot={false}
-                connectNulls={false}
+                connectNulls={true}
               />
             )}
 
@@ -187,19 +187,6 @@ export function MetricChart({
               dot={false}
               connectNulls={false}
             />
-            
-            {referencePredictionKey && (
-              <Line
-                type="monotone"
-                dataKey={referencePredictionKey.toString()}
-                name="Proyección Referencia"
-                stroke="#f59e0b"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={false}
-                connectNulls={false}
-              />
-            )}
 
           </ComposedChart>
         </ResponsiveContainer>
@@ -207,5 +194,3 @@ export function MetricChart({
     </div>
   );
 }
-
-    

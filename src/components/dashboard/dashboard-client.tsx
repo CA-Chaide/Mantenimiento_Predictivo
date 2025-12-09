@@ -55,7 +55,6 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                   predictionKey="proyeccion_corriente_tendencia"
                   predictionPesimisticKey="proyeccion_corriente_pesimista"
                   predictionOptimisticKey="proyeccion_corriente_optimista"
-                  referencePredictionKey="proyeccion_referencia_corriente_tendencia"
                   yAxisLabel="Amperios"
                   componentId={component.id}
                   metric="current"
