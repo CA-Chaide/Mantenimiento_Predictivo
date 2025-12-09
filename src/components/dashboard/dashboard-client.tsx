@@ -120,5 +120,3 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
     </div>
   );
 }
-
-    
