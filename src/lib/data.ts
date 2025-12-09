@@ -390,7 +390,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     'Referencia Corriente Promedio Suavizado': safeNumber(record.Referencia_CorrientePromedioSuavizado),
     'Corriente Máxima': safeNumber(record.Corriente_Max),
 
-    'Desbalance Suavizado': safeNumber(record.Desbalance_Suavizado),
+    'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
     'Referencia Desbalance Suavizado': safeNumber(record.Referencia_DesbalanceSuavizado),
     'Umbral Desbalance': umbralDesbalance,
     
