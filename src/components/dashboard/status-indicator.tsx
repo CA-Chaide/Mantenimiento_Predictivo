@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -188,5 +189,3 @@ export const getComponentStatus = (componentData: ChartDataPoint[], componentNam
 
   return { status: worstStatus, message: worstMessage, componentName, details, allMetrics: allMetricsData };
 };
-
-    
