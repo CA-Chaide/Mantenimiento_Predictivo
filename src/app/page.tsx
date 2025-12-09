@@ -4,7 +4,7 @@
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger, SidebarFooter } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDay } from "@/lib/data";
+import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDateTime } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
 import { format, parseISO, subDays, subYears, differenceInDays } from "date-fns";
 import { Bot, MousePointerClick, Loader } from "lucide-react";
@@ -237,7 +237,7 @@ export default function DashboardPage() {
           (partialData, progress) => {
             setLoadingProgress(progress);
             if (progress < 100) {
-              const aggregatedData = aggregateDataByDay(partialData);
+              const aggregatedData = aggregateDataByDateTime(partialData);
               // Update cache with partial data for responsive UI
               setCachedData(prev => ({...prev, [cacheKey]: aggregatedData }));
             }

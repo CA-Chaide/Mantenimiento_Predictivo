@@ -9,7 +9,7 @@ export type MachineId = string;
 export type Component = { id: string; name: string; originalName: string };
 
 export type ChartDataPoint = {
-  date: string; // "YYYY-MM-DD" or "YYYY-MM"
+  date: string; // "YYYY-MM-DD HH:mm"
   isProjection: boolean;
   componentId: string;
   
@@ -197,18 +197,24 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
     return aggregatedResult.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
+/**
+ * Aggregates raw data records by date and hour to create a single point per hour.
+ * @param rawData The raw data from the API.
+ * @returns An array of ChartDataPoint, with one point per hour.
+ */
+export function aggregateDataByDateTime(rawData: RawDataRecord[]): ChartDataPoint[] {
     if (!rawData || rawData.length === 0) {
         return [];
     }
 
-    const groupedByDay = rawData.reduce((acc, record) => {
+    const groupedByHour = rawData.reduce((acc, record) => {
         if (!record.date) return acc;
-        const day = record.date.split('T')[0];
-        if (!acc[day]) {
-            acc[day] = { records: [], componentId: record.componentId };
+        // Group by YYYY-MM-DD HH
+        const hourKey = format(parseISO(record.date), 'yyyy-MM-dd HH');
+        if (!acc[hourKey]) {
+            acc[hourKey] = { records: [], componentId: record.componentId };
         }
-        acc[day].records.push(record);
+        acc[hourKey].records.push(record);
         return acc;
     }, {} as Record<string, { records: RawDataRecord[], componentId: string }>);
 
@@ -217,8 +223,8 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         return isNaN(num) || value === null ? null : num;
     };
     
-    const aggregatedResult = Object.entries(groupedByDay).map(([day, group]) => {
-        const dayMetrics = {
+    const aggregatedResult = Object.entries(groupedByHour).map(([hourKey, group]) => {
+        const hourMetrics = {
             current: { sum: 0, count: 0 },
             refCurrent: { sum: 0, count: 0 },
             unbalance: { sum: 0, count: 0 },
@@ -249,31 +255,31 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
 
         for (const record of group.records) {
             const current = safeNumber(record["Corriente Promedio Suavizado"]);
-            if (current !== null) { dayMetrics.current.sum += current; dayMetrics.current.count++; }
+            if (current !== null) { hourMetrics.current.sum += current; hourMetrics.current.count++; }
             const refCurrent = safeNumber(record["Referencia Corriente Promedio Suavizado"]);
-            if (refCurrent !== null) { dayMetrics.refCurrent.sum += refCurrent; dayMetrics.refCurrent.count++; }
+            if (refCurrent !== null) { hourMetrics.refCurrent.sum += refCurrent; hourMetrics.refCurrent.count++; }
             const unbalance = safeNumber(record["Desbalance Suavizado"]);
-            if (unbalance !== null) { dayMetrics.unbalance.sum += unbalance; dayMetrics.unbalance.count++; }
+            if (unbalance !== null) { hourMetrics.unbalance.sum += unbalance; hourMetrics.unbalance.count++; }
             const refUnbalance = safeNumber(record["Referencia Desbalance Suavizado"]);
-            if (refUnbalance !== null) { dayMetrics.refUnbalance.sum += refUnbalance; dayMetrics.refUnbalance.count++; }
+            if (refUnbalance !== null) { hourMetrics.refUnbalance.sum += refUnbalance; hourMetrics.refUnbalance.count++; }
             const loadFactor = safeNumber(record["Factor De Carga Suavizado"]);
-            if (loadFactor !== null) { dayMetrics.load_factor.sum += loadFactor; dayMetrics.load_factor.count++; }
+            if (loadFactor !== null) { hourMetrics.load_factor.sum += loadFactor; hourMetrics.load_factor.count++; }
             const refLoadFactor = safeNumber(record["Referencia Factor De Carga Suavizado"]);
-            if (refLoadFactor !== null) { dayMetrics.refLoadFactor.sum += refLoadFactor; dayMetrics.refLoadFactor.count++; }
+            if (refLoadFactor !== null) { hourMetrics.refLoadFactor.sum += refLoadFactor; hourMetrics.refLoadFactor.count++; }
         }
         
         const newPoint: ChartDataPoint = {
-            date: day,
+            date: format(parseISO(hourKey), "yyyy-MM-dd'T'HH:mm:ss"), // Keep full ISO for sorting
             componentId: group.componentId,
             isProjection: false,
-            "Corriente Promedio Suavizado": dayMetrics.current.count > 0 ? dayMetrics.current.sum / dayMetrics.current.count : null,
-            "Referencia Corriente Promedio Suavizado": dayMetrics.refCurrent.count > 0 ? dayMetrics.refCurrent.sum / dayMetrics.refCurrent.count : null,
+            "Corriente Promedio Suavizado": hourMetrics.current.count > 0 ? hourMetrics.current.sum / hourMetrics.current.count : null,
+            "Referencia Corriente Promedio Suavizado": hourMetrics.refCurrent.count > 0 ? hourMetrics.refCurrent.sum / hourMetrics.refCurrent.count : null,
             "Corriente Máxima": currentLimit,
-            "Desbalance Suavizado": dayMetrics.unbalance.count > 0 ? dayMetrics.unbalance.sum / dayMetrics.unbalance.count : null,
-            "Referencia Desbalance Suavizado": dayMetrics.refUnbalance.count > 0 ? dayMetrics.refUnbalance.sum / dayMetrics.refUnbalance.count : null,
+            "Desbalance Suavizado": hourMetrics.unbalance.count > 0 ? hourMetrics.unbalance.sum / hourMetrics.unbalance.count : null,
+            "Referencia Desbalance Suavizado": hourMetrics.refUnbalance.count > 0 ? hourMetrics.refUnbalance.sum / hourMetrics.refUnbalance.count : null,
             "Umbral Desbalance": unbalanceLimit,
-            "Factor De Carga Suavizado": dayMetrics.load_factor.count > 0 ? dayMetrics.load_factor.sum / dayMetrics.load_factor.count : null,
-            "Referencia Factor De Carga Suavizado": dayMetrics.refLoadFactor.count > 0 ? dayMetrics.refLoadFactor.sum / dayMetrics.refLoadFactor.count : null,
+            "Factor De Carga Suavizado": hourMetrics.load_factor.count > 0 ? hourMetrics.load_factor.sum / hourMetrics.load_factor.count : null,
+            "Referencia Factor De Carga Suavizado": hourMetrics.refLoadFactor.count > 0 ? hourMetrics.refLoadFactor.sum / hourMetrics.refLoadFactor.count : null,
             "Umbral Factor Carga": loadFactorLimit,
         };
         return newPoint;
@@ -390,7 +396,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     'Referencia Corriente Promedio Suavizado': safeNumber(record.Referencia_CorrientePromedioSuavizado),
     'Corriente Máxima': safeNumber(record.Corriente_Max),
 
-    'Desbalance Suavizado': safeNumber(record.DesbalanceSuavizado),
+    'Desbalance Suavizado': safeNumber(record.Desbalance_Suavizado),
     'Referencia Desbalance Suavizado': safeNumber(record.Referencia_DesbalanceSuavizado),
     'Umbral Desbalance': umbralDesbalance,
     
@@ -458,7 +464,7 @@ export async function useRealMaintenanceData(
     
     const aggregatedData = useMonthlyAggregation
       ? aggregateDataByMonth(allData)
-      : aggregateDataByDay(allData);
+      : aggregateDataByDateTime(allData);
   
     // Fallback para limites si no vienen de la API
     aggregatedData.forEach(point => {

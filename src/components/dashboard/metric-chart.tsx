@@ -40,11 +40,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     let formattedLabel = label;
     try {
-      if (label.length === 7) { // YYYY-MM
-        formattedLabel = format(parseISO(label + '-01'), "MMM yyyy", { locale: es });
-      } else { // YYYY-MM-DD
-        formattedLabel = format(parseISO(label), "PPP", { locale: es });
-      }
+      // YYYY-MM-DD HH:mm
+      formattedLabel = format(parseISO(label), "dd MMM HH:mm", { locale: es });
     } catch {
       // fallback if parsing fails
     }
@@ -82,10 +79,7 @@ export function MetricChart({
 
   const tickFormatter = (str: string) => {
     try {
-      if (str.length === 7) { // YYYY-MM
-        return format(parseISO(str + '-01'), "MMM yy", { locale: es });
-      }
-      return format(parseISO(str), "dd MMM", { locale: es });
+      return format(parseISO(str), "dd MMM HH:mm", { locale: es });
     } catch {
       return str;
     }
@@ -108,7 +102,7 @@ export function MetricChart({
               tick={{ fill: '#64748b' }}
               stroke="#e2e8f0"
               interval="preserveStartEnd"
-              minTickGap={40}
+              minTickGap={80}
             />
             <YAxis
               label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b' }}
