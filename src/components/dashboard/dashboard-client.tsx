@@ -73,6 +73,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                 <MetricChart
                   data={data}
                   valueKey="Desbalance Suavizado"
+                  referenceKey="Referencia Desbalance Suavizado"
                   limitKey="Umbral Desbalance"
                   limitLabel="Umbral Max"
                   predictionKey="proyeccion_desbalance_tendencia"
@@ -95,6 +96,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
                 <MetricChart
                   data={data}
                   valueKey="Factor De Carga Suavizado"
+                  referenceKey="Referencia Factor De Carga Suavizado"
                   limitKey="Umbral Factor Carga"
                   limitLabel="Umbral Max"
                   predictionKey="proyeccion_factor_carga_tendencia"
@@ -118,3 +120,5 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
     </div>
   );
 }
+
+    
