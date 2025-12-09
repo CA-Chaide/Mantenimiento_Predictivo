@@ -244,7 +244,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
         };
 
         const currentLimit = findFirstValidLimit("Corriente Máxima");
-        const unbalanceLimit = findFirstValidLimit("Umbral Desbalance");
+        const unbalanceLimit = findFirstValidLimit("Umbral Desbalance", "Referencia_Umbral_Desbalance");
         const loadFactorLimit = findFirstValidLimit("Umbral Factor Carga", "Referencia_Umbral_FactorCarga");
 
         for (const record of group.records) {
@@ -349,8 +349,8 @@ export function calculateLinearRegressionAndProject(
 const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly' = 'daily') => (record: any): RawDataRecord | null => {
   
   const safeNumber = (value: any): number | null => {
-      const num = Number(value);
-      return isNaN(num) || value === null ? null : num;
+    const num = Number(value);
+    return isNaN(num) || value === null ? null : num;
   };
   
   const isValidNumber = (value: any): value is number => typeof value === 'number' && !isNaN(value);
@@ -358,9 +358,9 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
   const year = safeNumber(record.Año);
   const month = safeNumber(record.MES_REFERENCIA) ?? safeNumber(record.Mes);
   const day = safeNumber(record.Dia);
-
+  
   if (!isValidNumber(year) || !isValidNumber(month)) {
-      return null;
+    return null;
   }
   
   let fechaDate;
@@ -377,7 +377,8 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
   if (isNaN(fechaDate.getTime())) {
     return null;
   }
-
+  
+  const umbralDesbalance = safeNumber(record.Umbral_Desbalance) ?? safeNumber(record.Referencia_Umbral_Desbalance);
   const umbralFactorCarga = safeNumber(record.Umbral_Factor_Carga) ?? safeNumber(record.Referencia_Umbral_FactorCarga);
 
   return {
@@ -391,7 +392,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
 
     'Desbalance Suavizado': safeNumber(record.Desbalance_Suavizado),
     'Referencia Desbalance Suavizado': safeNumber(record.Referencia_DesbalanceSuavizado),
-    'Umbral Desbalance': safeNumber(record.Umbral_Desbalance),
+    'Umbral Desbalance': umbralDesbalance,
     
     'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
     'Referencia Factor De Carga Suavizado': safeNumber(record.Referencia_FactorDeCargaSuavizado),
@@ -400,115 +401,115 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
 };
 
 export async function useRealMaintenanceData(
-  machineId: MachineId,
-  component: Component,
-  dateRange: DateRange | undefined,
-  calculosService: any,
-  daysToProject: number = 90,
-  onProgressUpdate?: (data: RawDataRecord[], progress: number) => void
-): Promise<{ data: ChartDataPoint[] }> {
+    machineId: MachineId,
+    component: Component,
+    dateRange: DateRange | undefined,
+    calculosService: any,
+    daysToProject: number = 90,
+    onProgressUpdate?: (data: RawDataRecord[], progress: number) => void
+  ): Promise<{ data: ChartDataPoint[] }> {
+    
+    if (!dateRange || !dateRange.from || !dateRange.to) {
+      return { data: [] };
+    }
   
-  if (!dateRange || !dateRange.from || !dateRange.to) {
-    return { data: [] };
-  }
-
-  const startDate = format(dateRange.from, 'yyyy-MM-dd');
-  const endDate = format(dateRange.to, 'yyyy-MM-dd');
-  const dateDiff = differenceInDays(dateRange.to, dateRange.from);
-  const useMonthlyAggregation = dateDiff > 365;
-
-  let allData: RawDataRecord[] = [];
-
-  try {
-    if (useMonthlyAggregation) {
-      const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
-        maquina: machineId,
-        componente: component.originalName,
-        fecha_inicio: startDate,
-        fecha_fin: endDate,
-      });
-      const parsedData = response.data?.map(recordToDataPoint(component, 'monthly')).filter(Boolean) as RawDataRecord[] || [];
-      allData.push(...parsedData);
-      onProgressUpdate?.(allData, 100);
-
-    } else {
-      const { total } = await calculosService.getTotalByMaquinaAndComponente(machineId, component.originalName, startDate, endDate);
-      const limit = 1000;
-      const totalPages = Math.ceil(total / limit);
-
-      for (let page = 1; page <= totalPages; page++) {
-        const response = await calculosService.getDataByMachineComponentAndDates({
+    const startDate = format(dateRange.from, 'yyyy-MM-dd');
+    const endDate = format(dateRange.to, 'yyyy-MM-dd');
+    const dateDiff = differenceInDays(dateRange.to, dateRange.from);
+    const useMonthlyAggregation = dateDiff > 365;
+  
+    let allData: RawDataRecord[] = [];
+  
+    try {
+      if (useMonthlyAggregation) {
+        const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
           maquina: machineId,
           componente: component.originalName,
           fecha_inicio: startDate,
           fecha_fin: endDate,
-          page,
-          limit,
         });
-        const parsedData = response.data?.map(recordToDataPoint(component, 'daily')).filter(Boolean) as RawDataRecord[] || [];
+        const parsedData = response.data?.map(recordToDataPoint(component, 'monthly')).filter(Boolean) as RawDataRecord[] || [];
         allData.push(...parsedData);
-        onProgressUpdate?.(allData, (page / totalPages) * 100);
-      }
-    }
-  } catch (error) {
-      console.error("Error fetching data from API:", error);
-      throw error;
-  }
+        onProgressUpdate?.(allData, 100);
   
-  const aggregatedData = useMonthlyAggregation
-    ? aggregateDataByMonth(allData)
-    : aggregateDataByDay(allData);
-
-  // Fallback para limites si no vienen de la API
-  aggregatedData.forEach(point => {
-    if (point['Corriente Máxima'] === null) {
-      point['Corriente Máxima'] = getManualCurrentLimit(component.name, machineId);
+      } else {
+        const { total } = await calculosService.getTotalByMaquinaAndComponente(machineId, component.originalName, startDate, endDate);
+        const limit = 1000;
+        const totalPages = Math.ceil(total / limit);
+  
+        for (let page = 1; page <= totalPages; page++) {
+          const response = await calculosService.getDataByMachineComponentAndDates({
+            maquina: machineId,
+            componente: component.originalName,
+            fecha_inicio: startDate,
+            fecha_fin: endDate,
+            page,
+            limit,
+          });
+          const parsedData = response.data?.map(recordToDataPoint(component, 'daily')).filter(Boolean) as RawDataRecord[] || [];
+          allData.push(...parsedData);
+          onProgressUpdate?.(allData, (page / totalPages) * 100);
+        }
+      }
+    } catch (error) {
+        console.error("Error fetching data from API:", error);
+        throw error;
     }
-  });
-
-  if (aggregatedData.length > 0) {
-      const lastDate = parseISO(aggregatedData[aggregatedData.length - 1].date);
-      
-      const projectionKeys = {
-          current: { value: 'Corriente Promedio Suavizado', trend: 'proyeccion_corriente_tendencia', pessimistic: 'proyeccion_corriente_pesimista', optimistic: 'proyeccion_corriente_optimista' },
-          refCurrent: { value: 'Referencia Corriente Promedio Suavizado', trend: 'proyeccion_referencia_corriente_tendencia' },
-          unbalance: { value: 'Desbalance Suavizado', trend: 'proyeccion_desbalance_tendencia', pessimistic: 'proyeccion_desbalance_pesimista', optimistic: 'proyeccion_desbalance_optimista' },
-          load_factor: { value: 'Factor De Carga Suavizado', trend: 'proyeccion_factor_carga_tendencia', pessimistic: 'proyeccion_factor_carga_pesimista', optimistic: 'proyeccion_factor_carga_optimista' },
-      };
-
-      const projections: { [key: string]: { [key: string]: (number | null)[] } } = {};
-      Object.keys(projectionKeys).forEach(key => {
-          const config = projectionKeys[key as keyof typeof projectionKeys];
-          projections[key] = calculateLinearRegressionAndProject(aggregatedData, config.value as keyof ChartDataPoint, daysToProject);
-      });
-
-      for (let i = 0; i < daysToProject; i++) {
-        const nextDate = addDays(lastDate, i + 1);
-        const projectionPoint: ChartDataPoint = {
-          date: format(nextDate, 'yyyy-MM-dd'),
-          isProjection: true,
-          componentId: component.id,
+    
+    const aggregatedData = useMonthlyAggregation
+      ? aggregateDataByMonth(allData)
+      : aggregateDataByDay(allData);
+  
+    // Fallback para limites si no vienen de la API
+    aggregatedData.forEach(point => {
+      if (point['Corriente Máxima'] === null) {
+        point['Corriente Máxima'] = getManualCurrentLimit(component.name, machineId);
+      }
+    });
+  
+    if (aggregatedData.length > 0) {
+        const lastDate = parseISO(aggregatedData[aggregatedData.length - 1].date);
+        
+        const projectionKeys = {
+            current: { value: 'Corriente Promedio Suavizado', trend: 'proyeccion_corriente_tendencia', pessimistic: 'proyeccion_corriente_pesimista', optimistic: 'proyeccion_corriente_optimista' },
+            refCurrent: { value: 'Referencia Corriente Promedio Suavizado', trend: 'proyeccion_referencia_corriente_tendencia' },
+            unbalance: { value: 'Desbalance Suavizado', trend: 'proyeccion_desbalance_tendencia', pessimistic: 'proyeccion_desbalance_pesimista', optimistic: 'proyeccion_desbalance_optimista' },
+            load_factor: { value: 'Factor De Carga Suavizado', trend: 'proyeccion_factor_carga_tendencia', pessimistic: 'proyeccion_factor_carga_pesimista', optimistic: 'proyeccion_factor_carga_optimista' },
         };
-
+  
+        const projections: { [key: string]: { [key: string]: (number | null)[] } } = {};
         Object.keys(projectionKeys).forEach(key => {
             const config = projectionKeys[key as keyof typeof projectionKeys];
-            if (projections[key].trend) projectionPoint[config.trend as keyof ChartDataPoint] = projections[key].trend[i];
-            if (config.pessimistic && projections[key].pessimistic) projectionPoint[config.pessimistic as keyof ChartDataPoint] = projections[key].pessimistic[i];
-            if (config.optimistic && projections[key].optimistic) projectionPoint[config.optimistic as keyof ChartDataPoint] = projections[key].optimistic[i];
+            projections[key] = calculateLinearRegressionAndProject(aggregatedData, config.value as keyof ChartDataPoint, daysToProject);
         });
-
-        // Carry over last known limits to projections
-        const lastRealPoint = aggregatedData[aggregatedData.length-1];
-        projectionPoint['Corriente Máxima'] = lastRealPoint['Corriente Máxima'];
-        projectionPoint['Umbral Desbalance'] = lastRealPoint['Umbral Desbalance'];
-        projectionPoint['Umbral Factor Carga'] = lastRealPoint['Umbral Factor Carga'];
-
-        aggregatedData.push(projectionPoint);
-      }
+  
+        for (let i = 0; i < daysToProject; i++) {
+          const nextDate = addDays(lastDate, i + 1);
+          const projectionPoint: ChartDataPoint = {
+            date: format(nextDate, 'yyyy-MM-dd'),
+            isProjection: true,
+            componentId: component.id,
+          };
+  
+          Object.keys(projectionKeys).forEach(key => {
+              const config = projectionKeys[key as keyof typeof projectionKeys];
+              if (projections[key].trend) projectionPoint[config.trend as keyof ChartDataPoint] = projections[key].trend[i];
+              if (config.pessimistic && projections[key].pessimistic) projectionPoint[config.pessimistic as keyof ChartDataPoint] = projections[key].pessimistic[i];
+              if (config.optimistic && projections[key].optimistic) projectionPoint[config.optimistic as keyof ChartDataPoint] = projections[key].optimistic[i];
+          });
+  
+          // Carry over last known limits to projections
+          const lastRealPoint = aggregatedData[aggregatedData.length-1];
+          projectionPoint['Corriente Máxima'] = lastRealPoint['Corriente Máxima'];
+          projectionPoint['Umbral Desbalance'] = lastRealPoint['Umbral Desbalance'];
+          projectionPoint['Umbral Factor Carga'] = lastRealPoint['Umbral Factor Carga'];
+  
+          aggregatedData.push(projectionPoint);
+        }
+    }
+  
+    return { data: aggregatedData };
   }
-
-  return { data: aggregatedData };
-}
 
 export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   if (values.length === 0) return [];
