@@ -199,6 +199,7 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
 
 /**
  * Aggregates raw data records by date and hour to create a single point per hour.
+ * This provides a more granular view compared to daily aggregation.
  * @param rawData The raw data from the API.
  * @returns An array of ChartDataPoint, with one point per hour.
  */
@@ -353,57 +354,51 @@ export function calculateLinearRegressionAndProject(
 }
 
 const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly' = 'daily') => (record: any): RawDataRecord | null => {
-  
-  const safeNumber = (value: any): number | null => {
-    const num = Number(value);
-    return isNaN(num) || value === null ? null : num;
-  };
-  
-  const isValidNumber = (value: any): value is number => typeof value === 'number' && !isNaN(value);
+    const safeNumber = (value: any): number | null => {
+        const num = Number(value);
+        return isNaN(num) || value === null ? null : num;
+    };
+    const isValidNumber = (value: any): value is number => typeof value === 'number' && !isNaN(value);
 
-  const year = safeNumber(record.Año);
-  const month = safeNumber(record.MES_REFERENCIA) ?? safeNumber(record.Mes);
-  const day = safeNumber(record.Dia);
-  
-  if (!isValidNumber(year) || !isValidNumber(month)) {
-    return null;
-  }
-  
-  let fechaDate;
-  if (aggregation === 'monthly') {
-      fechaDate = new Date(year, month - 1, 15);
-  } else {
-    if (!isValidNumber(day)) return null;
-      const hour = safeNumber(record.Hora) || 0;
-      const minute = safeNumber(record.Minuto) || 0;
-      const second = safeNumber(record.Segundo) || 0;
-      fechaDate = new Date(year, month - 1, day, hour, minute, second);
-  }
+    const year = safeNumber(record.Año);
+    const month = safeNumber(record.MES_REFERENCIA) ?? safeNumber(record.Mes);
+    const day = safeNumber(record.Dia);
 
-  if (isNaN(fechaDate.getTime())) {
-    return null;
-  }
+    if (!isValidNumber(year) || !isValidNumber(month) || !isValidNumber(day)) {
+        return null;
+    }
+
+    let fechaDate: Date;
+    if (aggregation === 'monthly') {
+        fechaDate = new Date(year, month - 1, 15);
+    } else {
+        const hour = safeNumber(record.Hora) || 0;
+        const minute = safeNumber(record.Minuto) || 0;
+        const second = safeNumber(record.Segundo) || 0;
+        fechaDate = new Date(year, month - 1, day, hour, minute, second);
+    }
+
+    if (isNaN(fechaDate.getTime())) {
+        return null;
+    }
+
+    const umbralDesbalance = safeNumber(record.Umbral_Desbalance) ?? safeNumber(record.Referencia_Umbral_Desbalance);
+    const umbralFactorCarga = safeNumber(record.Umbral_Factor_Carga) ?? safeNumber(record.Referencia_Umbral_FactorCarga);
   
-  const umbralDesbalance = safeNumber(record.Umbral_Desbalance) ?? safeNumber(record.Referencia_Umbral_Desbalance);
-  const umbralFactorCarga = safeNumber(record.Umbral_Factor_Carga) ?? safeNumber(record.Referencia_Umbral_FactorCarga);
-
-  return {
-    date: formatISO(fechaDate),
-    isProjection: false,
-    componentId: component.id,
-    
-    'Corriente Promedio Suavizado': safeNumber(record.CorrientePromedioSuavizado),
-    'Referencia Corriente Promedio Suavizado': safeNumber(record.Referencia_CorrientePromedioSuavizado),
-    'Corriente Máxima': safeNumber(record.Corriente_Max),
-
-    'Desbalance Suavizado': safeNumber(record.Desbalance_Suavizado),
-    'Referencia Desbalance Suavizado': safeNumber(record.Referencia_DesbalanceSuavizado),
-    'Umbral Desbalance': umbralDesbalance,
-    
-    'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
-    'Referencia Factor De Carga Suavizado': safeNumber(record.Referencia_FactorDeCargaSuavizado),
-    'Umbral Factor Carga': umbralFactorCarga,
-  };
+    return {
+        date: formatISO(fechaDate),
+        isProjection: false,
+        componentId: component.id,
+        'Corriente Promedio Suavizado': safeNumber(record.CorrientePromedioSuavizado),
+        'Referencia Corriente Promedio Suavizado': safeNumber(record.Referencia_CorrientePromedioSuavizado),
+        'Corriente Máxima': safeNumber(record.Corriente_Max),
+        'Desbalance Suavizado': safeNumber(record.Desbalance_Suavizado),
+        'Referencia Desbalance Suavizado': safeNumber(record.Referencia_DesbalanceSuavizado),
+        'Umbral Desbalance': umbralDesbalance,
+        'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
+        'Referencia Factor De Carga Suavizado': safeNumber(record.Referencia_FactorDeCargaSuavizado),
+        'Umbral Factor Carga': umbralFactorCarga,
+    };
 };
 
 export async function useRealMaintenanceData(
