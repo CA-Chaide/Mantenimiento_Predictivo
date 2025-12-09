@@ -227,11 +227,17 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
             refLoadFactor: { sum: 0, count: 0 },
         };
         
-        const findFirstValidLimit = (key: keyof RawDataRecord): number | null => {
+        const findFirstValidLimit = (key: keyof RawDataRecord, fallbackKey?: keyof RawDataRecord): number | null => {
             for (const record of group.records) {
-                const value = safeNumber(record[key]);
+                let value = safeNumber(record[key]);
                 if (typeof value === 'number' && !isNaN(value) && value > 0) {
                     return value;
+                }
+                if (fallbackKey) {
+                    value = safeNumber(record[fallbackKey]);
+                    if (typeof value === 'number' && !isNaN(value) && value > 0) {
+                        return value;
+                    }
                 }
             }
             return null;
@@ -239,7 +245,7 @@ export function aggregateDataByDay(rawData: RawDataRecord[]): ChartDataPoint[] {
 
         const currentLimit = findFirstValidLimit("Corriente Máxima");
         const unbalanceLimit = findFirstValidLimit("Umbral Desbalance");
-        const loadFactorLimit = findFirstValidLimit("Umbral Factor Carga");
+        const loadFactorLimit = findFirstValidLimit("Umbral Factor Carga", "Referencia_Umbral_FactorCarga");
 
         for (const record of group.records) {
             const current = safeNumber(record["Corriente Promedio Suavizado"]);
@@ -350,7 +356,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
   const isValidNumber = (value: any): value is number => typeof value === 'number' && !isNaN(value);
 
   const year = safeNumber(record.Año);
-  const month = safeNumber(record.MES_REFERENCIA || record.Mes);
+  const month = safeNumber(record.MES_REFERENCIA) ?? safeNumber(record.Mes);
   const day = safeNumber(record.Dia);
 
   if (!isValidNumber(year) || !isValidNumber(month)) {
@@ -372,6 +378,8 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     return null;
   }
 
+  const umbralFactorCarga = safeNumber(record.Umbral_Factor_Carga) ?? safeNumber(record.Referencia_Umbral_FactorCarga);
+
   return {
     date: formatISO(fechaDate),
     isProjection: false,
@@ -387,7 +395,7 @@ const recordToDataPoint = (component: Component, aggregation: 'daily' | 'monthly
     
     'Factor De Carga Suavizado': safeNumber(record.FactorDeCargaSuavizado),
     'Referencia Factor De Carga Suavizado': safeNumber(record.Referencia_FactorDeCargaSuavizado),
-    'Umbral Factor Carga': safeNumber(record.Umbral_Factor_Carga),
+    'Umbral Factor Carga': umbralFactorCarga,
   };
 };
 
