@@ -271,7 +271,7 @@ export default function DashboardPage() {
     }
 
     loadChartData();
-  }, [machineId, componentId, fromDate, toDate, componentList, toast, cachedData]);
+  }, [machineId, componentId, fromDate, toDate, componentList, toast]);
 
   const currentCacheKey = machineId && componentId && displayRange?.from && displayRange?.to
     ? `${machineId}-${componentId}-${format(displayRange.from, 'yyyy-MM-dd')}-${format(displayRange.to, 'yyyy-MM-dd')}`
