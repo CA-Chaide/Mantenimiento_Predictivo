@@ -159,7 +159,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     defaultMonth={date?.from || subDays(new Date(), 30)}
                     selected={date}
                     onSelect={handleSelect}
-                    numberOfMonths={1}
+                    numberOfMonths={2}
                     locale={es}
                     classNames={{
                         day_range_start: "day-range-start",
