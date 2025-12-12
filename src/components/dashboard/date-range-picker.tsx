@@ -65,10 +65,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
         setPopoverOpen(false); // Close popover after selection
     }
   };
-  
-  const handleClearManual = () => {
-    setDate(undefined);
-  }
 
   const handlePreset = (preset: 'last30days' | 'last3Months' | 'lastYear' | 'sinceStart') => {
     const today = new Date();
@@ -99,17 +95,15 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   }
 
   const handleClear = (e?: React.MouseEvent) => {
+    e?.preventDefault();
     e?.stopPropagation();
     setDate(undefined);
-    const newParams = new URLSearchParams(searchParams.toString());
-    newParams.delete("from");
-    newParams.delete("to");
-    router.push(`${pathname}?${newParams.toString()}`);
+    updateURL(undefined);
     setPopoverOpen(false);
   }
 
   const selectedDays = date?.from && date?.to ? differenceInDays(date.to, date.from) + 1 : 0;
-  const hasSelection = date?.from && date?.to;
+  const hasSelection = date?.from;
 
   return (
     <div className={cn("grid gap-2", className)}>
@@ -120,7 +114,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             variant={"outline"}
             className={cn(
               "w-full justify-start text-left font-normal bg-white border-slate-200 text-slate-900 hover:bg-slate-100 hover:text-slate-900 focus:ring-2 focus:ring-primary group",
-              !date && "text-muted-foreground"
+              !date?.from && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4 text-slate-500" />
@@ -154,7 +148,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('lastYear')}>Último Año</Button>
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
                     <Separator className="my-1" />
-                    <Button variant="ghost" className="justify-start text-sm h-8 text-destructive hover:text-destructive" onClick={() => handleClear()}>Limpiar</Button>
+                    <Button variant="ghost" className="justify-start text-sm h-8 text-destructive hover:text-destructive" onClick={(e) => handleClear(e)}>Limpiar</Button>
                 </div>
             </div>
             <div>
@@ -166,11 +160,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     onSelect={handleSelect}
                     numberOfMonths={1}
                     locale={es}
-                    classNames={{
-                        day_range_start: "day-range-start",
-                        day_range_end: "day-range-end",
-                        day_range_middle: "day-range-middle"
-                    }}
                     disabled={{ before: sinceStartDate, after: new Date() }}
                 />
                 <div className="border-t text-center text-xs text-slate-500 py-2">
@@ -182,5 +171,3 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     </div>
   );
 }
-
-    
