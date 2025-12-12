@@ -65,6 +65,10 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
         setPopoverOpen(false); // Close popover after selection
     }
   };
+  
+  const handleClearManual = () => {
+    setDate(undefined);
+  }
 
   const handlePreset = (preset: 'last30days' | 'last3Months' | 'lastYear' | 'sinceStart') => {
     const today = new Date();
@@ -94,8 +98,8 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     setPopoverOpen(false);
   }
 
-  const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleClear = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setDate(undefined);
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.delete("from");
@@ -130,7 +134,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                   formatInTimeZone(date.from, "dd MMM yyyy", timeZone)
                 )
               ) : (
-                <span>Seleccione un rango</span>
+                <span>Seleccionar rango de fechas</span>
               )}
             </span>
              {hasSelection && (
@@ -149,6 +153,8 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('last3Months')}>Últimos 3 Meses</Button>
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('lastYear')}>Último Año</Button>
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
+                    <Separator className="my-1" />
+                    <Button variant="ghost" className="justify-start text-sm h-8 text-destructive hover:text-destructive" onClick={() => handleClear()}>Limpiar</Button>
                 </div>
             </div>
             <div>
@@ -176,3 +182,5 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     </div>
   );
 }
+
+    
