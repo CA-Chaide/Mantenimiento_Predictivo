@@ -74,7 +74,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     switch (preset) {
         case 'last30days':
             from = subDays(today, 29); // 30 days including today
-            to = today;
             break;
         case 'last3Months':
             from = subMonths(today, 3);
@@ -159,14 +158,14 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     defaultMonth={date?.from || subDays(new Date(), 30)}
                     selected={date}
                     onSelect={handleSelect}
-                    numberOfMonths={2}
+                    numberOfMonths={1}
                     locale={es}
                     classNames={{
                         day_range_start: "day-range-start",
                         day_range_end: "day-range-end",
                         day_range_middle: "day-range-middle"
                     }}
-                    disabled={{ after: new Date() }}
+                    disabled={{ before: sinceStartDate, after: new Date() }}
                 />
                 <div className="border-t text-center text-xs text-slate-500 py-2">
                     {selectedDays > 0 ? `Periodo seleccionado: ${selectedDays} días` : 'Seleccione un rango de fechas'}
