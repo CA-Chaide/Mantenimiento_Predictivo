@@ -63,14 +63,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const projectionTooltips: Record<string, string> = {
+const legendTooltips: Record<string, string> = {
+    "Promedio Diario": "Valor real medido y agregado por cada punto en el tiempo (diario o por hora).",
+    "Referencia": "Línea base de operación normal del componente, calculada a partir de datos históricos.",
+    "Corriente Max": "Límite máximo operativo seguro. Exceder este valor puede indicar una falla o riesgo.",
+    "Umbral Max": "Límite máximo operativo seguro. Exceder este valor puede indicar una falla o riesgo.",
     "Proyección Tendencia": "Estimación futura basada en la tendencia histórica (Regresión Lineal).",
     "Proyección Pesimista": "Escenario de degradación acelerada (Regresión Lineal con pendiente aumentada).",
     "Proyección Optimista": "Escenario de degradación lenta (Regresión Lineal con pendiente suavizada)."
 };
 
 const renderLegendText = (value: string, entry: any) => {
-    const tooltipText = projectionTooltips[value];
+    const tooltipText = legendTooltips[value];
 
     if (tooltipText) {
         return (
