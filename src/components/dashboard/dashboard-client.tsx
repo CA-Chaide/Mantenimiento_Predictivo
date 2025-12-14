@@ -8,6 +8,8 @@ import { ChartDataPoint, Component } from "@/lib/data";
 import React from "react";
 import { StatusIndicator, getComponentStatus, ComponentStatus } from "./status-indicator";
 import { AnalysisModal } from "./analysis-modal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface DashboardClientProps {
   machineComponents: Component[];
@@ -41,9 +43,19 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
               </div>
             <Card id={`component-${component.id}`} className="w-full rounded-xl shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
-                  Corriente
-                </CardTitle>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-800 cursor-default">
+                        Corriente
+                        <Info className="size-4 text-slate-400" />
+                      </CardTitle>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Esfuerzo real del motor. Detecta sobrecargas o atascos.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </CardHeader>
               <CardContent className="p-6">
                 <MetricChart
@@ -64,9 +76,19 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
             
             <Card id={`component-${component.id}-unbalance`} className="w-full rounded-xl shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
-                  Desbalance
-                </CardTitle>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-800 cursor-default">
+                        Desbalance
+                        <Info className="size-4 text-slate-400" />
+                      </CardTitle>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Mide la diferencia de voltaje/corriente entre las líneas de alimentación.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </CardHeader>
               <CardContent className="p-6">
                 <MetricChart
@@ -87,9 +109,19 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
 
             <Card id={`component-${component.id}-load_factor`} className="w-full rounded-xl shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
-                  Factor de Carga
-                </CardTitle>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-800 cursor-default">
+                        Factor de Carga
+                        <Info className="size-4 text-slate-400" />
+                      </CardTitle>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Porcentaje de capacidad utilizada. Indica si el motor es eficiente.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </CardHeader>
               <CardContent className="p-6">
                 <MetricChart

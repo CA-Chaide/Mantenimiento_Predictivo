@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -33,6 +32,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const [timeZone, setTimeZone] = React.useState('UTC');
   const [popoverOpen, setPopoverOpen] = React.useState(false);
 
+  // Fecha límite inferior para deshabilitar fechas anteriores
   const sinceStartDate = new Date('2025-04-10T00:00:00Z');
 
   React.useEffect(() => {
@@ -59,10 +59,10 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
 
   const handleSelect = (range: DateRange | undefined) => {
     setDate(range);
-    // Only update URL when a complete range is selected
+    // Solo actualizamos la URL y cerramos cuando el rango está completo (Inicio y Fin)
     if (range?.from && range?.to) {
         updateURL(range);
-        setPopoverOpen(false); // Close popover after selection
+        setPopoverOpen(false); 
     }
   };
 
@@ -94,12 +94,19 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     setPopoverOpen(false);
   }
 
+  // --- CORRECCIÓN FINAL APLICADA AQUÍ ---
   const handleClear = (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
+    
+    // 1. Limpiamos SOLO el estado visual local
     setDate(undefined);
-    updateURL(undefined);
-    setPopoverOpen(false);
+    
+    // 2. ¡IMPORTANTE! NO llamamos a updateURL(undefined).
+    // Esto evita que el componente padre detecte "url vacía" y nos fuerce 
+    // a poner el rango por defecto antes de que el usuario elija.
+    
+    // 3. Mantenemos el popover abierto para que selecciones inmediatamente
   }
 
   const selectedDays = date?.from && date?.to ? differenceInDays(date.to, date.from) + 1 : 0;
@@ -132,10 +139,15 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
               )}
             </span>
              {hasSelection && (
-              <X
-                className="h-4 w-4 ml-2 text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
+              <div
+                role="button"
+                tabIndex={0}
+                className="ml-2 p-1 hover:bg-slate-200 rounded-full transition-colors z-50"
                 onClick={handleClear}
-              />
+                onKeyDown={(e) => { if(e.key === 'Enter') handleClear() }}
+              >
+                 <X className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+              </div>
             )}
           </Button>
         </PopoverTrigger>
@@ -148,6 +160,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('lastYear')}>Último Año</Button>
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
                     <Separator className="my-1" />
+                    {/* Botón limpiar dentro del menú */}
                     <Button variant="ghost" className="justify-start text-sm h-8 text-destructive hover:text-destructive" onClick={(e) => handleClear(e)}>Limpiar</Button>
                 </div>
             </div>
@@ -155,7 +168,9 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                 <Calendar
                     initialFocus
                     mode="range"
-                    defaultMonth={date?.from || subDays(new Date(), 30)}
+                    // Si no hay fecha (undefined), muestra el mes actual (new Date())
+                    // Esto evita que visualmente parezca seleccionado un rango viejo
+                    defaultMonth={date?.from || new Date()} 
                     selected={date}
                     onSelect={handleSelect}
                     numberOfMonths={1}
