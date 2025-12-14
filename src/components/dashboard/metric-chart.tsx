@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   Legend,
   ResponsiveContainer,
   AreaChart,
@@ -20,6 +20,7 @@ import {
 } from "recharts";
 import { ChartDataPoint } from "@/lib/data";
 import React from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface MetricChartProps {
   data: ChartDataPoint[];
@@ -61,6 +62,33 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   }
   return null;
 };
+
+const projectionTooltips: Record<string, string> = {
+    "Proyección Tendencia": "Estimación futura basada en la tendencia histórica (Regresión Lineal).",
+    "Proyección Pesimista": "Escenario de degradación acelerada (Regresión Lineal con pendiente aumentada).",
+    "Proyección Optimista": "Escenario de degradación lenta (Regresión Lineal con pendiente suavizada)."
+};
+
+const renderLegendText = (value: string, entry: any) => {
+    const tooltipText = projectionTooltips[value];
+
+    if (tooltipText) {
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span className="cursor-help border-b border-dashed border-slate-400">{value}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>{tooltipText}</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
+    }
+    return value;
+};
+
 
 export function MetricChart({
   data,
@@ -111,8 +139,8 @@ export function MetricChart({
               domain={['dataMin - 1', 'auto']}
               allowDataOverflow={true}
             />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
+            <RechartsTooltip content={<CustomTooltip />} />
+            <Legend formatter={renderLegendText} />
 
             <defs>
               <linearGradient id={`color${metric}`} x1="0" y1="0" x2="0" y2="1">
