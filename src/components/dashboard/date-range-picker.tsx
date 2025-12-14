@@ -2,7 +2,8 @@
 "use client";
 
 import * as React from "react";
-import { format, subMonths, subYears, differenceInDays, subDays } from "date-fns";
+// Agregamos isSameDay para comparar fechas
+import { format, subMonths, subYears, differenceInDays, subDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon, X } from "lucide-react";
@@ -33,7 +34,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   const [timeZone, setTimeZone] = React.useState('UTC');
   const [popoverOpen, setPopoverOpen] = React.useState(false);
 
-  // Fecha límite inferior para deshabilitar fechas anteriores
   const sinceStartDate = new Date('2025-04-10T00:00:00Z');
 
   React.useEffect(() => {
@@ -45,12 +45,29 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   }, []);
 
+  // --- AQUÍ ESTÁ EL CAMBIO CLAVE ---
   const updateURL = (range: DateRange | undefined) => {
     const newParams = new URLSearchParams(searchParams.toString());
+    
     if (range?.from) {
+      // Fecha de inicio: solemos querer el inicio del día (00:00) o la fecha plana
       newParams.set("from", format(range.from, "yyyy-MM-dd"));
+      
       const toDate = range.to || range.from;
-      newParams.set("to", format(toDate, "yyyy-MM-dd"));
+      const today = new Date();
+
+      // Si la fecha final es HOY, mandamos la fecha completa con HORA (ISO)
+      // para que la API traiga datos hasta el último minuto disponible.
+      if (toDate && isSameDay(toDate, today)) {
+          // Usamos toISOString() para precisión total o el formato que tu API prefiera
+          newParams.set("to", today.toISOString()); 
+      } else if (toDate) {
+          // Si es una fecha histórica (ayer o antes), mantenemos el formato fecha
+          newParams.set("to", format(toDate, "yyyy-MM-dd"));
+      } else {
+        newParams.delete("to");
+      }
+
     } else {
         newParams.delete("from");
         newParams.delete("to");
@@ -59,8 +76,14 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   }
 
   const handleSelect = (range: DateRange | undefined) => {
+    // Si el usuario selecciona manualmente el día de "Hoy" en el calendario,
+    // react-day-picker devuelve 00:00. Lo forzamos a "ahora mismo".
+    if (range?.to && isSameDay(range.to, new Date())) {
+        range.to = new Date();
+    }
+
     setDate(range);
-    // Solo actualizamos la URL y cerramos cuando el rango está completo (Inicio y Fin)
+    
     if (range?.from && range?.to) {
         updateURL(range);
         setPopoverOpen(false); 
@@ -68,25 +91,22 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   };
 
   const handlePreset = (preset: 'last30days' | 'last3Months' | 'lastYear' | 'sinceStart') => {
-    const today = new Date();
+    const today = new Date(); // Esto captura la fecha Y la hora actual
     let from: Date;
     let to: Date = today;
 
     switch (preset) {
         case 'last30days':
-            from = subDays(today, 29); // 30 days including today
+            from = subDays(today, 29); 
             break;
         case 'last3Months':
             from = subMonths(today, 3);
-            to = today;
             break;
         case 'lastYear':
             from = subYears(today, 1);
-            to = today;
             break;
         case 'sinceStart':
             from = sinceStartDate;
-            to = today; 
             break;
     }
     const newRange = { from, to };
@@ -120,7 +140,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
             <CalendarIcon className="mr-2 h-4 w-4 text-slate-500" />
             <span className="flex-1">
               {isClient && date?.from ? (
-                date.to && date.from.getTime() !== date.to.getTime() ? (
+                date.to && differenceInDays(date.to, date.from) > 0 ? (
                   <>
                     {formatInTimeZone(date.from, "dd MMM yyyy", timeZone)} - {formatInTimeZone(date.to, "dd MMM yyyy", timeZone)}
                   </>
