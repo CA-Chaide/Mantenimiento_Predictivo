@@ -1,4 +1,5 @@
-import { format, formatISO, parseISO, addDays, differenceInDays } from 'date-fns';
+
+import { format, formatISO, parseISO, addDays, differenceInDays, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 
@@ -410,14 +411,14 @@ export async function useRealMaintenanceData(
     if (!dateRange || !dateRange.from || !dateRange.to) {
       return { data: [] };
     }
+
+    // --- SOLUCIÓN: Asegurar que 'to' siempre sea la fecha/hora actual si es hoy ---
+    if (isSameDay(dateRange.to, new Date())) {
+        dateRange.to = new Date();
+    }
   
     const startDate = format(dateRange.from, 'yyyy-MM-dd');
-    
-    // Check if the 'to' date includes a time component, indicating a request for "up to now"
-    const hasTime = dateRange.to.getHours() > 0 || dateRange.to.getMinutes() > 0 || dateRange.to.getSeconds() > 0;
-    
-    // Format the end date for the API call
-    const endDate = hasTime ? dateRange.to.toISOString() : format(dateRange.to, 'yyyy-MM-dd');
+    const endDate = dateRange.to.toISOString();
 
     const dateDiff = differenceInDays(dateRange.to, dateRange.from);
     const useMonthlyAggregation = dateDiff > 365;

@@ -91,7 +91,7 @@ export default function DashboardPage() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // 1. Fetch de Máquinas (Lo movemos arriba para definir machineList)
+  // 1. Fetch de Máquinas
   useEffect(() => {
     async function fetchInitialData() {
       try {
@@ -128,7 +128,7 @@ export default function DashboardPage() {
     fetchInitialData();
   }, [toast]);
 
-  // 2. Definición de IDs (AHORA ESTÁN ANTES DE USARSE)
+  // 2. Definición de IDs
   const machineId = (
     typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
       ? searchParams.get('machine')
@@ -156,7 +156,7 @@ export default function DashboardPage() {
     return { from: fromDate, to: toDate };
   }, [fromDate, toDate]);
 
-  // 4. Cache Key (Ahora sí puede usar machineId y componentId porque ya existen)
+  // 4. Cache Key
   const currentCacheKey = useMemo(() => {
     if (!machineId || !componentId || !displayRange?.from || !displayRange?.to) return null;
     
@@ -176,7 +176,7 @@ export default function DashboardPage() {
     setRefreshKey(prev => prev + 1);
   };
 
-  // 5. Fetch componentes cuando cambia la máquina
+  // 5. Fetch componentes
   useEffect(() => {
     async function fetchComponents() {
       if (!machineId) {
@@ -215,7 +215,7 @@ export default function DashboardPage() {
     fetchComponents();
   }, [machineId]);
   
-  // 6. Carga de datos reales
+  // 6. Carga de datos
   useEffect(() => {
     async function loadChartData() {
       setNoDataAvailable(false);
@@ -372,7 +372,7 @@ export default function DashboardPage() {
               )}
               <div className={chartLoading ? "opacity-30" : ""}>
                 <DashboardClient
-                  key={currentCacheKey}
+                  key={currentCacheKey || 'dashboard-client'} 
                   machineComponents={selectedComponent ? [selectedComponent] : []}
                   data={chartData}
                   aprilData={[]}
