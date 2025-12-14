@@ -1,7 +1,8 @@
+
 "use client";
 
 import * as React from "react";
-import { format, startOfMonth, subMonths, max, startOfYear, differenceInDays, subDays, subYears, endOfMonth } from "date-fns";
+import { format, subMonths, subYears, differenceInDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
 import { Calendar as CalendarIcon, X } from "lucide-react";
@@ -94,19 +95,11 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     setPopoverOpen(false);
   }
 
-  // --- CORRECCIÓN FINAL APLICADA AQUÍ ---
   const handleClear = (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
-    
-    // 1. Limpiamos SOLO el estado visual local
     setDate(undefined);
-    
-    // 2. ¡IMPORTANTE! NO llamamos a updateURL(undefined).
-    // Esto evita que el componente padre detecte "url vacía" y nos fuerce 
-    // a poner el rango por defecto antes de que el usuario elija.
-    
-    // 3. Mantenemos el popover abierto para que selecciones inmediatamente
+    updateURL(undefined);
   }
 
   const selectedDays = date?.from && date?.to ? differenceInDays(date.to, date.from) + 1 : 0;
@@ -160,7 +153,6 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('lastYear')}>Último Año</Button>
                     <Button variant="ghost" className="justify-start text-sm h-8" onClick={() => handlePreset('sinceStart')}>Desde Inicio</Button>
                     <Separator className="my-1" />
-                    {/* Botón limpiar dentro del menú */}
                     <Button variant="ghost" className="justify-start text-sm h-8 text-destructive hover:text-destructive" onClick={(e) => handleClear(e)}>Limpiar</Button>
                 </div>
             </div>
@@ -168,9 +160,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                 <Calendar
                     initialFocus
                     mode="range"
-                    // Si no hay fecha (undefined), muestra el mes actual (new Date())
-                    // Esto evita que visualmente parezca seleccionado un rango viejo
-                    defaultMonth={date?.from || new Date()} 
+                    defaultMonth={date?.from}
                     selected={date}
                     onSelect={handleSelect}
                     numberOfMonths={1}

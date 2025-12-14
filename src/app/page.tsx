@@ -90,6 +90,16 @@ export default function DashboardPage() {
   const [chartLoading, setChartLoading] = useState(false);
   const [noDataAvailable, setNoDataAvailable] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRefresh = () => {
+    // Forzar la recarga eliminando la clave de caché actual
+    if (currentCacheKey) {
+        const { [currentCacheKey]: _, ...rest } = cachedData;
+        setCachedData(rest);
+    }
+    setRefreshKey(prev => prev + 1);
+  };
 
   // Fetch machines
   useEffect(() => {
@@ -195,19 +205,21 @@ export default function DashboardPage() {
     return { from: fromDate, to: toDate };
   }, [fromDate, toDate]);
 
+  const currentCacheKey = useMemo(() => machineId && componentId && displayRange?.from && displayRange?.to
+    ? `${machineId}-${componentId}-${format(displayRange.from, 'yyyy-MM-dd')}-${format(displayRange.to, 'yyyy-MM-dd')}`
+    : null, [machineId, componentId, displayRange]);
+
   // Load real data when component or date range is selected
   useEffect(() => {
     async function loadChartData() {
       setNoDataAvailable(false);
       setLoadingProgress(0);
       
-      if (!machineId || !componentId || !displayRange || !displayRange.from || !displayRange.to) {
+      if (!machineId || !componentId || !displayRange || !displayRange.from || !displayRange.to || !currentCacheKey) {
         return;
       }
       
-      const cacheKey = `${machineId}-${componentId}-${format(displayRange.from, 'yyyy-MM-dd')}-${format(displayRange.to, 'yyyy-MM-dd')}`;
-      
-      if (cachedData[cacheKey]) {
+      if (cachedData[currentCacheKey]) {
           // Data is already in cache, no need to fetch again
           return;
       }
@@ -239,7 +251,7 @@ export default function DashboardPage() {
             if (progress < 100) {
               const aggregatedData = aggregateDataByDateTime(partialData);
               // Update cache with partial data for responsive UI
-              setCachedData(prev => ({...prev, [cacheKey]: aggregatedData }));
+              setCachedData(prev => ({...prev, [currentCacheKey]: aggregatedData }));
             }
             if (partialData.length > 0) {
               setNoDataAvailable(false);
@@ -248,16 +260,16 @@ export default function DashboardPage() {
         );
         
         if (result.data.length > 0) {
-          setCachedData(prev => ({ ...prev, [cacheKey]: result.data }));
+          setCachedData(prev => ({ ...prev, [currentCacheKey]: result.data }));
           setNoDataAvailable(false);
         } else {
-          setCachedData(prev => ({ ...prev, [cacheKey]: [] }));
+          setCachedData(prev => ({ ...prev, [currentCacheKey]: [] }));
           setNoDataAvailable(true);
         }
         setLoadingProgress(100);
       } catch (error: any) {
         console.error("Error loading chart data:", error);
-        setCachedData(prev => ({ ...prev, [cacheKey]: [] }));
+        setCachedData(prev => ({ ...prev, [currentCacheKey]: [] }));
         setNoDataAvailable(true);
         setLoadingProgress(0);
         toast({
@@ -271,11 +283,7 @@ export default function DashboardPage() {
     }
 
     loadChartData();
-  }, [machineId, componentId, fromDate, toDate, componentList, toast]);
-
-  const currentCacheKey = machineId && componentId && displayRange?.from && displayRange?.to
-    ? `${machineId}-${componentId}-${format(displayRange.from, 'yyyy-MM-dd')}-${format(displayRange.to, 'yyyy-MM-dd')}`
-    : null;
+  }, [machineId, componentId, fromDate, toDate, componentList, toast, refreshKey, currentCacheKey]); // No 'cachedData'
 
   const chartData = currentCacheKey ? cachedData[currentCacheKey] || [] : [];
   
@@ -335,7 +343,11 @@ export default function DashboardPage() {
         </div>
       </Sidebar>
       <SidebarInset className="bg-slate-50">
-        <DashboardHeader title={headerTitle}>
+        <DashboardHeader 
+          title={headerTitle} 
+          onRefresh={handleRefresh}
+          showRefreshButton={!!selectedComponent}
+        >
             <DateRangePicker initialDate={displayRange} />
         </DashboardHeader>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
