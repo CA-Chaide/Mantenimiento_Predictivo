@@ -1,8 +1,6 @@
-
 "use client";
 
 import * as React from "react";
-// Agregamos isSameDay para comparar fechas
 import { format, subMonths, subYears, differenceInDays, subDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from 'date-fns-tz';
@@ -45,24 +43,19 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   }, []);
 
-  // --- AQUÍ ESTÁ EL CAMBIO CLAVE ---
   const updateURL = (range: DateRange | undefined) => {
     const newParams = new URLSearchParams(searchParams.toString());
     
     if (range?.from) {
-      // Fecha de inicio: solemos querer el inicio del día (00:00) o la fecha plana
       newParams.set("from", format(range.from, "yyyy-MM-dd"));
       
       const toDate = range.to || range.from;
       const today = new Date();
 
-      // Si la fecha final es HOY, mandamos la fecha completa con HORA (ISO)
-      // para que la API traiga datos hasta el último minuto disponible.
+      // Lógica para enviar ISOString si es el día actual (para tener la hora exacta)
       if (toDate && isSameDay(toDate, today)) {
-          // Usamos toISOString() para precisión total o el formato que tu API prefiera
           newParams.set("to", today.toISOString()); 
       } else if (toDate) {
-          // Si es una fecha histórica (ayer o antes), mantenemos el formato fecha
           newParams.set("to", format(toDate, "yyyy-MM-dd"));
       } else {
         newParams.delete("to");
@@ -76,14 +69,14 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   }
 
   const handleSelect = (range: DateRange | undefined) => {
-    // Si el usuario selecciona manualmente el día de "Hoy" en el calendario,
-    // react-day-picker devuelve 00:00. Lo forzamos a "ahora mismo".
+    // Si selecciona "hoy", actualizamos la hora al momento actual
     if (range?.to && isSameDay(range.to, new Date())) {
         range.to = new Date();
     }
 
     setDate(range);
     
+    // Solo actualizamos la URL y cerramos cuando el rango está completo (Inicio y Fin)
     if (range?.from && range?.to) {
         updateURL(range);
         setPopoverOpen(false); 
@@ -91,7 +84,7 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
   };
 
   const handlePreset = (preset: 'last30days' | 'last3Months' | 'lastYear' | 'sinceStart') => {
-    const today = new Date(); // Esto captura la fecha Y la hora actual
+    const today = new Date(); 
     let from: Date;
     let to: Date = today;
 
@@ -115,11 +108,29 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
     setPopoverOpen(false);
   }
 
+  // ---------------------------------------------------------------------------
+  // ⚠️ CRITICAL AI INSTRUCTION / INSTRUCCIÓN CRÍTICA PARA IA ⚠️
+  //
+  // PRESERVATION RULE (REGLA DE PRESERVACIÓN):
+  // La función `handleClear` está desacoplada intencionalmente:
+  // 1. Limpia el estado visual (setDate) -> undefined.
+  // 2. NO actualiza la URL (updateURL) -> Esto es VITAL.
+  //
+  // REASON (RAZÓN):
+  // Si se actualiza la URL a undefined, el componente padre (Dashboard) detecta
+  // la falta de params y fuerza un "default date", rompiendo la experiencia de limpieza.
+  //
+  // DO NOT REFACTOR (NO REFACTORIZAR) para unir estos pasos.
+  // ---------------------------------------------------------------------------
   const handleClear = (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
+    
+    // 1. Limpiamos SOLO el estado visual local
     setDate(undefined);
-    updateURL(undefined);
+    
+    // 2. IMPORTANTE: NO llamamos a updateURL(undefined) aquí.
+    // Esto permite al usuario seleccionar el nuevo rango sin que la página se recargue.
   }
 
   const selectedDays = date?.from && date?.to ? differenceInDays(date.to, date.from) + 1 : 0;
@@ -180,7 +191,9 @@ export function DateRangePicker({ className, initialDate }: DateRangePickerProps
                 <Calendar
                     initialFocus
                     mode="range"
-                    defaultMonth={date?.from}
+                    // Si no hay fecha (undefined), muestra el mes actual (new Date())
+                    // Esto evita que visualmente parezca seleccionado un rango viejo
+                    defaultMonth={date?.from || new Date()} 
                     selected={date}
                     onSelect={handleSelect}
                     numberOfMonths={1}

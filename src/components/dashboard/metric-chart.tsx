@@ -21,6 +21,74 @@ import {
 import { ChartDataPoint } from "@/lib/data";
 import React from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+
+// --- INICIO CÓDIGO AÑADIDO ---
+
+// 1. Catálogo de Fallas
+const FAILURE_CATALOG = {
+    "Eléctrica": [
+        { id: "sobrecarga_continua", name: "Sobrecarga Continua" },
+        { id: "pico_transitorio", name: "Pico Transitorio" },
+        { id: "desbalance_fases", name: "Desbalance de Fases" },
+    ],
+    "Mecánica": [
+        { id: "atasco_rodamiento", name: "Atasco/Rodamiento" },
+        { id: "vibracion_excesiva", name: "Vibración Excesiva" },
+        { id: "problema_engranaje", name: "Problema de Engranaje" },
+    ],
+    "Operacional": [
+        { id: "uso_indebido", name: "Uso Indebido" },
+        { id: "condicion_externa", name: "Condición Externa" },
+    ]
+};
+
+// 2. Componente Visual: LabelingMenu
+const LabelingMenu = ({
+  position,
+  onSelect,
+  onClose,
+}: {
+  position: { x: number; y: number };
+  onSelect: (category: string, failure: { id: string; name: string }) => void;
+  onClose: () => void;
+}) => {
+  if (!position.x) return null;
+
+  return (
+    <div
+      style={{ left: position.x, top: position.y }}
+      className="absolute z-50 min-w-[200px] rounded-md border border-slate-200 bg-white shadow-lg p-2 animate-in fade-in-0 zoom-in-95"
+    >
+      <div className="flex justify-between items-center mb-2">
+        <p className="text-xs font-bold text-slate-700 px-2">Clasificar Falla</p>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+          <span className="text-slate-500">×</span>
+        </Button>
+      </div>
+      <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+        {Object.entries(FAILURE_CATALOG).map(([category, failures]) => (
+          <div key={category}>
+            <p className="text-xs font-semibold text-slate-500 px-2 pt-1">{category}</p>
+            {failures.map((failure) => (
+              <Button
+                key={failure.id}
+                variant="ghost"
+                className="w-full justify-start h-8 text-sm"
+                onClick={() => onSelect(category, failure)}
+              >
+                {failure.name}
+              </Button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- FIN CÓDIGO AÑADIDO ---
+
 
 interface MetricChartProps {
   data: ChartDataPoint[];
@@ -109,6 +177,45 @@ export function MetricChart({
   yAxisLabel
 }: MetricChartProps) {
 
+  // --- INICIO CÓDIGO AÑADIDO ---
+  // 3. Estados para el menú de etiquetado
+  const [labelingMenu, setLabelingMenu] = React.useState<{ x: number, y: number } | null>(null);
+  const [selectedPoint, setSelectedPoint] = React.useState<any>(null);
+
+  // 4. Lógica de Datos
+  const handleSaveLabel = (category: string, failure: { id: string; name: string }) => {
+    if (!selectedPoint) return;
+    
+    const payload = {
+      timestamp: selectedPoint.payload.date,
+      sensor_value: selectedPoint.value,
+      label_data: {
+        category_id: category,
+        failure_code: failure.id,
+      },
+      metadata: {
+        labeled_at: new Date().toISOString(),
+        user_id: "current_user_placeholder" // Reemplazar con el usuario real
+      }
+    };
+    
+    console.log("PAYLOAD ML:", payload);
+
+    // Cerrar el menú después de guardar
+    setLabelingMenu(null);
+    setSelectedPoint(null);
+  };
+  
+  // Función para manejar el clic en un punto de la gráfica
+  const handlePointClick = (point: any) => {
+    // Si el punto no tiene datos válidos, no hacer nada
+    if (!point || point.value === null || point.value === undefined) return;
+    
+    setSelectedPoint(point);
+    setLabelingMenu({ x: point.cx, y: point.cy });
+  };
+  // --- FIN CÓDIGO AÑADIDO ---
+
   const tickFormatter = (str: string) => {
     try {
       return format(parseISO(str), "dd MMM HH:mm", { locale: es });
@@ -124,9 +231,14 @@ export function MetricChart({
 
   return (
     <div className="space-y-4">
-      <div className="h-[400px] w-full">
+      <div className="h-[400px] w-full relative">
         <ResponsiveContainer>
-          <ComposedChart data={sortedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart 
+            data={sortedData} 
+            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            // Cierra el menú si se hace clic fuera de un punto
+            onClick={() => setLabelingMenu(null)}
+          >
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
@@ -161,6 +273,14 @@ export function MetricChart({
               fillOpacity={1}
               fill={`url(#color${metric})`}
               strokeWidth={2}
+              // --- INICIO CÓDIGO AÑADIDO ---
+              // 5. Integración: Captura del clic
+              activeDot={{
+                onClick: (e, payload) => handlePointClick(payload),
+                r: 6,
+                className: "cursor-pointer"
+              }}
+              // --- FIN CÓDIGO AÑADIDO ---
               dot={false}
               connectNulls={false}
             />
@@ -204,6 +324,7 @@ export function MetricChart({
               name="Proyección Pesimista"
               stroke="#f97316"
               strokeWidth={2}
+      
               strokeDasharray="5 5"
               dot={false}
               connectNulls={false}
@@ -222,7 +343,19 @@ export function MetricChart({
 
           </ComposedChart>
         </ResponsiveContainer>
+        
+        {/* --- INICIO CÓDIGO AÑADIDO --- */}
+        {labelingMenu && selectedPoint && (
+            <LabelingMenu 
+                position={labelingMenu} 
+                onSelect={handleSaveLabel}
+                onClose={() => setLabelingMenu(null)}
+            />
+        )}
+        {/* --- FIN CÓDIGO AÑADIDO --- */}
+
       </div>
     </div>
   );
 }
+
