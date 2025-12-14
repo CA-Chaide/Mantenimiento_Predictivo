@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger, SidebarFooter } from "@/components/ui/sidebar";
@@ -6,7 +5,7 @@ import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDateTime } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
-import { format, parseISO, subDays, subYears, differenceInDays } from "date-fns";
+import { format, parseISO, subDays, subYears, differenceInDays, isSameDay } from "date-fns";
 import { Bot, MousePointerClick, Loader } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
@@ -92,16 +91,7 @@ export default function DashboardPage() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleRefresh = () => {
-    // Forzar la recarga eliminando la clave de caché actual
-    if (currentCacheKey) {
-        const { [currentCacheKey]: _, ...rest } = cachedData;
-        setCachedData(rest);
-    }
-    setRefreshKey(prev => prev + 1);
-  };
-
-  // Fetch machines
+  // 1. Fetch de Máquinas (Lo movemos arriba para definir machineList)
   useEffect(() => {
     async function fetchInitialData() {
       try {
@@ -137,14 +127,56 @@ export default function DashboardPage() {
     }
     fetchInitialData();
   }, [toast]);
-  
+
+  // 2. Definición de IDs (AHORA ESTÁN ANTES DE USARSE)
   const machineId = (
     typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
       ? searchParams.get('machine')
       : undefined
   ) as MachineId | undefined;
 
-  // Fetch components when machine changes
+  const componentId = typeof searchParams.get('component') === 'string' ? searchParams.get('component') : undefined;
+
+  // 3. Parseo de Fechas
+  const fromDateString = searchParams.get('from');
+  const toDateString = searchParams.get('to');
+  
+  const { fromDate, toDate } = useMemo(() => {
+    try {
+        const to = toDateString ? parseISO(toDateString) : new Date();
+        const from = fromDateString ? parseISO(fromDateString) : subYears(to, 1);
+        return { fromDate: from, toDate: to };
+    } catch (e) {
+      return { fromDate: subYears(new Date(), 1), toDate: new Date() };
+    }
+  }, [fromDateString, toDateString]);
+
+  const displayRange: DateRange | undefined = useMemo(() => {
+    if (!fromDate || !toDate) return undefined;
+    return { from: fromDate, to: toDate };
+  }, [fromDate, toDate]);
+
+  // 4. Cache Key (Ahora sí puede usar machineId y componentId porque ya existen)
+  const currentCacheKey = useMemo(() => {
+    if (!machineId || !componentId || !displayRange?.from || !displayRange?.to) return null;
+    
+    // Si la fecha final es HOY, usamos un formato que cambia con el tiempo (HH-mm)
+    const isToday = isSameDay(displayRange.to, new Date());
+    const dateFormat = isToday ? 'yyyy-MM-dd-HH-mm' : 'yyyy-MM-dd';
+    
+    return `${machineId}-${componentId}-${format(displayRange.from, 'yyyy-MM-dd')}-${format(displayRange.to, dateFormat)}`;
+  }, [machineId, componentId, displayRange]);
+
+
+  const handleRefresh = () => {
+    if (currentCacheKey) {
+        const { [currentCacheKey]: _, ...rest } = cachedData;
+        setCachedData(rest);
+    }
+    setRefreshKey(prev => prev + 1);
+  };
+
+  // 5. Fetch componentes cuando cambia la máquina
   useEffect(() => {
     async function fetchComponents() {
       if (!machineId) {
@@ -169,9 +201,7 @@ export default function DashboardPage() {
               };
             });
 
-          // Eliminar duplicados basados en el `id` corregido
           const uniqueComponents = Array.from(new Map(transformedComponents.map(c => [c.id, c])).values());
-          
           setComponentList(uniqueComponents);
         } else {
           console.error("Formato de respuesta inesperado para componentes:", response);
@@ -184,32 +214,8 @@ export default function DashboardPage() {
     }
     fetchComponents();
   }, [machineId]);
-
-  const componentId = typeof searchParams.get('component') === 'string' ? searchParams.get('component') : undefined;
   
-  const fromDateString = searchParams.get('from');
-  const toDateString = searchParams.get('to');
-  
-  const { fromDate, toDate } = useMemo(() => {
-    try {
-        const to = toDateString ? parseISO(toDateString) : new Date();
-        const from = fromDateString ? parseISO(fromDateString) : subYears(to, 1);
-        return { fromDate: from, toDate: to };
-    } catch (e) {
-      return { fromDate: subYears(new Date(), 1), toDate: new Date() };
-    }
-  }, [fromDateString, toDateString]);
-
-  const displayRange: DateRange | undefined = useMemo(() => {
-    if (!fromDate || !toDate) return undefined;
-    return { from: fromDate, to: toDate };
-  }, [fromDate, toDate]);
-
-  const currentCacheKey = useMemo(() => machineId && componentId && displayRange?.from && displayRange?.to
-    ? `${machineId}-${componentId}-${format(displayRange.from, 'yyyy-MM-dd')}-${format(displayRange.to, 'yyyy-MM-dd')}`
-    : null, [machineId, componentId, displayRange]);
-
-  // Load real data when component or date range is selected
+  // 6. Carga de datos reales
   useEffect(() => {
     async function loadChartData() {
       setNoDataAvailable(false);
@@ -220,7 +226,6 @@ export default function DashboardPage() {
       }
       
       if (cachedData[currentCacheKey]) {
-          // Data is already in cache, no need to fetch again
           return;
       }
 
@@ -236,7 +241,6 @@ export default function DashboardPage() {
           return;
         }
 
-        // Dynamic projection duration
         const dateDiff = differenceInDays(displayRange.to, displayRange.from);
         const projectionDays = dateDiff <= 31 ? 30 : 90;
 
@@ -250,7 +254,6 @@ export default function DashboardPage() {
             setLoadingProgress(progress);
             if (progress < 100) {
               const aggregatedData = aggregateDataByDateTime(partialData);
-              // Update cache with partial data for responsive UI
               setCachedData(prev => ({...prev, [currentCacheKey]: aggregatedData }));
             }
             if (partialData.length > 0) {
@@ -283,11 +286,11 @@ export default function DashboardPage() {
     }
 
     loadChartData();
-  }, [machineId, componentId, fromDate, toDate, componentList, toast, refreshKey, currentCacheKey]); // No 'cachedData'
+  }, [machineId, componentId, fromDate, toDate, componentList, toast, refreshKey, currentCacheKey]);
 
   const chartData = currentCacheKey ? cachedData[currentCacheKey] || [] : [];
   
-  // Early return after all hooks
+  // Renderizado
   if (loading) {
     return (
       <SidebarProvider>
@@ -362,13 +365,14 @@ export default function DashboardPage() {
               {chartLoading && chartData.length > 0 && (
                 <div className="absolute top-0 left-0 right-0 z-10 bg-slate-50/80 backdrop-blur-sm h-full flex items-center justify-center">
                     <div className="text-center">
-                         <Loader className="mx-auto h-12 w-12 animate-spin text-primary" />
-                         <p className="mt-2 text-sm font-semibold text-slate-600">Recalculando Proyección...</p>
+                          <Loader className="mx-auto h-12 w-12 animate-spin text-primary" />
+                          <p className="mt-2 text-sm font-semibold text-slate-600">Recalculando Proyección...</p>
                     </div>
                 </div>
               )}
               <div className={chartLoading ? "opacity-30" : ""}>
                 <DashboardClient
+                  key={currentCacheKey}
                   machineComponents={selectedComponent ? [selectedComponent] : []}
                   data={chartData}
                   aprilData={[]}

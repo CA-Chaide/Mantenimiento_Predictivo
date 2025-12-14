@@ -1,5 +1,3 @@
-
-
 import { format, formatISO, parseISO, addDays, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -62,7 +60,6 @@ export type RawDataRecord = {
   };
 
 // --- RED DE SEGURIDAD: VALORES MANUALES ---
-// Se usará SOLO si la columna de la base de datos sigue fallando o viene vacía.
 function getManualCurrentLimit(componentName: string, machineId: string): number | null {
     const name = componentName.toLowerCase();
     
@@ -415,7 +412,13 @@ export async function useRealMaintenanceData(
     }
   
     const startDate = format(dateRange.from, 'yyyy-MM-dd');
-    const endDate = format(dateRange.to, 'yyyy-MM-dd');
+    
+    // Check if the 'to' date includes a time component, indicating a request for "up to now"
+    const hasTime = dateRange.to.getHours() > 0 || dateRange.to.getMinutes() > 0 || dateRange.to.getSeconds() > 0;
+    
+    // Format the end date for the API call
+    const endDate = hasTime ? dateRange.to.toISOString() : format(dateRange.to, 'yyyy-MM-dd');
+
     const dateDiff = differenceInDays(dateRange.to, dateRange.from);
     const useMonthlyAggregation = dateDiff > 365;
   
