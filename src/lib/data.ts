@@ -1,5 +1,6 @@
 
-import { format, formatISO, parseISO, addDays, differenceInDays, isSameDay } from 'date-fns';
+// Agregamos 'endOfDay' a los imports
+import { format, formatISO, parseISO, addDays, differenceInDays, isSameDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 
@@ -412,15 +413,13 @@ export async function useRealMaintenanceData(
       return { data: [] };
     }
 
-    // --- SOLUCIÓN: Asegurar que 'to' siempre sea la fecha/hora actual si es hoy ---
-    if (isSameDay(dateRange.to, new Date())) {
-        dateRange.to = new Date();
-    }
-  
-    const startDate = format(dateRange.from, 'yyyy-MM-dd');
-    const endDate = dateRange.to.toISOString();
+    // Robust 'to' date handling
+    const toDate = isSameDay(dateRange.to, new Date()) ? new Date() : endOfDay(dateRange.to);
 
-    const dateDiff = differenceInDays(dateRange.to, dateRange.from);
+    const startDate = format(dateRange.from, 'yyyy-MM-dd HH:mm:ss');
+    const endDate = format(toDate, 'yyyy-MM-dd HH:mm:ss');
+
+    const dateDiff = differenceInDays(toDate, dateRange.from);
     const useMonthlyAggregation = dateDiff > 365;
   
     let allData: RawDataRecord[] = [];
@@ -528,3 +527,5 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
+
+    
