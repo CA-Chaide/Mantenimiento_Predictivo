@@ -274,6 +274,8 @@ const legendTooltips: Record<string, string> = {
     "Proyección Optimista": "Escenario de degradación lenta (regresión lineal con pendiente reducida).",
     "Banda Superior (+2σ)": "Límite superior del rango de operación normal (Referencia + 2 desviaciones estándar).",
     "Banda Inferior (-2σ)": "Límite inferior del rango de operación normal (Referencia - 2 desviaciones estándar).",
+    "±1 Sigma": "Rango que contiene ~68% de la variabilidad normal de los datos.",
+    "±2 Sigma": "Rango que contiene ~95% de la variabilidad normal de los datos. Puntos fuera pueden ser anomalías.",
 };
 
 const renderLegendText = (value: string, entry: any) => {
@@ -413,16 +415,18 @@ export function MetricChart({
               connectNulls={false}
             />
 
-            {referenceKey && (<Line type="monotone" dataKey={referenceKey as string} name="Referencia" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls={true} />)}
-            <Line type="monotone" dataKey={limitKey as string} name={limitLabel} stroke="#dc2626" strokeWidth={2} dot={false} connectNulls={true} />
-            <Line type="monotone" dataKey={predictionKey.toString()} name="Proyección Tendencia" stroke="#9333ea" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} />
-            <Line type="monotone" dataKey={predictionPesimisticKey.toString()} name="Proyección Pesimista" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} />
-            <Line type="monotone" dataKey={predictionOptimisticKey.toString()} name="Proyección Optimista" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} />
+            {referenceKey && (<Line type="monotone" dataKey={referenceKey as string} name="Referencia" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls={true} isAnimationActive={false} />)}
+            <Line type="monotone" dataKey={limitKey as string} name={limitLabel} stroke="#dc2626" strokeWidth={2} dot={false} connectNulls={true} isAnimationActive={false} />
+            <Line type="monotone" dataKey={predictionKey.toString()} name="Proyección Tendencia" stroke="#9333ea" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey={predictionPesimisticKey.toString()} name="Proyección Pesimista" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey={predictionOptimisticKey.toString()} name="Proyección Optimista" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} isAnimationActive={false} />
 
             {metric === 'current' && (
               <>
-                <Line type="monotone" dataKey="banda_superior_2sigma" name="Banda Superior (+2σ)" stroke="#a1a1aa" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} />
-                <Line type="monotone" dataKey="banda_inferior_2sigma" name="Banda Inferior (-2σ)" stroke="#a1a1aa" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} />
+                <Line type="monotone" dataKey="Sigma1_Sup" name="±1 Sigma" stroke="#facc15" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls={true} isAnimationActive={false}/>
+                <Line type="monotone" dataKey="Sigma1_Inf" stroke="#facc15" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls={true} legendType="none" isAnimationActive={false}/>
+                <Line type="monotone" dataKey="Sigma2_Sup" name="±2 Sigma" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="5 5" dot={false} connectNulls={true} isAnimationActive={false}/>
+                <Line type="monotone" dataKey="Sigma2_Inf" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="5 5" dot={false} connectNulls={true} legendType="none" isAnimationActive={false}/>
               </>
             )}
             

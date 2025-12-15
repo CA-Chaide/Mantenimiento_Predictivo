@@ -42,6 +42,12 @@ export type ChartDataPoint = {
 
   "banda_superior_2sigma"?: number | null;
   "banda_inferior_2sigma"?: number | null;
+  
+  "Sigma1_Sup"?: number | null;
+  "Sigma1_Inf"?: number | null;
+  "Sigma2_Sup"?: number | null;
+  "Sigma2_Inf"?: number | null;
+
 
   [key: string]: any; 
 };
@@ -103,6 +109,32 @@ function getManualCurrentLimit(componentName: string, machineId: string): number
     return null;
 }
 // -----------------------------------------------------
+
+/**
+ * Función auxiliar para obtener la desviación estándar del promedio desde la API.
+ * @param calculosService - El servicio para realizar la llamada a la API.
+ * @param params - Parámetros necesarios para la llamada (Máquina, Componente, Fechas).
+ * @returns El valor numérico de la desviación estándar o 0 si no se encuentra.
+ */
+async function getStandardDeviation(
+  calculosService: any,
+  params: {
+    Maquina: string;
+    Componente: string;
+    FechaInicio: string;
+    FechaFin: string;
+  }
+): Promise<number> {
+  try {
+    const response = await calculosService.getDeviationsByMachineAndComponents(params);
+    if (response.data && response.data.length > 0 && response.data[0].Desv_PromedioSuavizado) {
+      return response.data[0].Desv_PromedioSuavizado;
+    }
+  } catch (error) {
+    console.error("Error fetching standard deviation:", error);
+  }
+  return 0;
+}
 
 export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[] {
     if (!rawData || rawData.length === 0) {
@@ -417,11 +449,14 @@ export async function useRealMaintenanceData(
       return { data: [] };
     }
 
+    // --- Lógica de Fecha Fin Definitiva ---
+    // Si la fecha de fin es hoy, usa la hora actual. Si es un día pasado, usa el final de ese día.
     const toDate = isSameDay(dateRange.to, new Date()) ? new Date() : endOfDay(dateRange.to);
     const fromDate = dateRange.from;
   
     const startDate = format(fromDate, 'yyyy-MM-dd HH:mm:ss');
     const endDate = format(toDate, 'yyyy-MM-dd HH:mm:ss');
+
 
     const dateDiff = differenceInDays(toDate, fromDate);
     const useMonthlyAggregation = dateDiff > 365;
@@ -464,37 +499,31 @@ export async function useRealMaintenanceData(
         throw error;
     }
 
-    let desvPromedioSuavizado = 0;
-    try {
-      const deviationsResponse = await calculosService.getDeviationsByMachineAndComponents({
-          Maquina: machineId,
-          Componente: component.originalName,
-          FechaInicio: startDate,
-          FechaFin: endDate,
-      });
-
-      if (deviationsResponse.data && deviationsResponse.data.length > 0) {
-        desvPromedioSuavizado = deviationsResponse.data[0].Desv_PromedioSuavizado || 0;
-      }
-    } catch (error) {
-        console.error("Error fetching deviations data:", error);
-    }
+    const sigma = await getStandardDeviation(calculosService, {
+      Maquina: machineId,
+      Componente: component.originalName,
+      FechaInicio: startDate,
+      FechaFin: endDate,
+    });
     
     const aggregatedData = useMonthlyAggregation
       ? aggregateDataByMonth(allData)
       : aggregateDataByDateTime(allData);
 
-    const K_SIGMA = 2;
     aggregatedData.forEach(point => {
         if (point['Corriente Máxima'] === null) {
             point['Corriente Máxima'] = getManualCurrentLimit(component.name, machineId);
         }
         if (typeof point['Referencia Corriente Promedio Suavizado'] === 'number') {
-            point['banda_superior_2sigma'] = point['Referencia Corriente Promedio Suavizado'] + (K_SIGMA * desvPromedioSuavizado);
-            point['banda_inferior_2sigma'] = point['Referencia Corriente Promedio Suavizado'] - (K_SIGMA * desvPromedioSuavizado);
+            point['Sigma1_Sup'] = point['Referencia Corriente Promedio Suavizado'] + (1 * sigma);
+            point['Sigma1_Inf'] = point['Referencia Corriente Promedio Suavizado'] - (1 * sigma);
+            point['Sigma2_Sup'] = point['Referencia Corriente Promedio Suavizado'] + (2 * sigma);
+            point['Sigma2_Inf'] = point['Referencia Corriente Promedio Suavizado'] - (2 * sigma);
         } else {
-            point['banda_superior_2sigma'] = null;
-            point['banda_inferior_2sigma'] = null;
+            point['Sigma1_Sup'] = null;
+            point['Sigma1_Inf'] = null;
+            point['Sigma2_Sup'] = null;
+            point['Sigma2_Inf'] = null;
         }
     });
   
@@ -539,9 +568,11 @@ export async function useRealMaintenanceData(
           projectionPoint['Referencia Factor De Carga Suavizado'] = lastRealPoint['Referencia Factor De Carga Suavizado'];
           
           // Carry over sigma bands
-          projectionPoint['banda_superior_2sigma'] = lastRealPoint['banda_superior_2sigma'];
-          projectionPoint['banda_inferior_2sigma'] = lastRealPoint['banda_inferior_2sigma'];
-  
+          projectionPoint['Sigma1_Sup'] = lastRealPoint['Sigma1_Sup'];
+          projectionPoint['Sigma1_Inf'] = lastRealPoint['Sigma1_Inf'];
+          projectionPoint['Sigma2_Sup'] = lastRealPoint['Sigma2_Sup'];
+          projectionPoint['Sigma2_Inf'] = lastRealPoint['Sigma2_Inf'];
+
           aggregatedData.push(projectionPoint);
         }
     }
@@ -558,5 +589,3 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
-
-    
