@@ -269,9 +269,9 @@ const legendTooltips: Record<string, string> = {
     "Referencia": "Línea base de operación normal.",
     "Corriente Max": "Límite máximo operativo seguro.",
     "Umbral Max": "Límite máximo operativo seguro.",
-    "Proyección Tendencia": "Estimación futura.",
-    "Proyección Pesimista": "Escenario de degradación acelerada.",
-    "Proyección Optimista": "Escenario de degradación lenta.",
+    "Proyección Tendencia": "Estimación futura basada en una regresión lineal de los datos históricos.",
+    "Proyección Pesimista": "Escenario de degradación acelerada (regresión lineal con pendiente aumentada).",
+    "Proyección Optimista": "Escenario de degradación lenta (regresión lineal con pendiente reducida).",
     "Banda Superior (+2σ)": "Límite superior del rango de operación normal (Referencia + 2 desviaciones estándar).",
     "Banda Inferior (-2σ)": "Límite inferior del rango de operación normal (Referencia - 2 desviaciones estándar).",
 };
