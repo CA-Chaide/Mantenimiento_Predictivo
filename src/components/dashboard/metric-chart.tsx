@@ -353,56 +353,13 @@ export function MetricChart({
               </linearGradient>
             </defs>
 
-            {/* --- BANDAS DE CONTROL SIGMA (ÁREAS) --- */}
+            {/* --- BANDAS DE CONTROL SIGMA --- */}
             {metric === 'current' && (
               <>
-                <Area 
-                  type="monotone" 
-                  dataKey="Sigma2_Sup" 
-                  stackId="sigma2" 
-                  stroke="none" 
-                  fill="#facc15" 
-                  fillOpacity={0.2} 
-                  name="±2 Sigma" 
-                  isAnimationActive={false} 
-                  connectNulls={true}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey={(p) => (p.Sigma2_Inf !== null && p.Sigma2_Inf! < 0 ? 0 : p.Sigma2_Inf)}
-                  stackId="sigma2" 
-                  stroke="none" 
-                  fill="#facc15" 
-                  fillOpacity={0.2} 
-                  name="±2 Sigma" 
-                  isAnimationActive={false} 
-                  connectNulls={true}
-                  legendType="none"
-                />
-
-                <Area 
-                  type="monotone" 
-                  dataKey="Sigma1_Sup" 
-                  stackId="sigma1" 
-                  stroke="none" 
-                  fill="#22c55e" 
-                  fillOpacity={0.3} 
-                  name="±1 Sigma" 
-                  isAnimationActive={false} 
-                  connectNulls={true}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey={(p) => (p.Sigma1_Inf !== null && p.Sigma1_Inf! < 0 ? 0 : p.Sigma1_Inf)}
-                  stackId="sigma1" 
-                  stroke="none" 
-                  fill="#22c55e" 
-                  fillOpacity={0.3} 
-                  name="±1 Sigma" 
-                  isAnimationActive={false} 
-                  connectNulls={true}
-                  legendType="none"
-                />
+                <Line type="monotone" dataKey="Sigma2_Sup" name="±2 Sigma" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={true} legendType="none"/>
+                <Line type="monotone" dataKey="Sigma2_Inf" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={true} legendType="none"/>
+                <Line type="monotone" dataKey="Sigma1_Sup" name="±1 Sigma" stroke="#22c55e" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={true} legendType="none"/>
+                <Line type="monotone" dataKey="Sigma1_Inf" stroke="#22c55e" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={true} legendType="none"/>
               </>
             )}
 
@@ -429,3 +386,5 @@ export function MetricChart({
     </div>
   );
 }
+
+    
