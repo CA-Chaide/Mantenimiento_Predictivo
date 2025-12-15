@@ -81,34 +81,24 @@ const LabelingMenu = ({
   onSelect: (category: string, failure: { id: string; name: string }) => void;
   onClose: () => void;
 }) => {
-  // Estados de navegación
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<{ id: string, name: string } | null>(null);
-  
-  // Estado para la posición visual (calculada)
   const [menuStyle, setMenuStyle] = useState({ top: position.y, left: position.x, opacity: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Lógica de Posicionamiento Inteligente (Se ejecuta antes de pintar)
   useLayoutEffect(() => {
     if (menuRef.current) {
-      const menuRect = menuRef.current.getBoundingClientRect();
       const screenWidth = window.innerWidth;
       const screenHeight = window.innerHeight;
-      
       let newLeft = position.x;
       let newTop = position.y;
 
-      // 1. AJUSTE HORIZONTAL: Si se sale por la derecha, lo mostramos a la izquierda
-      if (position.x + 320 > screenWidth) { // 320px es un ancho seguro estimado
-        newLeft = position.x - 300; // Restamos el ancho del menú aprox
+      if (position.x + 320 > screenWidth) {
+        newLeft = position.x - 300; 
       }
-
-      // 2. AJUSTE VERTICAL: Si se sale por abajo, lo subimos
       if (position.y + 350 > screenHeight) {
-        newTop = screenHeight - 360; // Lo pegamos al borde inferior con margen
+        newTop = screenHeight - 360; 
       }
-
       setMenuStyle({ top: newTop, left: newLeft, opacity: 1 });
     }
   }, [position]); 
@@ -127,14 +117,9 @@ const LabelingMenu = ({
   return (
     <div
       ref={menuRef}
-      style={{ 
-        top: menuStyle.top, 
-        left: menuStyle.left,
-        opacity: menuStyle.opacity 
-      }}
+      style={{ top: menuStyle.top, left: menuStyle.left, opacity: menuStyle.opacity }}
       className="fixed z-[9999] w-[300px] bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-opacity duration-150 font-sans"
     >
-      {/* --- HEADER --- */}
       <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center h-12 flex-shrink-0">
         {activeCategory ? (
           <button 
@@ -146,16 +131,10 @@ const LabelingMenu = ({
         ) : (
           <h3 className="font-semibold text-sm text-slate-800">Clasificar Falla</h3>
         )}
-        
-        <button onClick={onClose} className="text-slate-400 hover:text-red-500 transition-colors">
-          <X size={18} />
-        </button>
+        <button onClick={onClose} className="text-slate-400 hover:text-red-500 transition-colors"><X size={18} /></button>
       </div>
 
-      {/* --- CUERPO --- */}
       <div className="overflow-y-auto max-h-[320px] bg-white min-h-[200px]">
-        
-        {/* VISTA 1: MENU PRINCIPAL */}
         {!activeCategory && (
           <div className="p-2 space-y-1">
             <p className="text-xs text-slate-400 font-medium px-2 py-2">Seleccione el grupo causante:</p>
@@ -175,14 +154,12 @@ const LabelingMenu = ({
           </div>
         )}
 
-        {/* VISTA 2: SUB-MENÚ */}
         {activeCategory && currentCategoryData && (
           <div className="p-2">
             <div className="px-3 py-2 bg-slate-50 rounded-md mb-2 border border-slate-100 flex items-center gap-2">
                 <span>{currentCategoryData.icon}</span>
                 <span className="text-xs font-bold text-slate-700">{currentCategoryData.label}</span>
             </div>
-            
             <div className="space-y-1">
                 {currentCategoryData.items.map((item: any) => {
                     const isSelected = selectedItem?.id === item.id;
@@ -191,9 +168,7 @@ const LabelingMenu = ({
                             key={item.id}
                             onClick={() => setSelectedItem(item)}
                             className={`w-full text-left px-3 py-2.5 text-xs rounded-md transition-all duration-200 border flex items-center gap-2 ${
-                            isSelected 
-                                ? "bg-blue-50 border-blue-500 text-blue-700 font-medium shadow-sm" 
-                                : "bg-white border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                            isSelected ? "bg-blue-50 border-blue-500 text-blue-700 font-medium shadow-sm" : "bg-white border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                             }`}
                         >
                             <div className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-slate-300'}`}>
@@ -208,15 +183,9 @@ const LabelingMenu = ({
         )}
       </div>
 
-      {/* --- FOOTER --- */}
       {activeCategory && (
         <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2 flex-shrink-0">
-            <Button 
-                size="sm" 
-                onClick={handleConfirm}
-                disabled={!selectedItem} 
-                className={`text-xs h-9 w-full transition-all shadow-sm ${selectedItem ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-            >
+            <Button size="sm" onClick={handleConfirm} disabled={!selectedItem} className={`text-xs h-9 w-full transition-all shadow-sm ${selectedItem ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
                 {selectedItem ? 'Guardar Clasificación' : 'Seleccione una opción'}
             </Button>
         </div>
@@ -269,12 +238,12 @@ const legendTooltips: Record<string, string> = {
     "Referencia": "Línea base de operación normal.",
     "Corriente Max": "Límite máximo operativo seguro.",
     "Umbral Max": "Límite máximo operativo seguro.",
+    "Desv. Estándar": "Desviación Estándar de la Corriente para el período.",
+    "±1 Sigma": "Rango de operación normal (68% de los datos).",
+    "±2 Sigma": "Rango de alerta (95% de los datos).",
     "Proyección Tendencia": "Estimación futura basada en una regresión lineal de los datos históricos.",
-    "Proyección Pesimista": "Escenario de degradación acelerada (regresión lineal con pendiente aumentada).",
-    "Proyección Optimista": "Escenario de degradación lenta (regresión lineal con pendiente reducida).",
-    "Desviación Estándar": "Valor de la desviación estándar (Sigma) para el período seleccionado.",
-    "Banda de Control (±2σ)": "Límites estadísticos normales (Referencia ± 2 desviaciones). Puntos fuera indican anomalías.",
-    "Zona de Alerta (±1σ)": "Rango de operación que requiere atención (Referencia ± 1 desviación estándar).",
+    "Proyección Pesimista": "Escenario de degradación acelerada.",
+    "Proyección Optimista": "Escenario de degradación lenta.",
 };
 
 const renderLegendText = (value: string, entry: any) => {
@@ -312,10 +281,8 @@ export function MetricChart({
   const [labelingMenu, setLabelingMenu] = useState<{ x: number, y: number } | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<any>(null);
 
-  // Manejador: Guardar en BD / API
   const handleSaveLabel = (category: string, failure: { id: string; name: string }) => {
     if (!selectedPoint || !selectedPoint.payload) return;
-    
     const payload = {
       timestamp: selectedPoint.payload.date,
       sensor_value: selectedPoint.value,
@@ -330,28 +297,18 @@ export function MetricChart({
         component_id: componentId
       }
     };
-    
     console.log("🟢 PAYLOAD GENERADO:", payload);
     setLabelingMenu(null);
     setSelectedPoint(null);
   };
   
-  // Manejador: Click en el Gráfico
   const handleChartClick = (state: any, event: any) => {
-    // 🔒 RESTRICCIÓN: Solo permitir interacción si es la gráfica de CORRIENTE
     if (metric !== 'current') return;
-
-    if (labelingMenu) {
-        setLabelingMenu(null);
-        return;
-    }
-
+    if (labelingMenu) { setLabelingMenu(null); return; }
     if (state && state.activePayload && state.activePayload.length > 0) {
         const mainData = state.activePayload.find((p: any) => p.dataKey === valueKey) || state.activePayload[0];
         if (!mainData) return;
-
         const e = event || state.event; 
-        
         if (e) {
              const clientX = e.clientX;
              const clientY = e.clientY;
@@ -380,7 +337,6 @@ export function MetricChart({
             <XAxis dataKey="date" tickFormatter={tickFormatter} tick={{ fill: '#64748b' }} stroke="#e2e8f0" interval="preserveStartEnd" minTickGap={80} />
             <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b' }} tick={{ fill: '#64748b' }} stroke="#e2e8f0" domain={['dataMin - 1', 'auto']} allowDataOverflow={true} />
             
-            {/* Tooltip con pointerEvents: none para no bloquear el clic */}
             <RechartsTooltip 
                 content={<CustomTooltip />} 
                 cursor={{ stroke: '#0ea5e9', strokeWidth: 2 }}
@@ -396,114 +352,35 @@ export function MetricChart({
               </linearGradient>
             </defs>
 
-            <Area
-              type="monotone"
-              dataKey={(point) => point.isProjection ? null : point[valueKey]}
-              name="Promedio Diario"
-              stroke="#0284c7"
-              fillOpacity={1}
-              fill={`url(#color${metric})`}
-              strokeWidth={2}
-              activeDot={{
-                r: 6,
-                // Solo mostrar cursor de mano si es 'current'
-                className: metric === 'current' ? "cursor-pointer" : "",
-                strokeWidth: 0
-              }}
-              dot={false}
-              connectNulls={false}
-            />
+            <Area type="monotone" dataKey={(point) => point.isProjection ? null : point[valueKey]} name="Promedio Diario" stroke="#0284c7" fillOpacity={1} fill={`url(#color${metric})`} strokeWidth={2} activeDot={{ r: 6, className: metric === 'current' ? "cursor-pointer" : "", strokeWidth: 0 }} dot={false} connectNulls={false} />
 
             {referenceKey && (<Line type="monotone" dataKey={referenceKey as string} name="Referencia" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls={true} isAnimationActive={false} />)}
             <Line type="monotone" dataKey={limitKey as string} name={limitLabel} stroke="#dc2626" strokeWidth={2} dot={false} connectNulls={true} isAnimationActive={false} />
+            
+            {/* --- BANDAS DE CONTROL SIGMA --- */}
+            {metric === 'current' && (
+              <>
+                <Line type="monotone" dataKey="Desv_PromedioSuavizado" name="Desv. Estándar" stroke="#964B00" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} isAnimationActive={false}/>
+                {/* 2 Sigma */}
+                <Line type="monotone" dataKey="Sigma2_Sup" name="±2 Sigma" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={true} isAnimationActive={false} />
+                <Line type="monotone" dataKey="Sigma2_Inf" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={true} legendType="none" isAnimationActive={false} />
+                {/* 1 Sigma */}
+                <Line type="monotone" dataKey="Sigma1_Sup" name="±1 Sigma" stroke="#facc15" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} isAnimationActive={false} />
+                <Line type="monotone" dataKey="Sigma1_Inf" stroke="#facc15" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} legendType="none" isAnimationActive={false} />
+              </>
+            )}
+
             <Line type="monotone" dataKey={predictionKey.toString()} name="Proyección Tendencia" stroke="#9333ea" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} isAnimationActive={false} />
             <Line type="monotone" dataKey={predictionPesimisticKey.toString()} name="Proyección Pesimista" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} isAnimationActive={false} />
             <Line type="monotone" dataKey={predictionOptimisticKey.toString()} name="Proyección Optimista" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} isAnimationActive={false} />
 
-            {metric === 'current' && (
-              <>
-                {/* --- LÍNEA DE DESVIACIÓN ESTÁNDAR --- */}
-                <Line 
-                  type="monotone" 
-                  dataKey="Desv_PromedioSuavizado" 
-                  name="Desviación Estándar"
-                  stroke="#964B00" // Color Marrón
-                  strokeWidth={1.5}
-                  strokeDasharray="3 3"
-                  dot={false}
-                  connectNulls={true} 
-                  isAnimationActive={false}
-                />
-
-                {/* --- BANDAS DE 2 SIGMA (Límites Externos) --- */}
-                <Line 
-                  type="monotone" 
-                  dataKey="Sigma2_Sup" 
-                  name="Banda de Control (±2σ)" 
-                  stroke="#ef4444" 
-                  strokeOpacity={0.8}
-                  strokeWidth={2} 
-                  strokeDasharray="8 8" 
-                  dot={false} 
-                  connectNulls={true} 
-                  isAnimationActive={false}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Sigma2_Inf" 
-                  stroke="#ef4444" 
-                  strokeOpacity={0.8}
-                  strokeWidth={2} 
-                  strokeDasharray="8 8" 
-                  dot={false} 
-                  connectNulls={true} 
-                  legendType="none" 
-                  isAnimationActive={false}
-                />
-
-                {/* --- BANDAS DE 1 SIGMA (Zona Interna) --- */}
-                <Line 
-                  type="monotone" 
-                  dataKey="Sigma1_Sup" 
-                  name="Zona de Alerta (±1σ)" 
-                  stroke="#f97316" 
-                  strokeOpacity={0.7} 
-                  strokeWidth={1.5} 
-                  strokeDasharray="5 5" 
-                  dot={false} 
-                  connectNulls={true} 
-                  isAnimationActive={false}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Sigma1_Inf" 
-                  stroke="#f97316" 
-                  strokeOpacity={0.7} 
-                  strokeWidth={1.5}
-                  strokeDasharray="5 5" 
-                  dot={false} 
-                  connectNulls={true} 
-                  legendType="none"
-                  isAnimationActive={false}
-                />
-              </>
-            )}
-            
           </ComposedChart>
         </ResponsiveContainer>
         
-        {/* Renderizado del Menú (Smart Positioning) */}
         {labelingMenu && selectedPoint && (
-            <LabelingMenu 
-                position={labelingMenu} 
-                onSelect={handleSaveLabel}
-                onClose={() => setLabelingMenu(null)}
-            />
+            <LabelingMenu position={labelingMenu} onSelect={handleSaveLabel} onClose={() => setLabelingMenu(null)} />
         )}
-
       </div>
     </div>
   );
 }
-
-    

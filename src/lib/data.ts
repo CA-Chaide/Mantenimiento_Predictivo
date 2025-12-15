@@ -37,13 +37,12 @@ export type ChartDataPoint = {
   "proyeccion_factor_carga_pesimista"?: number | null;
   "proyeccion_factor_carga_optimista"?: number | null;
 
-  "Desv_PromedioSuavizado"?: number | null;
-  
+  // Nuevas propiedades para las bandas
   "Sigma1_Sup"?: number | null;
   "Sigma1_Inf"?: number | null;
   "Sigma2_Sup"?: number | null;
   "Sigma2_Inf"?: number | null;
-
+  "Desv_PromedioSuavizado"?: number | null;
 
   [key: string]: any; 
 };
@@ -106,7 +105,7 @@ function getManualCurrentLimit(componentName: string, machineId: string): number
 }
 
 /**
- * Función auxiliar para obtener la desviación estándar del promedio desde la API.
+ * Función auxiliar para obtener la desviación estándar.
  */
 async function getStandardDeviation(
   calculosService: any,
@@ -119,7 +118,6 @@ async function getStandardDeviation(
 ): Promise<number> {
   try {
     const response = await calculosService.getDeviationsByMachineAndComponents(params);
-    // Validación robusta: Verificamos data, longitud y propiedad
     if (response?.data?.[0]?.Desv_PromedioSuavizado !== undefined) {
       const val = Number(response.data[0].Desv_PromedioSuavizado);
       return isNaN(val) ? 0 : val;
@@ -220,6 +218,8 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
         "Factor De Carga Suavizado": metrics.load_factor.count > 0 ? metrics.load_factor.sum / metrics.load_factor.count : null,
         "Referencia Factor De Carga Suavizado": metrics.refLoadFactor.count > 0 ? metrics.refLoadFactor.sum / metrics.refLoadFactor.count : null,
         "Umbral Factor Carga": metrics.load_factor_limit.count > 0 ? metrics.load_factor_limit.sum / metrics.load_factor_limit.count : null,
+        // Inicializar nulos para que Recharts detecte las llaves
+        "Sigma1_Sup": null, "Sigma1_Inf": null, "Sigma2_Sup": null, "Sigma2_Inf": null, "Desv_PromedioSuavizado": null
       };
     });
 
@@ -233,7 +233,6 @@ export function aggregateDataByDateTime(rawData: RawDataRecord[]): ChartDataPoin
 
     const groupedByHour = rawData.reduce((acc, record) => {
         if (!record.date) return acc;
-        // Group by YYYY-MM-DD HH
         const hourKey = format(parseISO(record.date), 'yyyy-MM-dd HH');
         if (!acc[hourKey]) {
             acc[hourKey] = { records: [], componentId: record.componentId };
@@ -293,7 +292,7 @@ export function aggregateDataByDateTime(rawData: RawDataRecord[]): ChartDataPoin
         }
         
         const newPoint: ChartDataPoint = {
-            date: format(parseISO(hourKey), "yyyy-MM-dd'T'HH:mm:ss"), // Keep full ISO for sorting
+            date: format(parseISO(hourKey), "yyyy-MM-dd'T'HH:mm:ss"), 
             componentId: group.componentId,
             isProjection: false,
             "Corriente Promedio Suavizado": hourMetrics.current.count > 0 ? hourMetrics.current.sum / hourMetrics.current.count : null,
@@ -305,6 +304,8 @@ export function aggregateDataByDateTime(rawData: RawDataRecord[]): ChartDataPoin
             "Factor De Carga Suavizado": hourMetrics.load_factor.count > 0 ? hourMetrics.load_factor.sum / hourMetrics.load_factor.count : null,
             "Referencia Factor De Carga Suavizado": hourMetrics.refLoadFactor.count > 0 ? hourMetrics.refLoadFactor.sum / hourMetrics.refLoadFactor.count : null,
             "Umbral Factor Carga": loadFactorLimit,
+            // Inicializar nulos para que Recharts detecte las llaves
+            "Sigma1_Sup": null, "Sigma1_Inf": null, "Sigma2_Sup": null, "Sigma2_Inf": null, "Desv_PromedioSuavizado": null
         };
         return newPoint;
     });
@@ -484,14 +485,13 @@ export async function useRealMaintenanceData(
         throw error;
     }
 
+    // --- OBTENER SIGMA ---
     const sigma = await getStandardDeviation(calculosService, {
       Maquina: machineId,
       Componente: component.originalName,
       FechaInicio: startDate,
       FechaFin: endDate,
     });
-    
-    console.log(`📊 ${component.name} - Sigma:`, sigma); 
 
     const aggregatedData = useMonthlyAggregation
       ? aggregateDataByMonth(allData)
@@ -502,16 +502,18 @@ export async function useRealMaintenanceData(
             point['Corriente Máxima'] = getManualCurrentLimit(component.name, machineId);
         }
 
-        const refValue = point['Referencia Corriente Promedio Suavizado'];
-        point['Desv_PromedioSuavizado'] = sigma; // Añadir sigma a cada punto
-        
-        if (typeof refValue === 'number') {
-            const s = Number(sigma) || 0;
-            
-            point['Sigma1_Sup'] = refValue + (1 * s);
-            point['Sigma1_Inf'] = refValue - (1 * s);
-            point['Sigma2_Sup'] = refValue + (2 * s);
-            point['Sigma2_Inf'] = refValue - (2 * s);
+        // --- CÁLCULO DE BANDAS DE CONTROL ---
+        const s = Number(sigma) || 0;
+        point['Desv_PromedioSuavizado'] = s;
+
+        // Utilizamos el valor real medido como línea central
+        const baseValue = point['Corriente Promedio Suavizado'];
+
+        if (typeof baseValue === 'number') {
+            point['Sigma1_Sup'] = baseValue + (1 * s);
+            point['Sigma1_Inf'] = baseValue - (1 * s);
+            point['Sigma2_Sup'] = baseValue + (2 * s);
+            point['Sigma2_Inf'] = baseValue - (2 * s);
         } else {
             point['Sigma1_Sup'] = null;
             point['Sigma1_Inf'] = null;
@@ -551,6 +553,7 @@ export async function useRealMaintenanceData(
               if (config.optimistic && projections[key].optimistic) projectionPoint[config.optimistic as keyof ChartDataPoint] = projections[key].optimistic[i];
           });
   
+          // Mantener límites y referencias constantes en la proyección
           projectionPoint['Corriente Máxima'] = lastRealPoint['Corriente Máxima'];
           projectionPoint['Umbral Desbalance'] = lastRealPoint['Umbral Desbalance'];
           projectionPoint['Umbral Factor Carga'] = lastRealPoint['Umbral Factor Carga'];
@@ -559,11 +562,17 @@ export async function useRealMaintenanceData(
           projectionPoint['Referencia Desbalance Suavizado'] = lastRealPoint['Referencia Desbalance Suavizado'];
           projectionPoint['Referencia Factor De Carga Suavizado'] = lastRealPoint['Referencia Factor De Carga Suavizado'];
           
-          projectionPoint['Desv_PromedioSuavizado'] = sigma; // Mantener sigma en proyección
-          projectionPoint['Sigma1_Sup'] = lastRealPoint['Sigma1_Sup'];
-          projectionPoint['Sigma1_Inf'] = lastRealPoint['Sigma1_Inf'];
-          projectionPoint['Sigma2_Sup'] = lastRealPoint['Sigma2_Sup'];
-          projectionPoint['Sigma2_Inf'] = lastRealPoint['Sigma2_Inf'];
+          // --- EXTENDER BANDAS DE SIGMA EN PROYECCIÓN ---
+          projectionPoint['Desv_PromedioSuavizado'] = sigma;
+
+          // Recalcular bandas para la proyección basado en el valor proyectado
+          const projectedBaseValue = projectionPoint['proyeccion_corriente_tendencia'];
+          if (typeof projectedBaseValue === 'number') {
+            projectionPoint['Sigma1_Sup'] = projectedBaseValue + (1 * sigma);
+            projectionPoint['Sigma1_Inf'] = projectedBaseValue - (1 * sigma);
+            projectionPoint['Sigma2_Sup'] = projectedBaseValue + (2 * sigma);
+            projectionPoint['Sigma2_Inf'] = projectedBaseValue - (2 * sigma);
+          }
 
           aggregatedData.push(projectionPoint);
         }
