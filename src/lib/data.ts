@@ -570,9 +570,9 @@ export async function useRealMaintenanceData(
           const projectedBaseValue = projectionPoint['proyeccion_corriente_tendencia'];
           if (typeof projectedBaseValue === 'number') {
             projectionPoint['Sigma1_Sup'] = projectedBaseValue + (1 * sigma);
-            point['Sigma1_Inf'] = projectedBaseValue - (1 * sigma);
-            point['Sigma2_Sup'] = projectedBaseValue + (2 * sigma);
-            point['Sigma2_Inf'] = projectedBaseValue - (2 * sigma);
+            projectionPoint['Sigma1_Inf'] = projectedBaseValue - (1 * sigma);
+            projectionPoint['Sigma2_Sup'] = projectedBaseValue + (2 * sigma);
+            projectionPoint['Sigma2_Inf'] = projectedBaseValue - (2 * sigma);
           }
 
           aggregatedData.push(projectionPoint);
