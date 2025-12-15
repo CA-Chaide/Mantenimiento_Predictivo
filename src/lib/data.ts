@@ -1,6 +1,3 @@
-
-
-// Agregamos 'endOfDay' a los imports
 import { format, formatISO, parseISO, addDays, differenceInDays, isSameDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -108,13 +105,9 @@ function getManualCurrentLimit(componentName: string, machineId: string): number
 
     return null;
 }
-// -----------------------------------------------------
 
 /**
  * Función auxiliar para obtener la desviación estándar del promedio desde la API.
- * @param calculosService - El servicio para realizar la llamada a la API.
- * @param params - Parámetros necesarios para la llamada (Máquina, Componente, Fechas).
- * @returns El valor numérico de la desviación estándar o 0 si no se encuentra.
  */
 async function getStandardDeviation(
   calculosService: any,
@@ -127,8 +120,10 @@ async function getStandardDeviation(
 ): Promise<number> {
   try {
     const response = await calculosService.getDeviationsByMachineAndComponents(params);
-    if (response.data && response.data.length > 0 && response.data[0].Desv_PromedioSuavizado) {
-      return response.data[0].Desv_PromedioSuavizado;
+    // Validación robusta: Verificamos data, longitud y propiedad
+    if (response?.data?.[0]?.Desv_PromedioSuavizado !== undefined) {
+      const val = Number(response.data[0].Desv_PromedioSuavizado);
+      return isNaN(val) ? 0 : val;
     }
   } catch (error) {
     console.error("Error fetching standard deviation:", error);
@@ -232,12 +227,6 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
     return aggregatedResult.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/**
- * Aggregates raw data records by date and hour to create a single point per hour.
- * This provides a more granular view compared to daily aggregation.
- * @param rawData The raw data from the API.
- * @returns An array of ChartDataPoint, with one point per hour.
- */
 export function aggregateDataByDateTime(rawData: RawDataRecord[]): ChartDataPoint[] {
     if (!rawData || rawData.length === 0) {
         return [];
@@ -449,14 +438,11 @@ export async function useRealMaintenanceData(
       return { data: [] };
     }
 
-    // --- Lógica de Fecha Fin Definitiva ---
-    // Si la fecha de fin es hoy, usa la hora actual. Si es un día pasado, usa el final de ese día.
     const toDate = isSameDay(dateRange.to, new Date()) ? new Date() : endOfDay(dateRange.to);
     const fromDate = dateRange.from;
   
     const startDate = format(fromDate, 'yyyy-MM-dd HH:mm:ss');
     const endDate = format(toDate, 'yyyy-MM-dd HH:mm:ss');
-
 
     const dateDiff = differenceInDays(toDate, fromDate);
     const useMonthlyAggregation = dateDiff > 365;
@@ -499,6 +485,7 @@ export async function useRealMaintenanceData(
         throw error;
     }
 
+    // --- NUEVO: Obtener Sigma y calcular Bandas ---
     const sigma = await getStandardDeviation(calculosService, {
       Maquina: machineId,
       Componente: component.originalName,
@@ -506,6 +493,8 @@ export async function useRealMaintenanceData(
       FechaFin: endDate,
     });
     
+    console.log(`📊 ${component.name} - Sigma:`, sigma); 
+
     const aggregatedData = useMonthlyAggregation
       ? aggregateDataByMonth(allData)
       : aggregateDataByDateTime(allData);
@@ -514,11 +503,17 @@ export async function useRealMaintenanceData(
         if (point['Corriente Máxima'] === null) {
             point['Corriente Máxima'] = getManualCurrentLimit(component.name, machineId);
         }
-        if (typeof point['Referencia Corriente Promedio Suavizado'] === 'number') {
-            point['Sigma1_Sup'] = point['Referencia Corriente Promedio Suavizado'] + (1 * sigma);
-            point['Sigma1_Inf'] = point['Referencia Corriente Promedio Suavizado'] - (1 * sigma);
-            point['Sigma2_Sup'] = point['Referencia Corriente Promedio Suavizado'] + (2 * sigma);
-            point['Sigma2_Inf'] = point['Referencia Corriente Promedio Suavizado'] - (2 * sigma);
+
+        // CÁLCULO DE BANDAS DE CONTROL (Sigma)
+        const refValue = point['Referencia Corriente Promedio Suavizado'];
+        
+        if (typeof refValue === 'number') {
+            const s = Number(sigma) || 0;
+            
+            point['Sigma1_Sup'] = refValue + (1 * s);
+            point['Sigma1_Inf'] = refValue - (1 * s);
+            point['Sigma2_Sup'] = refValue + (2 * s);
+            point['Sigma2_Inf'] = refValue - (2 * s);
         } else {
             point['Sigma1_Sup'] = null;
             point['Sigma1_Inf'] = null;
@@ -558,7 +553,7 @@ export async function useRealMaintenanceData(
               if (config.optimistic && projections[key].optimistic) projectionPoint[config.optimistic as keyof ChartDataPoint] = projections[key].optimistic[i];
           });
   
-          // Carry over last known limits and references to projections
+          // Mantener límites y referencias constantes en la proyección
           projectionPoint['Corriente Máxima'] = lastRealPoint['Corriente Máxima'];
           projectionPoint['Umbral Desbalance'] = lastRealPoint['Umbral Desbalance'];
           projectionPoint['Umbral Factor Carga'] = lastRealPoint['Umbral Factor Carga'];
@@ -567,7 +562,7 @@ export async function useRealMaintenanceData(
           projectionPoint['Referencia Desbalance Suavizado'] = lastRealPoint['Referencia Desbalance Suavizado'];
           projectionPoint['Referencia Factor De Carga Suavizado'] = lastRealPoint['Referencia Factor De Carga Suavizado'];
           
-          // Carry over sigma bands
+          // --- MANTENER BANDAS DE SIGMA EN PROYECCIÓN ---
           projectionPoint['Sigma1_Sup'] = lastRealPoint['Sigma1_Sup'];
           projectionPoint['Sigma1_Inf'] = lastRealPoint['Sigma1_Inf'];
           projectionPoint['Sigma2_Sup'] = lastRealPoint['Sigma2_Sup'];

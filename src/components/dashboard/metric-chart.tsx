@@ -272,10 +272,8 @@ const legendTooltips: Record<string, string> = {
     "Proyección Tendencia": "Estimación futura basada en una regresión lineal de los datos históricos.",
     "Proyección Pesimista": "Escenario de degradación acelerada (regresión lineal con pendiente aumentada).",
     "Proyección Optimista": "Escenario de degradación lenta (regresión lineal con pendiente reducida).",
-    "Banda Superior (+2σ)": "Límite superior del rango de operación normal (Referencia + 2 desviaciones estándar).",
-    "Banda Inferior (-2σ)": "Límite inferior del rango de operación normal (Referencia - 2 desviaciones estándar).",
-    "±1 Sigma": "Rango que contiene ~68% de la variabilidad normal de los datos.",
-    "±2 Sigma": "Rango que contiene ~95% de la variabilidad normal de los datos. Puntos fuera pueden ser anomalías.",
+    "Banda de Control (±2σ)": "Límites estadísticos normales (Referencia ± 2 desviaciones). Puntos fuera indican anomalías.",
+    "Zona de Alerta (±1σ)": "Rango de operación que requiere atención (Referencia ± 1 desviación estándar).",
 };
 
 const renderLegendText = (value: string, entry: any) => {
@@ -423,10 +421,57 @@ export function MetricChart({
 
             {metric === 'current' && (
               <>
-                <Line type="monotone" dataKey="Sigma1_Sup" name="±1 Sigma" stroke="#facc15" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls={true} isAnimationActive={false}/>
-                <Line type="monotone" dataKey="Sigma1_Inf" stroke="#facc15" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls={true} legendType="none" isAnimationActive={false}/>
-                <Line type="monotone" dataKey="Sigma2_Sup" name="±2 Sigma" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="5 5" dot={false} connectNulls={true} isAnimationActive={false}/>
-                <Line type="monotone" dataKey="Sigma2_Inf" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="5 5" dot={false} connectNulls={true} legendType="none" isAnimationActive={false}/>
+                {/* --- BANDAS DE 2 SIGMA (Límites Externos) --- */}
+                <Line 
+                  type="monotone" 
+                  dataKey="Sigma2_Sup" 
+                  name="Banda de Control (±2σ)" 
+                  stroke="#ef4444" 
+                  strokeOpacity={0.8}
+                  strokeWidth={2} 
+                  strokeDasharray="8 8" 
+                  dot={false} 
+                  connectNulls={true} 
+                  isAnimationActive={false}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="Sigma2_Inf" 
+                  stroke="#ef4444" 
+                  strokeOpacity={0.8}
+                  strokeWidth={2} 
+                  strokeDasharray="8 8" 
+                  dot={false} 
+                  connectNulls={true} 
+                  legendType="none" 
+                  isAnimationActive={false}
+                />
+
+                {/* --- BANDAS DE 1 SIGMA (Zona Interna) --- */}
+                <Line 
+                  type="monotone" 
+                  dataKey="Sigma1_Sup" 
+                  name="Zona de Alerta (±1σ)" 
+                  stroke="#f97316" 
+                  strokeOpacity={0.7} 
+                  strokeWidth={1.5} 
+                  strokeDasharray="5 5" 
+                  dot={false} 
+                  connectNulls={true} 
+                  isAnimationActive={false}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="Sigma1_Inf" 
+                  stroke="#f97316" 
+                  strokeOpacity={0.7} 
+                  strokeWidth={1.5}
+                  strokeDasharray="5 5" 
+                  dot={false} 
+                  connectNulls={true} 
+                  legendType="none"
+                  isAnimationActive={false}
+                />
               </>
             )}
             
@@ -446,3 +491,5 @@ export function MetricChart({
     </div>
   );
 }
+
+    
