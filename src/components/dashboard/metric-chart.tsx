@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -217,7 +218,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     let formattedLabel = label;
     try { formattedLabel = format(parseISO(label), "dd MMM HH:mm", { locale: es }); } catch { }
     
-    const relevantPayload = payload.filter((p: any) => p.value !== null && p.value !== undefined);
+    const relevantPayload = payload.filter((p: any) => p.value !== null && p.value !== undefined && p.dataKey !== 'sigma_band_2' && p.dataKey !== 'sigma_band_1');
 
     return (
       <div className="rounded-lg border bg-background p-2 shadow-sm">
@@ -352,22 +353,66 @@ export function MetricChart({
               </linearGradient>
             </defs>
 
+            {/* --- BANDAS DE CONTROL SIGMA (ÁREAS) --- */}
+            {metric === 'current' && (
+              <>
+                <Area 
+                  type="monotone" 
+                  dataKey="Sigma2_Sup" 
+                  stackId="sigma2" 
+                  stroke="none" 
+                  fill="#facc15" 
+                  fillOpacity={0.2} 
+                  name="±2 Sigma" 
+                  isAnimationActive={false} 
+                  connectNulls={true}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey={(p) => (p.Sigma2_Inf !== null && p.Sigma2_Inf! < 0 ? 0 : p.Sigma2_Inf)}
+                  stackId="sigma2" 
+                  stroke="none" 
+                  fill="#facc15" 
+                  fillOpacity={0.2} 
+                  name="±2 Sigma" 
+                  isAnimationActive={false} 
+                  connectNulls={true}
+                  legendType="none"
+                />
+
+                <Area 
+                  type="monotone" 
+                  dataKey="Sigma1_Sup" 
+                  stackId="sigma1" 
+                  stroke="none" 
+                  fill="#22c55e" 
+                  fillOpacity={0.3} 
+                  name="±1 Sigma" 
+                  isAnimationActive={false} 
+                  connectNulls={true}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey={(p) => (p.Sigma1_Inf !== null && p.Sigma1_Inf! < 0 ? 0 : p.Sigma1_Inf)}
+                  stackId="sigma1" 
+                  stroke="none" 
+                  fill="#22c55e" 
+                  fillOpacity={0.3} 
+                  name="±1 Sigma" 
+                  isAnimationActive={false} 
+                  connectNulls={true}
+                  legendType="none"
+                />
+              </>
+            )}
+
             <Area type="monotone" dataKey={(point) => point.isProjection ? null : point[valueKey]} name="Promedio Diario" stroke="#0284c7" fillOpacity={1} fill={`url(#color${metric})`} strokeWidth={2} activeDot={{ r: 6, className: metric === 'current' ? "cursor-pointer" : "", strokeWidth: 0 }} dot={false} connectNulls={false} />
 
             {referenceKey && (<Line type="monotone" dataKey={referenceKey as string} name="Referencia" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls={true} isAnimationActive={false} />)}
             <Line type="monotone" dataKey={limitKey as string} name={limitLabel} stroke="#dc2626" strokeWidth={2} dot={false} connectNulls={true} isAnimationActive={false} />
             
-            {/* --- BANDAS DE CONTROL SIGMA --- */}
             {metric === 'current' && (
-              <>
-                <Line type="monotone" dataKey="Desv_PromedioSuavizado" name="Desv. Estándar" stroke="#964B00" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} isAnimationActive={false}/>
-                {/* 2 Sigma */}
-                <Line type="monotone" dataKey="Sigma2_Sup" name="±2 Sigma" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={true} isAnimationActive={false} />
-                <Line type="monotone" dataKey="Sigma2_Inf" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={true} legendType="none" isAnimationActive={false} />
-                {/* 1 Sigma */}
-                <Line type="monotone" dataKey="Sigma1_Sup" name="±1 Sigma" stroke="#facc15" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} isAnimationActive={false} />
-                <Line type="monotone" dataKey="Sigma1_Inf" stroke="#facc15" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} legendType="none" isAnimationActive={false} />
-              </>
+              <Line type="monotone" dataKey="Desv_PromedioSuavizado" name="Desv. Estándar" stroke="#964B00" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} isAnimationActive={false}/>
             )}
 
             <Line type="monotone" dataKey={predictionKey.toString()} name="Proyección Tendencia" stroke="#9333ea" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} isAnimationActive={false} />
