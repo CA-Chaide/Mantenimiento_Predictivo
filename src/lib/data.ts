@@ -503,24 +503,8 @@ export async function useRealMaintenanceData(
             point['Corriente Máxima'] = getManualCurrentLimit(component.name, machineId);
         }
 
-        // --- CÁLCULO DE BANDAS DE CONTROL ---
-        const s = Number(sigma) || 0;
-        point['Desv_PromedioSuavizado'] = s;
-
-        // Utilizamos el valor real medido como línea central
-        const baseValue = point['Corriente Promedio Suavizado'];
-
-        if (typeof baseValue === 'number') {
-            point['Sigma1_Sup'] = baseValue + (1 * s);
-            point['Sigma1_Inf'] = baseValue - (1 * s);
-            point['Sigma2_Sup'] = baseValue + (2 * s);
-            point['Sigma2_Inf'] = baseValue - (2 * s);
-        } else {
-            point['Sigma1_Sup'] = null;
-            point['Sigma1_Inf'] = null;
-            point['Sigma2_Sup'] = null;
-            point['Sigma2_Inf'] = null;
-        }
+        // Almacenar sigma en cada punto para usar en el gráfico
+        point['Desv_PromedioSuavizado'] = Number(sigma) || 0;
     });
   
     if (aggregatedData.length > 0) {
