@@ -353,16 +353,6 @@ export function MetricChart({
               </linearGradient>
             </defs>
 
-            {/* --- BANDAS DE CONTROL SIGMA --- */}
-            {metric === 'current' && (
-              <>
-                <Line type="monotone" dataKey="Sigma2_Sup" name="±2 Sigma" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={true} legendType="none"/>
-                <Line type="monotone" dataKey="Sigma2_Inf" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={true} legendType="none"/>
-                <Line type="monotone" dataKey="Sigma1_Sup" name="±1 Sigma" stroke="#22c55e" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={true} legendType="none"/>
-                <Line type="monotone" dataKey="Sigma1_Inf" stroke="#22c55e" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={true} legendType="none"/>
-              </>
-            )}
-
             <Area type="monotone" dataKey={(point) => point.isProjection ? null : point[valueKey]} name="Promedio Diario" stroke="#0284c7" fillOpacity={1} fill={`url(#color${metric})`} strokeWidth={2} activeDot={{ r: 6, className: metric === 'current' ? "cursor-pointer" : "", strokeWidth: 0 }} dot={false} connectNulls={false} />
 
             {referenceKey && (<Line type="monotone" dataKey={referenceKey as string} name="Referencia" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls={true} isAnimationActive={false} />)}
@@ -386,5 +376,3 @@ export function MetricChart({
     </div>
   );
 }
-
-    
