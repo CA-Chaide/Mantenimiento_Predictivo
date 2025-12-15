@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -19,31 +18,60 @@ import {
   ComposedChart,
 } from "recharts";
 import { ChartDataPoint } from "@/lib/data";
-import React from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
-// --- INICIO CÓDIGO AÑADIDO ---
-
-// 1. Catálogo de Fallas
+// --- 1. CATÁLOGO DE FALLAS (ESTRUCTURA DE GRUPOS) ---
 const FAILURE_CATALOG = {
-    "Eléctrica": [
-        { id: "sobrecarga_continua", name: "Sobrecarga Continua" },
-        { id: "pico_transitorio", name: "Pico Transitorio" },
-        { id: "desbalance_fases", name: "Desbalance de Fases" },
-    ],
-    "Mecánica": [
-        { id: "atasco_rodamiento", name: "Atasco/Rodamiento" },
-        { id: "vibracion_excesiva", name: "Vibración Excesiva" },
-        { id: "problema_engranaje", name: "Problema de Engranaje" },
-    ],
-    "Operacional": [
-        { id: "uso_indebido", name: "Uso Indebido" },
-        { id: "condicion_externa", name: "Condición Externa" },
-    ]
+    "Mecánico": {
+        icon: "⚙️",
+        label: "Mecánico (Integridad del equipo)",
+        items: [
+            { id: "mec_atascamiento", name: "Atascamiento" },
+            { id: "mec_desgaste", name: "Daño o Desgaste" },
+            { id: "mec_alineacion", name: "Alineación Incorrecta" },
+            { id: "mec_lubricacion", name: "Lubricación Inadecuada" },
+            { id: "mec_desbalance", name: "Desbalance / Rotor desbalanceado" },
+            { id: "mec_friccion", name: "Aumento de fricción / Fricción adicional" },
+            { id: "mec_envejecimiento", name: "Envejecimiento" },
+        ]
+    },
+    "Eléctrico": {
+        icon: "⚡",
+        label: "Eléctrico & Control",
+        items: [
+            { id: "ele_cortocircuito", name: "Cortocircuito" },
+            { id: "ele_fase", name: "Falla en una fase" },
+            { id: "ele_conexiones", name: "Conexiones erróneas / Fallo conexión" },
+            { id: "ele_alimentacion", name: "Alimentación" },
+            { id: "ele_sensor", name: "Falla en sensor / Error en el valor" },
+        ]
+    },
+    "Operacional": {
+        icon: "⚖️",
+        label: "Operación & Carga",
+        items: [
+            { id: "ope_sobrecarga", name: "Sobrecarga (de corriente o mecánica)" },
+            { id: "ope_variacion", name: "Variación Brusca" },
+            { id: "ope_arranques", name: "Arranques frecuentes" },
+            { id: "ope_carga_mal", name: "Carga mal distribuida" },
+            { id: "ope_fuera_rango", name: "Operación fuera de rango" },
+            { id: "ope_forzado", name: "Operador forzando el equipo" },
+        ]
+    },
+    "Externo": {
+        icon: "🍂",
+        label: "Grupo D: Externo",
+        items: [
+            { id: "ext_acumulacion", name: "Acumulación (suciedad/polvo)" },
+            { id: "ext_material", name: "Material fuera de especificación" },
+        ]
+    }
 };
 
-// 2. Componente Visual: LabelingMenu
+// --- 2. COMPONENTE DE MENÚ INTELIGENTE (SMART POSITIONING) ---
 const LabelingMenu = ({
   position,
   onSelect,
@@ -53,42 +81,152 @@ const LabelingMenu = ({
   onSelect: (category: string, failure: { id: string; name: string }) => void;
   onClose: () => void;
 }) => {
-  if (!position.x) return null;
+  // Estados de navegación
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<{ id: string, name: string } | null>(null);
+  
+  // Estado para la posición visual (calculada)
+  const [menuStyle, setMenuStyle] = useState({ top: position.y, left: position.x, opacity: 0 });
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Lógica de Posicionamiento Inteligente (Se ejecuta antes de pintar)
+  useLayoutEffect(() => {
+    if (menuRef.current) {
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+      
+      let newLeft = position.x;
+      let newTop = position.y;
+
+      // 1. AJUSTE HORIZONTAL: Si se sale por la derecha, lo mostramos a la izquierda
+      if (position.x + 320 > screenWidth) { // 320px es un ancho seguro estimado
+        newLeft = position.x - 300; // Restamos el ancho del menú aprox
+      }
+
+      // 2. AJUSTE VERTICAL: Si se sale por abajo, lo subimos
+      if (position.y + 350 > screenHeight) {
+        newTop = screenHeight - 360; // Lo pegamos al borde inferior con margen
+      }
+
+      setMenuStyle({ top: newTop, left: newLeft, opacity: 1 });
+    }
+  }, [position]); 
+
+  if (!position || (!position.x && position.x !== 0)) return null;
+
+  const handleConfirm = () => {
+    if (activeCategory && selectedItem) {
+        onSelect(activeCategory, selectedItem);
+    }
+  };
+
+  // @ts-ignore
+  const currentCategoryData = activeCategory ? FAILURE_CATALOG[activeCategory] : null;
 
   return (
     <div
-      style={{ left: position.x, top: position.y }}
-      className="absolute z-50 min-w-[200px] rounded-md border border-slate-200 bg-white shadow-lg p-2 animate-in fade-in-0 zoom-in-95"
+      ref={menuRef}
+      style={{ 
+        top: menuStyle.top, 
+        left: menuStyle.left,
+        opacity: menuStyle.opacity 
+      }}
+      className="fixed z-[9999] w-[300px] bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-opacity duration-150 font-sans"
     >
-      <div className="flex justify-between items-center mb-2">
-        <p className="text-xs font-bold text-slate-700 px-2">Clasificar Falla</p>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
-          <span className="text-slate-500">×</span>
-        </Button>
+      {/* --- HEADER --- */}
+      <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center h-12 flex-shrink-0">
+        {activeCategory ? (
+          <button 
+            onClick={() => { setActiveCategory(null); setSelectedItem(null); }}
+            className="flex items-center text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+          >
+            <ChevronLeft size={16} className="mr-1"/> Atrás
+          </button>
+        ) : (
+          <h3 className="font-semibold text-sm text-slate-800">Clasificar Falla</h3>
+        )}
+        
+        <button onClick={onClose} className="text-slate-400 hover:text-red-500 transition-colors">
+          <X size={18} />
+        </button>
       </div>
-      <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-        {Object.entries(FAILURE_CATALOG).map(([category, failures]) => (
-          <div key={category}>
-            <p className="text-xs font-semibold text-slate-500 px-2 pt-1">{category}</p>
-            {failures.map((failure) => (
-              <Button
-                key={failure.id}
-                variant="ghost"
-                className="w-full justify-start h-8 text-sm"
-                onClick={() => onSelect(category, failure)}
+
+      {/* --- CUERPO --- */}
+      <div className="overflow-y-auto max-h-[320px] bg-white min-h-[200px]">
+        
+        {/* VISTA 1: MENU PRINCIPAL */}
+        {!activeCategory && (
+          <div className="p-2 space-y-1">
+            <p className="text-xs text-slate-400 font-medium px-2 py-2">Seleccione el grupo causante:</p>
+            {Object.entries(FAILURE_CATALOG).map(([key, data]) => (
+              <button
+                key={key}
+                onClick={() => setActiveCategory(key)}
+                className="w-full text-left px-4 py-3 text-sm rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all flex items-center justify-between group"
               >
-                {failure.name}
-              </Button>
+                <div className="flex items-center gap-3">
+                    <span className="text-lg">{data.icon}</span>
+                    <span className="font-medium text-slate-700">{data.label}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500"/>
+              </button>
             ))}
           </div>
-        ))}
+        )}
+
+        {/* VISTA 2: SUB-MENÚ */}
+        {activeCategory && currentCategoryData && (
+          <div className="p-2">
+            <div className="px-3 py-2 bg-slate-50 rounded-md mb-2 border border-slate-100 flex items-center gap-2">
+                <span>{currentCategoryData.icon}</span>
+                <span className="text-xs font-bold text-slate-700">{currentCategoryData.label}</span>
+            </div>
+            
+            <div className="space-y-1">
+                {currentCategoryData.items.map((item: any) => {
+                    const isSelected = selectedItem?.id === item.id;
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => setSelectedItem(item)}
+                            className={`w-full text-left px-3 py-2.5 text-xs rounded-md transition-all duration-200 border flex items-center gap-2 ${
+                            isSelected 
+                                ? "bg-blue-50 border-blue-500 text-blue-700 font-medium shadow-sm" 
+                                : "bg-white border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                            }`}
+                        >
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-slate-300'}`}>
+                                {isSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                            </div>
+                            <span className="truncate">{item.name}</span>
+                        </button>
+                    );
+                })}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* --- FOOTER --- */}
+      {activeCategory && (
+        <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2 flex-shrink-0">
+            <Button 
+                size="sm" 
+                onClick={handleConfirm}
+                disabled={!selectedItem} 
+                className={`text-xs h-9 w-full transition-all shadow-sm ${selectedItem ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+            >
+                {selectedItem ? 'Guardar Clasificación' : 'Seleccione una opción'}
+            </Button>
+        </div>
+      )}
     </div>
   );
 };
 
-// --- FIN CÓDIGO AÑADIDO ---
 
+// --- 3. DEFINICIÓN DE PROPS Y HELPERS DEL GRÁFICO ---
 
 interface MetricChartProps {
   data: ChartDataPoint[];
@@ -108,21 +246,16 @@ interface MetricChartProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     let formattedLabel = label;
-    try {
-      // YYYY-MM-DD HH:mm
-      formattedLabel = format(parseISO(label), "dd MMM HH:mm", { locale: es });
-    } catch {
-      // fallback if parsing fails
-    }
+    try { formattedLabel = format(parseISO(label), "dd MMM HH:mm", { locale: es }); } catch { }
     
-    const relevantPayload = payload.filter(p => p.value !== null && p.value !== undefined);
+    const relevantPayload = payload.filter((p: any) => p.value !== null && p.value !== undefined);
 
     return (
       <div className="rounded-lg border bg-background p-2 shadow-sm">
         <p className="font-bold">{formattedLabel}</p>
         {relevantPayload.map((p: any) => (
           <p key={p.name} style={{ color: p.color }} className="text-sm">
-            {`${p.name}: ${p.value.toFixed(3)}`}
+            {`${p.name}: ${p.value?.toFixed(3)}`}
           </p>
         ))}
       </div>
@@ -132,28 +265,25 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const legendTooltips: Record<string, string> = {
-    "Promedio Diario": "Valor real medido y agregado por cada punto en el tiempo (diario o por hora).",
-    "Referencia": "Línea base de operación normal del componente, calculada a partir de datos históricos.",
-    "Corriente Max": "Límite máximo operativo seguro. Exceder este valor puede indicar una falla o riesgo.",
-    "Umbral Max": "Límite máximo operativo seguro. Exceder este valor puede indicar una falla o riesgo.",
-    "Proyección Tendencia": "Estimación futura basada en la tendencia histórica (Regresión Lineal).",
-    "Proyección Pesimista": "Escenario de degradación acelerada (Regresión Lineal con pendiente aumentada).",
-    "Proyección Optimista": "Escenario de degradación lenta (Regresión Lineal con pendiente suavizada)."
+    "Promedio Diario": "Valor real medido.",
+    "Referencia": "Línea base de operación normal.",
+    "Corriente Max": "Límite máximo operativo seguro.",
+    "Umbral Max": "Límite máximo operativo seguro.",
+    "Proyección Tendencia": "Estimación futura.",
+    "Proyección Pesimista": "Escenario de degradación acelerada.",
+    "Proyección Optimista": "Escenario de degradación lenta.",
+    "Banda Superior (+2σ)": "Límite superior del rango de operación normal (Referencia + 2 desviaciones estándar).",
+    "Banda Inferior (-2σ)": "Límite inferior del rango de operación normal (Referencia - 2 desviaciones estándar).",
 };
 
 const renderLegendText = (value: string, entry: any) => {
     const tooltipText = legendTooltips[value];
-
     if (tooltipText) {
         return (
             <TooltipProvider>
                 <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span className="cursor-help border-b border-dashed border-slate-400">{value}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>{tooltipText}</p>
-                    </TooltipContent>
+                    <TooltipTrigger asChild><span className="cursor-help border-b border-dashed border-slate-400">{value}</span></TooltipTrigger>
+                    <TooltipContent><p>{tooltipText}</p></TooltipContent>
                 </Tooltip>
             </TooltipProvider>
         );
@@ -161,6 +291,7 @@ const renderLegendText = (value: string, entry: any) => {
     return value;
 };
 
+// --- 4. COMPONENTE PRINCIPAL (CHART) ---
 
 export function MetricChart({
   data,
@@ -177,14 +308,12 @@ export function MetricChart({
   yAxisLabel
 }: MetricChartProps) {
 
-  // --- INICIO CÓDIGO AÑADIDO ---
-  // 3. Estados para el menú de etiquetado
-  const [labelingMenu, setLabelingMenu] = React.useState<{ x: number, y: number } | null>(null);
-  const [selectedPoint, setSelectedPoint] = React.useState<any>(null);
+  const [labelingMenu, setLabelingMenu] = useState<{ x: number, y: number } | null>(null);
+  const [selectedPoint, setSelectedPoint] = useState<any>(null);
 
-  // 4. Lógica de Datos
+  // Manejador: Guardar en BD / API
   const handleSaveLabel = (category: string, failure: { id: string; name: string }) => {
-    if (!selectedPoint) return;
+    if (!selectedPoint || !selectedPoint.payload) return;
     
     const payload = {
       timestamp: selectedPoint.payload.date,
@@ -192,42 +321,50 @@ export function MetricChart({
       label_data: {
         category_id: category,
         failure_code: failure.id,
+        failure_name: failure.name
       },
       metadata: {
         labeled_at: new Date().toISOString(),
-        user_id: "current_user_placeholder" // Reemplazar con el usuario real
+        user_id: "current_user_placeholder",
+        component_id: componentId
       }
     };
     
-    console.log("PAYLOAD ML:", payload);
-
-    // Cerrar el menú después de guardar
+    console.log("🟢 PAYLOAD GENERADO:", payload);
     setLabelingMenu(null);
     setSelectedPoint(null);
   };
   
-  // Función para manejar el clic en un punto de la gráfica
-  const handlePointClick = (point: any) => {
-    // Si el punto no tiene datos válidos, no hacer nada
-    if (!point || point.value === null || point.value === undefined) return;
-    
-    setSelectedPoint(point);
-    setLabelingMenu({ x: point.cx, y: point.cy });
-  };
-  // --- FIN CÓDIGO AÑADIDO ---
+  // Manejador: Click en el Gráfico
+  const handleChartClick = (state: any, event: any) => {
+    // 🔒 RESTRICCIÓN: Solo permitir interacción si es la gráfica de CORRIENTE
+    if (metric !== 'current') return;
 
-  const tickFormatter = (str: string) => {
-    try {
-      return format(parseISO(str), "dd MMM HH:mm", { locale: es });
-    } catch {
-      return str;
+    if (labelingMenu) {
+        setLabelingMenu(null);
+        return;
+    }
+
+    if (state && state.activePayload && state.activePayload.length > 0) {
+        const mainData = state.activePayload.find((p: any) => p.dataKey === valueKey) || state.activePayload[0];
+        if (!mainData) return;
+
+        const e = event || state.event; 
+        
+        if (e) {
+             const clientX = e.clientX;
+             const clientY = e.clientY;
+             setSelectedPoint(mainData);
+             setLabelingMenu({ x: clientX, y: clientY });
+        }
     }
   };
 
-  const sortedData = React.useMemo(() => 
-    [...data].sort((a, b) => a.date.localeCompare(b.date)),
-    [data]
-  );
+  const tickFormatter = (str: string) => {
+    try { return format(parseISO(str), "dd MMM HH:mm", { locale: es }); } catch { return str; }
+  };
+
+  const sortedData = React.useMemo(() => [...data].sort((a, b) => a.date.localeCompare(b.date)), [data]);
 
   return (
     <div className="space-y-4">
@@ -236,26 +373,19 @@ export function MetricChart({
           <ComposedChart 
             data={sortedData} 
             margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-            // Cierra el menú si se hace clic fuera de un punto
-            onClick={() => setLabelingMenu(null)}
+            onClick={handleChartClick}
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickFormatter={tickFormatter}
-              tick={{ fill: '#64748b' }}
-              stroke="#e2e8f0"
-              interval="preserveStartEnd"
-              minTickGap={80}
+            <XAxis dataKey="date" tickFormatter={tickFormatter} tick={{ fill: '#64748b' }} stroke="#e2e8f0" interval="preserveStartEnd" minTickGap={80} />
+            <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b' }} tick={{ fill: '#64748b' }} stroke="#e2e8f0" domain={['dataMin - 1', 'auto']} allowDataOverflow={true} />
+            
+            {/* Tooltip con pointerEvents: none para no bloquear el clic */}
+            <RechartsTooltip 
+                content={<CustomTooltip />} 
+                cursor={{ stroke: '#0ea5e9', strokeWidth: 2 }}
+                wrapperStyle={{ pointerEvents: 'none' }} 
             />
-            <YAxis
-              label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b' }}
-              tick={{ fill: '#64748b' }}
-              stroke="#e2e8f0"
-              domain={['dataMin - 1', 'auto']}
-              allowDataOverflow={true}
-            />
-            <RechartsTooltip content={<CustomTooltip />} />
+            
             <Legend formatter={renderLegendText} />
 
             <defs>
@@ -273,78 +403,33 @@ export function MetricChart({
               fillOpacity={1}
               fill={`url(#color${metric})`}
               strokeWidth={2}
-              // --- INICIO CÓDIGO AÑADIDO ---
-              // 5. Integración: Captura del clic
               activeDot={{
-                onClick: (e, payload) => handlePointClick(payload),
                 r: 6,
-                className: "cursor-pointer"
+                // Solo mostrar cursor de mano si es 'current'
+                className: metric === 'current' ? "cursor-pointer" : "",
+                strokeWidth: 0
               }}
-              // --- FIN CÓDIGO AÑADIDO ---
               dot={false}
               connectNulls={false}
             />
 
-            {referenceKey && (
-              <Line
-                type="monotone"
-                dataKey={referenceKey as string}
-                name="Referencia"
-                stroke="#f59e0b" // Naranja
-                strokeWidth={2}
-                dot={false}
-                connectNulls={true}
-              />
+            {referenceKey && (<Line type="monotone" dataKey={referenceKey as string} name="Referencia" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls={true} />)}
+            <Line type="monotone" dataKey={limitKey as string} name={limitLabel} stroke="#dc2626" strokeWidth={2} dot={false} connectNulls={true} />
+            <Line type="monotone" dataKey={predictionKey.toString()} name="Proyección Tendencia" stroke="#9333ea" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} />
+            <Line type="monotone" dataKey={predictionPesimisticKey.toString()} name="Proyección Pesimista" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} />
+            <Line type="monotone" dataKey={predictionOptimisticKey.toString()} name="Proyección Optimista" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls={false} />
+
+            {metric === 'current' && (
+              <>
+                <Line type="monotone" dataKey="banda_superior_2sigma" name="Banda Superior (+2σ)" stroke="#a1a1aa" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} />
+                <Line type="monotone" dataKey="banda_inferior_2sigma" name="Banda Inferior (-2σ)" stroke="#a1a1aa" strokeWidth={1.5} strokeDasharray="3 3" dot={false} connectNulls={true} />
+              </>
             )}
-
-            <Line
-              type="monotone"
-              dataKey={limitKey as string}
-              name={limitLabel}
-              stroke="#dc2626"
-              strokeWidth={2}
-              dot={false}
-              connectNulls={true}
-            />
-
-            <Line
-              type="monotone"
-              dataKey={predictionKey.toString()}
-              name="Proyección Tendencia"
-              stroke="#9333ea"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={false}
-              connectNulls={false}
-            />
-
-            <Line
-              type="monotone"
-              dataKey={predictionPesimisticKey.toString()}
-              name="Proyección Pesimista"
-              stroke="#f97316"
-              strokeWidth={2}
-      
-              strokeDasharray="5 5"
-              dot={false}
-              connectNulls={false}
-            />
-
-             <Line
-              type="monotone"
-              dataKey={predictionOptimisticKey.toString()}
-              name="Proyección Optimista"
-              stroke="#22c55e"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={false}
-              connectNulls={false}
-            />
-
+            
           </ComposedChart>
         </ResponsiveContainer>
         
-        {/* --- INICIO CÓDIGO AÑADIDO --- */}
+        {/* Renderizado del Menú (Smart Positioning) */}
         {labelingMenu && selectedPoint && (
             <LabelingMenu 
                 position={labelingMenu} 
@@ -352,10 +437,8 @@ export function MetricChart({
                 onClose={() => setLabelingMenu(null)}
             />
         )}
-        {/* --- FIN CÓDIGO AÑADIDO --- */}
 
       </div>
     </div>
   );
 }
-

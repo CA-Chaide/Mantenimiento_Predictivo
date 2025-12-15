@@ -49,6 +49,13 @@ interface GetComponentsByMachineParams {
   limit?: number;
 }
 
+interface GetDeviationsyMachineParams {
+  Maquina: string;
+  Componente: string;
+  FechaInicio: string;
+  FechaFin: string;
+}
+
 interface GetAllParams {
   page?: number;
   limit?: number;
@@ -275,6 +282,34 @@ export const calculosCorrientesDatosMantenimientoService = {
     };
 
     const response = await fetch(API_URL + '/componentsByMachine', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKEN}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({ message: 'Error desconocido en el servidor' }));
+      throw new Error(errorBody.message || `Error ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+
+
+
+  async getDeviationsByMachineAndComponents(params: GetDeviationsyMachineParams): Promise<BodyListResponse<any>> {
+    const requestBody = {
+      Maquina: params.Maquina,
+      Componente: params.Componente,
+      FechaInicio: params.FechaInicio,
+      FechaFin: params.FechaFin,
+    };
+
+    const response = await fetch(API_URL + '/getDeviations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
