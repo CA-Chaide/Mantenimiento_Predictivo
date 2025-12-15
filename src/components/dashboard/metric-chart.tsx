@@ -272,6 +272,7 @@ const legendTooltips: Record<string, string> = {
     "Proyección Tendencia": "Estimación futura basada en una regresión lineal de los datos históricos.",
     "Proyección Pesimista": "Escenario de degradación acelerada (regresión lineal con pendiente aumentada).",
     "Proyección Optimista": "Escenario de degradación lenta (regresión lineal con pendiente reducida).",
+    "Desviación Estándar": "Valor de la desviación estándar (Sigma) para el período seleccionado.",
     "Banda de Control (±2σ)": "Límites estadísticos normales (Referencia ± 2 desviaciones). Puntos fuera indican anomalías.",
     "Zona de Alerta (±1σ)": "Rango de operación que requiere atención (Referencia ± 1 desviación estándar).",
 };
@@ -421,6 +422,19 @@ export function MetricChart({
 
             {metric === 'current' && (
               <>
+                {/* --- LÍNEA DE DESVIACIÓN ESTÁNDAR --- */}
+                <Line 
+                  type="monotone" 
+                  dataKey="Desv_PromedioSuavizado" 
+                  name="Desviación Estándar"
+                  stroke="#964B00" // Color Marrón
+                  strokeWidth={1.5}
+                  strokeDasharray="3 3"
+                  dot={false}
+                  connectNulls={true} 
+                  isAnimationActive={false}
+                />
+
                 {/* --- BANDAS DE 2 SIGMA (Límites Externos) --- */}
                 <Line 
                   type="monotone" 

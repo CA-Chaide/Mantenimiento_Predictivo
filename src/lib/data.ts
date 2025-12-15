@@ -37,8 +37,7 @@ export type ChartDataPoint = {
   "proyeccion_factor_carga_pesimista"?: number | null;
   "proyeccion_factor_carga_optimista"?: number | null;
 
-  "banda_superior_2sigma"?: number | null;
-  "banda_inferior_2sigma"?: number | null;
+  "Desv_PromedioSuavizado"?: number | null;
   
   "Sigma1_Sup"?: number | null;
   "Sigma1_Inf"?: number | null;
@@ -485,7 +484,6 @@ export async function useRealMaintenanceData(
         throw error;
     }
 
-    // --- NUEVO: Obtener Sigma y calcular Bandas ---
     const sigma = await getStandardDeviation(calculosService, {
       Maquina: machineId,
       Componente: component.originalName,
@@ -504,8 +502,8 @@ export async function useRealMaintenanceData(
             point['Corriente Máxima'] = getManualCurrentLimit(component.name, machineId);
         }
 
-        // CÁLCULO DE BANDAS DE CONTROL (Sigma)
         const refValue = point['Referencia Corriente Promedio Suavizado'];
+        point['Desv_PromedioSuavizado'] = sigma; // Añadir sigma a cada punto
         
         if (typeof refValue === 'number') {
             const s = Number(sigma) || 0;
@@ -553,7 +551,6 @@ export async function useRealMaintenanceData(
               if (config.optimistic && projections[key].optimistic) projectionPoint[config.optimistic as keyof ChartDataPoint] = projections[key].optimistic[i];
           });
   
-          // Mantener límites y referencias constantes en la proyección
           projectionPoint['Corriente Máxima'] = lastRealPoint['Corriente Máxima'];
           projectionPoint['Umbral Desbalance'] = lastRealPoint['Umbral Desbalance'];
           projectionPoint['Umbral Factor Carga'] = lastRealPoint['Umbral Factor Carga'];
@@ -562,7 +559,7 @@ export async function useRealMaintenanceData(
           projectionPoint['Referencia Desbalance Suavizado'] = lastRealPoint['Referencia Desbalance Suavizado'];
           projectionPoint['Referencia Factor De Carga Suavizado'] = lastRealPoint['Referencia Factor De Carga Suavizado'];
           
-          // --- MANTENER BANDAS DE SIGMA EN PROYECCIÓN ---
+          projectionPoint['Desv_PromedioSuavizado'] = sigma; // Mantener sigma en proyección
           projectionPoint['Sigma1_Sup'] = lastRealPoint['Sigma1_Sup'];
           projectionPoint['Sigma1_Inf'] = lastRealPoint['Sigma1_Inf'];
           projectionPoint['Sigma2_Sup'] = lastRealPoint['Sigma2_Sup'];
