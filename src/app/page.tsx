@@ -9,7 +9,7 @@ import { format, parseISO, subDays, subYears, differenceInDays, isSameDay } from
 import { Bot, MousePointerClick, Loader } from "lucide-react";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +33,7 @@ function LoadingState({ progress }: { progress: number }) {
       <div className="flex h-full flex-col items-center justify-center rounded-lg bg-slate-50">
         <div className="text-center">
           <Loader className="mx-auto h-24 w-24 animate-spin text-primary" />
-          <h3 className="mt-4 text-xl font-semibold text-slate-700">Cargando Datos...</h3>
+          <h3 className="mt-4 text-xl font_semibold text-slate-700">Cargando Datos...</h3>
           <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
             Por favor espere mientras obtenemos la información más reciente.
           </p>
@@ -74,6 +74,8 @@ const componentNameMapping: Record<string, Record<string, string>> = {};
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
   const [machineList, setMachineList] = useState<Machine[]>([]);
   const [componentList, setComponentList] = useState<Component[]>([]);
@@ -83,6 +85,21 @@ export default function DashboardPage() {
   const [noDataAvailable, setNoDataAvailable] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Set default date range on first load
+  useEffect(() => {
+    const from = searchParams.get('from');
+    if (!from) {
+      const today = new Date();
+      const pastDate = subDays(today, 29);
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.set('from', format(pastDate, 'yyyy-MM-dd'));
+      newParams.set('to', today.toISOString());
+      // Use replace to not add to history
+      router.replace(`${pathname}?${newParams.toString()}`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 1. Fetch de Máquinas
   useEffect(() => {
@@ -137,10 +154,11 @@ export default function DashboardPage() {
   const { fromDate, toDate } = useMemo(() => {
     try {
         const to = toDateString ? parseISO(toDateString) : new Date();
-        const from = fromDateString ? parseISO(fromDateString) : subYears(to, 1);
+        // Default to last 30 days if no 'from' is present
+        const from = fromDateString ? parseISO(fromDateString) : subDays(to, 29);
         return { fromDate: from, toDate: to };
     } catch (e) {
-      return { fromDate: subYears(new Date(), 1), toDate: new Date() };
+      return { fromDate: subDays(new Date(), 29), toDate: new Date() };
     }
   }, [fromDateString, toDateString]);
 
