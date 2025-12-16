@@ -70,14 +70,7 @@ function NoDataState() {
 }
 
 // Mapa para corregir nombres de componentes
-const componentNameMapping: Record<string, Record<string, string>> = {
-  "PUENTE GRUA": {
-    "MOTOR ELEVACION DER": "Motor elevacion derecha",
-    "MOTOR ELEVACION IZQ": "Motor elevacion izquierda",
-    "MOTOR TRASLACION DER/IZQ": "Motor traslacion der/izq",
-    "MOTOR TRASLACION": "Motor traslacion der/izq"
-  },
-};
+const componentNameMapping: Record<string, Record<string, string>> = {};
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
