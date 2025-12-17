@@ -57,7 +57,11 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
       try { formattedLabel = format(parseISO(label), "dd MMM HH:mm", { locale: es }); } catch { }
     }
     
-    const relevantPayload = payload.filter((p: any) => p.value !== null && p.value !== undefined && !p.dataKey.includes('Sigma'));
+    const relevantPayload = payload.filter((p: any) => 
+        p.value !== null && 
+        p.value !== undefined && 
+        !(typeof p.dataKey === 'string' && p.dataKey.includes('Sigma'))
+    );
     
     return (
       <div className="rounded-lg border bg-background p-2 shadow-sm">
@@ -190,10 +194,10 @@ export function MetricChart({
 
         {metric === 'current' && (
           <>
-            <Line type="monotone" dataKey="Sigma2_Sup" name="2-Sigma Superior" stroke="#f59e0b" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls={false} isAnimationActive={false} />
-            <Line type="monotone" dataKey="Sigma2_Inf" name="2-Sigma Inferior" stroke="#f59e0b" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls={false} isAnimationActive={false} />
-            <Line type="monotone" dataKey="Sigma1_Sup" name="1-Sigma Superior" stroke="#22c55e" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls={false} isAnimationActive={false} />
-            <Line type="monotone" dataKey="Sigma1_Inf" name="1-Sigma Inferior" stroke="#22c55e" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls={false} isAnimationActive={false} />
+             <Line type="monotone" dataKey="Sigma2_Sup" name="2-Sigma Superior" stroke="#f59e0b" strokeWidth={1.5} dot={false} connectNulls={false} isAnimationActive={false} />
+             <Line type="monotone" dataKey="Sigma2_Inf" name="2-Sigma Inferior" stroke="#f59e0b" strokeWidth={1.5} dot={false} connectNulls={false} isAnimationActive={false} />
+             <Line type="monotone" dataKey="Sigma1_Sup" name="1-Sigma Superior" stroke="#22c55e" strokeWidth={1.5} dot={false} connectNulls={false} isAnimationActive={false} />
+             <Line type="monotone" dataKey="Sigma1_Inf" name="1-Sigma Inferior" stroke="#22c55e" strokeWidth={1.5} dot={false} connectNulls={false} isAnimationActive={false} />
           </>
         )}
 
