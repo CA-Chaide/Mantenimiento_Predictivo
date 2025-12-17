@@ -38,7 +38,6 @@ export type ChartDataPoint = {
   "proyeccion_factor_carga_pesimista"?: number | null;
   "proyeccion_factor_carga_optimista"?: number | null;
 
-  // Nuevas propiedades para las bandas
   "Sigma1_Sup"?: number | null;
   "Sigma1_Inf"?: number | null;
   "Sigma2_Sup"?: number | null;
@@ -219,8 +218,7 @@ export function aggregateDataByMonth(rawData: RawDataRecord[]): ChartDataPoint[]
         "Factor De Carga Suavizado": metrics.load_factor.count > 0 ? metrics.load_factor.sum / metrics.load_factor.count : null,
         "Referencia Factor De Carga Suavizado": metrics.refLoadFactor.count > 0 ? metrics.refLoadFactor.sum / metrics.refLoadFactor.count : null,
         "Umbral Factor Carga": metrics.load_factor_limit.count > 0 ? metrics.load_factor_limit.sum / metrics.load_factor_limit.count : null,
-        // Inicializar nulos para que Recharts detecte las llaves
-        "Sigma1_Sup": null, "Sigma1_Inf": null, "Sigma2_Sup": null, "Sigma2_Inf": null, "Desv_PromedioSuavizado": null
+        "Desv_PromedioSuavizado": null
       };
     });
 
@@ -305,8 +303,7 @@ export function aggregateDataByDateTime(rawData: RawDataRecord[]): ChartDataPoin
             "Factor De Carga Suavizado": hourMetrics.load_factor.count > 0 ? hourMetrics.load_factor.sum / hourMetrics.load_factor.count : null,
             "Referencia Factor De Carga Suavizado": hourMetrics.refLoadFactor.count > 0 ? hourMetrics.refLoadFactor.sum / hourMetrics.refLoadFactor.count : null,
             "Umbral Factor Carga": loadFactorLimit,
-            // Inicializar nulos para que Recharts detecte las llaves
-            "Sigma1_Sup": null, "Sigma1_Inf": null, "Sigma2_Sup": null, "Sigma2_Inf": null, "Desv_PromedioSuavizado": null
+            "Desv_PromedioSuavizado": null
         };
         return newPoint;
     });
@@ -314,6 +311,93 @@ export function aggregateDataByDateTime(rawData: RawDataRecord[]): ChartDataPoin
     return aggregatedResult.sort((a, b) => a.date.localeCompare(b.date));
 }
   
+export function aggregateDataByMinute(rawData: RawDataRecord[]): ChartDataPoint[] {
+    if (!rawData || rawData.length === 0) {
+        return [];
+    }
+
+    const groupedByMinute = rawData.reduce((acc, record) => {
+        if (!record.date) return acc;
+        // Group by minute
+        const minuteKey = format(parseISO(record.date), 'yyyy-MM-dd HH:mm');
+        if (!acc[minuteKey]) {
+            acc[minuteKey] = { records: [], componentId: record.componentId };
+        }
+        acc[minuteKey].records.push(record);
+        return acc;
+    }, {} as Record<string, { records: RawDataRecord[], componentId: string }>);
+
+    const safeNumber = (value: any): number | null => {
+        const num = Number(value);
+        return isNaN(num) || value === null ? null : num;
+    };
+    
+    const aggregatedResult = Object.entries(groupedByMinute).map(([minuteKey, group]) => {
+        const minuteMetrics = {
+            current: { sum: 0, count: 0 },
+            refCurrent: { sum: 0, count: 0 },
+            unbalance: { sum: 0, count: 0 },
+            refUnbalance: { sum: 0, count: 0 },
+            load_factor: { sum: 0, count: 0 },
+            refLoadFactor: { sum: 0, count: 0 },
+        };
+        
+        const findFirstValidLimit = (key: keyof RawDataRecord, fallbackKey?: keyof RawDataRecord): number | null => {
+            for (const record of group.records) {
+                let value = safeNumber(record[key]);
+                if (typeof value === 'number' && !isNaN(value) && value > 0) {
+                    return value;
+                }
+                if (fallbackKey) {
+                    value = safeNumber(record[fallbackKey]);
+                    if (typeof value === 'number' && !isNaN(value) && value > 0) {
+                        return value;
+                    }
+                }
+            }
+            return null;
+        };
+
+        const currentLimit = findFirstValidLimit("Corriente Máxima");
+        const unbalanceLimit = findFirstValidLimit("Umbral Desbalance", "Referencia_Umbral_Desbalance");
+        const loadFactorLimit = findFirstValidLimit("Umbral Factor Carga", "Referencia_Umbral_FactorCarga");
+
+        for (const record of group.records) {
+            const current = safeNumber(record["Corriente Promedio Suavizado"]);
+            if (current !== null) { minuteMetrics.current.sum += current; minuteMetrics.current.count++; }
+            const refCurrent = safeNumber(record["Referencia Corriente Promedio Suavizado"]);
+            if (refCurrent !== null) { minuteMetrics.refCurrent.sum += refCurrent; minuteMetrics.refCurrent.count++; }
+            const unbalance = safeNumber(record["Desbalance Suavizado"]);
+            if (unbalance !== null) { minuteMetrics.unbalance.sum += unbalance; minuteMetrics.unbalance.count++; }
+            const refUnbalance = safeNumber(record["Referencia Desbalance Suavizado"]);
+            if (refUnbalance !== null) { minuteMetrics.refUnbalance.sum += refUnbalance; minuteMetrics.refUnbalance.count++; }
+            const loadFactor = safeNumber(record["Factor De Carga Suavizado"]);
+            if (loadFactor !== null) { minuteMetrics.load_factor.sum += loadFactor; minuteMetrics.load_factor.count++; }
+            const refLoadFactor = safeNumber(record["Referencia Factor De Carga Suavizado"]);
+            if (refLoadFactor !== null) { minuteMetrics.refLoadFactor.sum += refLoadFactor; minuteMetrics.refLoadFactor.count++; }
+        }
+        
+        const newPoint: ChartDataPoint = {
+            date: format(parseISO(minuteKey), "yyyy-MM-dd'T'HH:mm:ss"), 
+            componentId: group.componentId,
+            isProjection: false,
+            "Corriente Promedio Suavizado": minuteMetrics.current.count > 0 ? minuteMetrics.current.sum / minuteMetrics.current.count : null,
+            "Referencia Corriente Promedio Suavizado": minuteMetrics.refCurrent.count > 0 ? minuteMetrics.refCurrent.sum / minuteMetrics.refCurrent.count : null,
+            "Corriente Máxima": currentLimit,
+            "Desbalance Suavizado": minuteMetrics.unbalance.count > 0 ? minuteMetrics.unbalance.sum / minuteMetrics.unbalance.count : null,
+            "Referencia Desbalance Suavizado": minuteMetrics.refUnbalance.count > 0 ? minuteMetrics.refUnbalance.sum / minuteMetrics.refUnbalance.count : null,
+            "Umbral Desbalance": unbalanceLimit,
+            "Factor De Carga Suavizado": minuteMetrics.load_factor.count > 0 ? minuteMetrics.load_factor.sum / minuteMetrics.load_factor.count : null,
+            "Referencia Factor De Carga Suavizado": minuteMetrics.refLoadFactor.count > 0 ? minuteMetrics.refLoadFactor.sum / minuteMetrics.refLoadFactor.count : null,
+            "Umbral Factor Carga": loadFactorLimit,
+            "Desv_PromedioSuavizado": null
+        };
+        return newPoint;
+    });
+
+    return aggregatedResult.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export function calculateLinearRegressionAndProject(
   data: ChartDataPoint[],
   valueKey: keyof ChartDataPoint,
@@ -433,10 +517,10 @@ export async function useRealMaintenanceData(
     calculosService: any,
     daysToProject: number = 90,
     onProgressUpdate?: (data: RawDataRecord[], progress: number) => void
-  ): Promise<{ data: ChartDataPoint[] }> {
+  ): Promise<{ data: ChartDataPoint[], aggregationLevel: 'minute' | 'hour' | 'month' }> {
     
     if (!dateRange || !dateRange.from || !dateRange.to) {
-      return { data: [] };
+      return { data: [], aggregationLevel: 'hour' };
     }
 
     const toDate = isSameDay(dateRange.to, new Date()) ? new Date() : endOfDay(dateRange.to);
@@ -446,12 +530,20 @@ export async function useRealMaintenanceData(
     const endDate = format(toDate, 'yyyy-MM-dd HH:mm:ss');
 
     const dateDiff = differenceInDays(toDate, fromDate);
-    const useMonthlyAggregation = dateDiff > 365;
+    
+    let aggregationLevel: 'minute' | 'hour' | 'month';
+    if (dateDiff <= 3) {
+      aggregationLevel = 'minute';
+    } else if (dateDiff <= 365) {
+      aggregationLevel = 'hour';
+    } else {
+      aggregationLevel = 'month';
+    }
   
     let allData: RawDataRecord[] = [];
   
     try {
-      if (useMonthlyAggregation) {
+      if (aggregationLevel === 'month') {
         const response = await calculosService.getDataByMachineComponentAndDatesAggregated({
           maquina: machineId,
           componente: component.originalName,
@@ -463,6 +555,7 @@ export async function useRealMaintenanceData(
         onProgressUpdate?.(allData, 100);
   
       } else {
+        // For both minute and hour aggregation, we fetch the detailed data
         const { total } = await calculosService.getTotalByMaquinaAndComponente(machineId, component.originalName, startDate, endDate);
         const limit = 1000;
         const totalPages = Math.ceil(total / limit);
@@ -486,7 +579,6 @@ export async function useRealMaintenanceData(
         throw error;
     }
 
-    // --- OBTENER SIGMA ---
     const sigma = await getStandardDeviation(calculosService, {
       Maquina: machineId,
       Componente: component.originalName,
@@ -494,20 +586,37 @@ export async function useRealMaintenanceData(
       FechaFin: endDate,
     });
 
-    const aggregatedData = useMonthlyAggregation
-      ? aggregateDataByMonth(allData)
-      : aggregateDataByDateTime(allData);
+    let aggregatedData: ChartDataPoint[];
+
+    switch (aggregationLevel) {
+      case 'minute':
+        aggregatedData = aggregateDataByMinute(allData);
+        break;
+      case 'hour':
+        aggregatedData = aggregateDataByDateTime(allData);
+        break;
+      case 'month':
+        aggregatedData = aggregateDataByMonth(allData);
+        break;
+    }
 
     aggregatedData.forEach(point => {
+        point['Desv_PromedioSuavizado'] = Number(sigma) || 0;
+        const baseValue = point['Corriente Promedio Suavizado'];
+
+        if (typeof baseValue === 'number' && sigma > 0) {
+            point['Sigma1_Sup'] = baseValue + (1 * sigma);
+            point['Sigma1_Inf'] = baseValue - (1 * sigma);
+            point['Sigma2_Sup'] = baseValue + (2 * sigma);
+            point['Sigma2_Inf'] = baseValue - (2 * sigma);
+        }
+
         if (point['Corriente Máxima'] === null) {
             point['Corriente Máxima'] = getManualCurrentLimit(component.name, machineId);
         }
-
-        // Almacenar sigma en cada punto para usar en el gráfico
-        point['Desv_PromedioSuavizado'] = Number(sigma) || 0;
     });
   
-    if (aggregatedData.length > 0) {
+    if (aggregatedData.length > 0 && aggregationLevel !== 'month') {
         const lastDate = parseISO(aggregatedData[aggregatedData.length - 1].date);
         const lastRealPoint = aggregatedData[aggregatedData.length-1];
         
@@ -538,7 +647,6 @@ export async function useRealMaintenanceData(
               if (config.optimistic && projections[key].optimistic) projectionPoint[config.optimistic as keyof ChartDataPoint] = projections[key].optimistic[i];
           });
   
-          // Mantener límites y referencias constantes en la proyección
           projectionPoint['Corriente Máxima'] = lastRealPoint['Corriente Máxima'];
           projectionPoint['Umbral Desbalance'] = lastRealPoint['Umbral Desbalance'];
           projectionPoint['Umbral Factor Carga'] = lastRealPoint['Umbral Factor Carga'];
@@ -547,12 +655,10 @@ export async function useRealMaintenanceData(
           projectionPoint['Referencia Desbalance Suavizado'] = lastRealPoint['Referencia Desbalance Suavizado'];
           projectionPoint['Referencia Factor De Carga Suavizado'] = lastRealPoint['Referencia Factor De Carga Suavizado'];
           
-          // --- EXTENDER BANDAS DE SIGMA EN PROYECCIÓN ---
           projectionPoint['Desv_PromedioSuavizado'] = sigma;
-
-          // Recalcular bandas para la proyección basado en el valor proyectado
           const projectedBaseValue = projectionPoint['proyeccion_corriente_tendencia'];
-          if (typeof projectedBaseValue === 'number') {
+
+          if (typeof projectedBaseValue === 'number' && sigma > 0) {
             projectionPoint['Sigma1_Sup'] = projectedBaseValue + (1 * sigma);
             projectionPoint['Sigma1_Inf'] = projectedBaseValue - (1 * sigma);
             projectionPoint['Sigma2_Sup'] = projectedBaseValue + (2 * sigma);
@@ -563,7 +669,7 @@ export async function useRealMaintenanceData(
         }
     }
   
-    return { data: aggregatedData };
+    return { data: aggregatedData, aggregationLevel };
   }
 
 export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
@@ -575,3 +681,5 @@ export function calculateEMA(values: number[], alpha: number = 0.3): number[] {
   }
   return ema;
 }
+
+    

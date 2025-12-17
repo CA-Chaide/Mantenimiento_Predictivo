@@ -14,10 +14,10 @@ import { Info } from "lucide-react";
 interface DashboardClientProps {
   machineComponents: Component[];
   data: ChartDataPoint[];
-  aprilData: ChartDataPoint[];
+  aggregationLevel: 'minute' | 'hour' | 'month';
 }
 
-export function DashboardClient({ machineComponents, data, aprilData }: DashboardClientProps) {
+export function DashboardClient({ machineComponents, data, aggregationLevel }: DashboardClientProps) {
   const [modalStatus, setModalStatus] = React.useState<ComponentStatus | null>(null);
 
   const handleStatusClick = (status: ComponentStatus) => {
@@ -60,6 +60,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
               <CardContent className="p-6">
                 <MetricChart
                   data={data}
+                  aggregationLevel={aggregationLevel}
                   valueKey="Corriente Promedio Suavizado"
                   referenceKey="Referencia Corriente Promedio Suavizado"
                   limitKey="Corriente Máxima"
@@ -93,6 +94,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
               <CardContent className="p-6">
                 <MetricChart
                   data={data}
+                  aggregationLevel={aggregationLevel}
                   valueKey="Desbalance Suavizado"
                   referenceKey="Referencia Desbalance Suavizado"
                   limitKey="Umbral Desbalance"
@@ -126,6 +128,7 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
               <CardContent className="p-6">
                 <MetricChart
                   data={data}
+                  aggregationLevel={aggregationLevel}
                   valueKey="Factor De Carga Suavizado"
                   referenceKey="Referencia Factor De Carga Suavizado"
                   limitKey="Umbral Factor Carga"
@@ -151,3 +154,5 @@ export function DashboardClient({ machineComponents, data, aprilData }: Dashboar
     </div>
   );
 }
+
+    

@@ -1,9 +1,10 @@
+
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger, SidebarFooter } from "@/components/ui/sidebar";
 import { SidebarNav } from '@/components/dashboard/sidebar-nav';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useRealMaintenanceData, type MachineId, type Component, type Machine, aggregateDataByDateTime } from "@/lib/data";
+import { useRealMaintenanceData, type MachineId, type Component, type Machine } from "@/lib/data";
 import type { DateRange } from "react-day-picker";
 import { format, parseISO, subDays, subYears, differenceInDays, isSameDay } from "date-fns";
 import { Bot, MousePointerClick, Loader } from "lucide-react";
@@ -80,7 +81,7 @@ export default function DashboardPage() {
   const [machineList, setMachineList] = useState<Machine[]>([]);
   const [componentList, setComponentList] = useState<Component[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cachedData, setCachedData] = useState<Record<string, any[]>>({});
+  const [cachedData, setCachedData] = useState<Record<string, any>>({});
   const [chartLoading, setChartLoading] = useState(false);
   const [noDataAvailable, setNoDataAvailable] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -93,7 +94,7 @@ export default function DashboardPage() {
       const today = new Date();
       const pastDate = subDays(today, 29);
       const newParams = new URLSearchParams(searchParams.toString());
-      newParams.set('from', format(pastDate, 'yyyy-MM-dd'));
+      newParams.set('from', format(pastDate, "yyyy-MM-dd"));
       newParams.set('to', today.toISOString());
       // Use replace to not add to history
       router.replace(`${pathname}?${newParams.toString()}`);
@@ -263,27 +264,20 @@ export default function DashboardPage() {
           projectionDays,
           (partialData, progress) => {
             setLoadingProgress(progress);
-            if (progress < 100) {
-              const aggregatedData = aggregateDataByDateTime(partialData);
-              setCachedData(prev => ({...prev, [currentCacheKey]: aggregatedData }));
-            }
-            if (partialData.length > 0) {
-              setNoDataAvailable(false);
-            }
           }
         );
         
         if (result.data.length > 0) {
-          setCachedData(prev => ({ ...prev, [currentCacheKey]: result.data }));
+          setCachedData(prev => ({ ...prev, [currentCacheKey]: result }));
           setNoDataAvailable(false);
         } else {
-          setCachedData(prev => ({ ...prev, [currentCacheKey]: [] }));
+          setCachedData(prev => ({ ...prev, [currentCacheKey]: { data: [], aggregationLevel: 'hour' } }));
           setNoDataAvailable(true);
         }
         setLoadingProgress(100);
       } catch (error: any) {
         console.error("Error loading chart data:", error);
-        setCachedData(prev => ({ ...prev, [currentCacheKey]: [] }));
+        setCachedData(prev => ({ ...prev, [currentCacheKey]: { data: [], aggregationLevel: 'hour' } }));
         setNoDataAvailable(true);
         setLoadingProgress(0);
         toast({
@@ -299,8 +293,10 @@ export default function DashboardPage() {
     loadChartData();
   }, [machineId, componentId, fromDate, toDate, componentList, toast, refreshKey, currentCacheKey]);
 
-  const chartData = currentCacheKey ? cachedData[currentCacheKey] || [] : [];
-  
+  const chartInfo = currentCacheKey ? cachedData[currentCacheKey] : { data: [], aggregationLevel: 'hour' };
+  const chartData = chartInfo?.data || [];
+  const aggregationLevel = chartInfo?.aggregationLevel || 'hour';
+
   // Renderizado
   if (loading) {
     return (
@@ -386,7 +382,7 @@ export default function DashboardPage() {
                   key={currentCacheKey || 'dashboard-client'} 
                   machineComponents={selectedComponent ? [selectedComponent] : []}
                   data={chartData}
-                  aprilData={[]}
+                  aggregationLevel={aggregationLevel}
                 />
               </div>
             </div>
@@ -396,3 +392,5 @@ export default function DashboardPage() {
     </SidebarProvider>
   );
 }
+
+    
