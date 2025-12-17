@@ -311,93 +311,6 @@ export function aggregateDataByDateTime(rawData: RawDataRecord[]): ChartDataPoin
     return aggregatedResult.sort((a, b) => a.date.localeCompare(b.date));
 }
   
-export function aggregateDataByMinute(rawData: RawDataRecord[]): ChartDataPoint[] {
-    if (!rawData || rawData.length === 0) {
-        return [];
-    }
-
-    const groupedByMinute = rawData.reduce((acc, record) => {
-        if (!record.date) return acc;
-        // Group by minute
-        const minuteKey = format(parseISO(record.date), 'yyyy-MM-dd HH:mm');
-        if (!acc[minuteKey]) {
-            acc[minuteKey] = { records: [], componentId: record.componentId };
-        }
-        acc[minuteKey].records.push(record);
-        return acc;
-    }, {} as Record<string, { records: RawDataRecord[], componentId: string }>);
-
-    const safeNumber = (value: any): number | null => {
-        const num = Number(value);
-        return isNaN(num) || value === null ? null : num;
-    };
-    
-    const aggregatedResult = Object.entries(groupedByMinute).map(([minuteKey, group]) => {
-        const minuteMetrics = {
-            current: { sum: 0, count: 0 },
-            refCurrent: { sum: 0, count: 0 },
-            unbalance: { sum: 0, count: 0 },
-            refUnbalance: { sum: 0, count: 0 },
-            load_factor: { sum: 0, count: 0 },
-            refLoadFactor: { sum: 0, count: 0 },
-        };
-        
-        const findFirstValidLimit = (key: keyof RawDataRecord, fallbackKey?: keyof RawDataRecord): number | null => {
-            for (const record of group.records) {
-                let value = safeNumber(record[key]);
-                if (typeof value === 'number' && !isNaN(value) && value > 0) {
-                    return value;
-                }
-                if (fallbackKey) {
-                    value = safeNumber(record[fallbackKey]);
-                    if (typeof value === 'number' && !isNaN(value) && value > 0) {
-                        return value;
-                    }
-                }
-            }
-            return null;
-        };
-
-        const currentLimit = findFirstValidLimit("Corriente Máxima");
-        const unbalanceLimit = findFirstValidLimit("Umbral Desbalance", "Referencia_Umbral_Desbalance");
-        const loadFactorLimit = findFirstValidLimit("Umbral Factor Carga", "Referencia_Umbral_FactorCarga");
-
-        for (const record of group.records) {
-            const current = safeNumber(record["Corriente Promedio Suavizado"]);
-            if (current !== null) { minuteMetrics.current.sum += current; minuteMetrics.current.count++; }
-            const refCurrent = safeNumber(record["Referencia Corriente Promedio Suavizado"]);
-            if (refCurrent !== null) { minuteMetrics.refCurrent.sum += refCurrent; minuteMetrics.refCurrent.count++; }
-            const unbalance = safeNumber(record["Desbalance Suavizado"]);
-            if (unbalance !== null) { minuteMetrics.unbalance.sum += unbalance; minuteMetrics.unbalance.count++; }
-            const refUnbalance = safeNumber(record["Referencia Desbalance Suavizado"]);
-            if (refUnbalance !== null) { minuteMetrics.refUnbalance.sum += refUnbalance; minuteMetrics.refUnbalance.count++; }
-            const loadFactor = safeNumber(record["Factor De Carga Suavizado"]);
-            if (loadFactor !== null) { minuteMetrics.load_factor.sum += loadFactor; minuteMetrics.load_factor.count++; }
-            const refLoadFactor = safeNumber(record["Referencia Factor De Carga Suavizado"]);
-            if (refLoadFactor !== null) { minuteMetrics.refLoadFactor.sum += refLoadFactor; minuteMetrics.refLoadFactor.count++; }
-        }
-        
-        const newPoint: ChartDataPoint = {
-            date: format(parseISO(minuteKey), "yyyy-MM-dd'T'HH:mm:ss"), 
-            componentId: group.componentId,
-            isProjection: false,
-            "Corriente Promedio Suavizado": minuteMetrics.current.count > 0 ? minuteMetrics.current.sum / minuteMetrics.current.count : null,
-            "Referencia Corriente Promedio Suavizado": minuteMetrics.refCurrent.count > 0 ? minuteMetrics.refCurrent.sum / minuteMetrics.refCurrent.count : null,
-            "Corriente Máxima": currentLimit,
-            "Desbalance Suavizado": minuteMetrics.unbalance.count > 0 ? minuteMetrics.unbalance.sum / minuteMetrics.unbalance.count : null,
-            "Referencia Desbalance Suavizado": minuteMetrics.refUnbalance.count > 0 ? minuteMetrics.refUnbalance.sum / minuteMetrics.refUnbalance.count : null,
-            "Umbral Desbalance": unbalanceLimit,
-            "Factor De Carga Suavizado": minuteMetrics.load_factor.count > 0 ? minuteMetrics.load_factor.sum / minuteMetrics.load_factor.count : null,
-            "Referencia Factor De Carga Suavizado": minuteMetrics.refLoadFactor.count > 0 ? minuteMetrics.refLoadFactor.sum / minuteMetrics.refLoadFactor.count : null,
-            "Umbral Factor Carga": loadFactorLimit,
-            "Desv_PromedioSuavizado": null
-        };
-        return newPoint;
-    });
-
-    return aggregatedResult.sort((a, b) => a.date.localeCompare(b.date));
-}
-
 export function calculateLinearRegressionAndProject(
   data: ChartDataPoint[],
   valueKey: keyof ChartDataPoint,
@@ -517,7 +430,7 @@ export async function useRealMaintenanceData(
     calculosService: any,
     daysToProject: number = 90,
     onProgressUpdate?: (data: RawDataRecord[], progress: number) => void
-  ): Promise<{ data: ChartDataPoint[], aggregationLevel: 'minute' | 'hour' | 'month' }> {
+  ): Promise<{ data: ChartDataPoint[], aggregationLevel: 'hour' | 'month' }> {
     
     if (!dateRange || !dateRange.from || !dateRange.to) {
       return { data: [], aggregationLevel: 'hour' };
@@ -531,14 +444,7 @@ export async function useRealMaintenanceData(
 
     const dateDiff = differenceInDays(toDate, fromDate);
     
-    let aggregationLevel: 'minute' | 'hour' | 'month';
-    if (dateDiff <= 3) {
-      aggregationLevel = 'minute';
-    } else if (dateDiff <= 365) {
-      aggregationLevel = 'hour';
-    } else {
-      aggregationLevel = 'month';
-    }
+    const aggregationLevel = dateDiff > 365 ? 'month' : 'hour';
   
     let allData: RawDataRecord[] = [];
   
@@ -555,7 +461,6 @@ export async function useRealMaintenanceData(
         onProgressUpdate?.(allData, 100);
   
       } else {
-        // For both minute and hour aggregation, we fetch the detailed data
         const { total } = await calculosService.getTotalByMaquinaAndComponente(machineId, component.originalName, startDate, endDate);
         const limit = 1000;
         const totalPages = Math.ceil(total / limit);
@@ -586,19 +491,7 @@ export async function useRealMaintenanceData(
       FechaFin: endDate,
     });
 
-    let aggregatedData: ChartDataPoint[];
-
-    switch (aggregationLevel) {
-      case 'minute':
-        aggregatedData = aggregateDataByMinute(allData);
-        break;
-      case 'hour':
-        aggregatedData = aggregateDataByDateTime(allData);
-        break;
-      case 'month':
-        aggregatedData = aggregateDataByMonth(allData);
-        break;
-    }
+    const aggregatedData = aggregationLevel === 'month' ? aggregateDataByMonth(allData) : aggregateDataByDateTime(allData);
 
     aggregatedData.forEach(point => {
         point['Desv_PromedioSuavizado'] = Number(sigma) || 0;

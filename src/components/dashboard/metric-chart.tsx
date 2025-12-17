@@ -29,7 +29,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 interface MetricChartProps {
   data: ChartDataPoint[];
-  aggregationLevel: 'minute' | 'hour' | 'month';
+  aggregationLevel: 'hour' | 'month';
   valueKey: keyof ChartDataPoint;
   referenceKey?: keyof ChartDataPoint;
   limitKey: keyof ChartDataPoint;
@@ -133,7 +133,6 @@ export function MetricChart({
     if (!str) return '';
     try {
       const date = parseISO(str);
-      if (aggregationLevel === 'minute') return format(date, "HH:mm", { locale: es });
       return format(date, "dd MMM HH:mm", { locale: es });
     } catch { 
       return str; 
