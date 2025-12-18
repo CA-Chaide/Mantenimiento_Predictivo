@@ -1,396 +1,589 @@
-
-'use client';
-
-import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarTrigger, SidebarFooter } from "@/components/ui/sidebar";
-import { SidebarNav } from '@/components/dashboard/sidebar-nav';
-import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useRealMaintenanceData, type MachineId, type Component, type Machine } from "@/lib/data";
-import type { DateRange } from "react-day-picker";
-import { format, parseISO, subDays, subYears, differenceInDays, isSameDay } from "date-fns";
-import { Bot, MousePointerClick, Loader } from "lucide-react";
-import { DateRangePicker } from "@/components/dashboard/date-range-picker";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect, useMemo } from 'react';
-import { calculosCorrientesDatosMantenimientoService } from "@/services/calculoscorrientesdatosmantenimiento.service";
-import { useToast } from "@/hooks/use-toast";
-
-function EmptyState() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-white">
-      <div className="text-center">
-        <MousePointerClick className="mx-auto h-24 w-24 text-slate-300" />
-        <h3 className="mt-4 text-xl font-semibold text-slate-600">Seleccione un Componente</h3>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">
-          Haga clic en una de las opciones del menú lateral y seleccione un rango de fechas para visualizar los indicadores.
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function LoadingState({ progress }: { progress: number }) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center rounded-lg bg-slate-50">
-        <div className="text-center">
-          <Loader className="mx-auto h-24 w-24 animate-spin text-primary" />
-          <h3 className="mt-4 text-xl font_semibold text-slate-700">Cargando Datos...</h3>
-          <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-            Por favor espere mientras obtenemos la información más reciente.
-          </p>
-          {progress > 0 && (
-            <div className="mt-4 w-64 mx-auto">
-              <div className="w-full bg-slate-200 rounded-full h-2.5">
-                <div 
-                  className="bg-primary h-2.5 rounded-full transition-all duration-300" 
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-              <p className="mt-2 text-xs text-slate-600">{Math.round(progress)}% completado</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-function NoDataState() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-amber-200 bg-amber-50">
-      <div className="text-center">
-        <svg className="mx-auto h-24 w-24 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-        </svg>
-        <h3 className="mt-4 text-xl font-semibold text-amber-800">No hay registros disponibles</h3>
-        <p className="mx-auto mt-2 max-w-md text-sm text-amber-600">
-          No se encontraron datos para la máquina y componente seleccionados en el rango de fechas especificado.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// Mapa para corregir nombres de componentes
-const componentNameMapping: Record<string, Record<string, string>> = {};
-
-export default function DashboardPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const { toast } = useToast();
-  const [machineList, setMachineList] = useState<Machine[]>([]);
-  const [componentList, setComponentList] = useState<Component[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [cachedData, setCachedData] = useState<Record<string, any>>({});
-  const [chartLoading, setChartLoading] = useState(false);
-  const [noDataAvailable, setNoDataAvailable] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [refreshKey, setRefreshKey] = useState(0);
-  
-  // Set default date range on first load
+"use client";
+import { useEffect, useState } from "react";
+function NoProfileToast() {
   useEffect(() => {
-    const from = searchParams.get('from');
-    if (!from) {
-      const today = new Date();
-      const pastDate = subDays(today, 29);
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.set('from', format(pastDate, "yyyy-MM-dd"));
-      newParams.set('to', today.toISOString());
-      // Use replace to not add to history
-      router.replace(`${pathname}?${newParams.toString()}`);
+    if (typeof window !== "undefined" && sessionStorage.getItem("showNoProfileToast") === "1") {
+      toast({
+        title: "Error Login",
+        description: 'No tienes perfiles asignados para esta aplicación.',
+        variant: "destructive",
+      });
+      sessionStorage.removeItem("showNoProfileToast");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React from "react";
+import { useRouter } from "next/navigation";
+import { ScanFace } from "lucide-react";
+import { X as XIcon } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+
+export default function LoginPage() {
+  // Declarar hooks solo una vez
+  const router = useRouter();
+  const [codigoEmpleado, setCodigoEmpleado] = React.useState("");
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [hasCamera, setHasCamera] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [error, setError] = React.useState("");
+  const [counter, setCounter] = React.useState(3);
+  const [videoReady, setVideoReady] = React.useState(false);
+  const [showTurnoModal, setShowTurnoModal] = React.useState(false);
+  const [turno, setTurno] = React.useState<"diurno" | "nocturno" | null>(null);
+
+  // Calcular progreso para el spinner circular exterior
+  const progress = counter > 0 ? ((3 - counter) / 3) * 100 : 100;
+
+  // Color fijo azul para el progreso
+  const progressColor = "#0055b8";
+
+  // Abrir cámara cuando el modal se muestra
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (modalOpen) {
+      setVideoReady(false);
+      interval = setInterval(() => {
+        if (videoRef.current) {
+          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices
+              .getUserMedia({ video: true })
+              .then((stream) => {
+                if (videoRef.current) {
+                  videoRef.current.srcObject = stream;
+                  // Esperar a que el video esté listo
+                  videoRef.current.onloadedmetadata = () => {
+                    setVideoReady(true);
+                  };
+                }
+                clearInterval(interval);
+              })
+              .catch(() => {
+                //setError("No se pudo acceder a la cámara.");
+                clearInterval(interval);
+              });
+          } else {
+            setError("Este navegador no soporta acceso a la cámara.");
+            clearInterval(interval);
+          }
+        }
+      }, 100);
+      return () => {
+        clearInterval(interval);
+      };
+    }
+  }, [modalOpen]);
+
+  React.useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (videoReady && modalOpen) {
+      setCounter(3);
+      timer = setInterval(() => {
+        setCounter((prev) => {
+          if (prev > 1) return prev - 1;
+          clearInterval(timer);
+          handleTakePhoto();
+          return 0;
+        });
+      }, 1000);
+    }
+    return () => {
+      clearInterval(timer);
+    };
+  }, [videoReady, modalOpen]);
+
+  React.useEffect(() => {
+    // Detectar si hay cámara disponible
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then(() => setHasCamera(true))
+      .catch(() => setHasCamera(false));
   }, []);
 
-  // 1. Fetch de Máquinas
-  useEffect(() => {
-    async function fetchInitialData() {
-      try {
-        const machinesResponse = await calculosCorrientesDatosMantenimientoService.getMachines();
-        
-        if (machinesResponse.data && Array.isArray(machinesResponse.data)) {
-          const transformedMachines = machinesResponse.data
-          .filter((m: any) => m.MAQUINA)
-          .map((m: any) => {
-            const machineName = m.MAQUINA;
-            return {
-              id: machineName.toString(),
-              name: machineName.toString()
-            };
-          });
-          setMachineList(transformedMachines);
-        } else {
-          console.error("Formato de respuesta inesperado para máquinas:", machinesResponse);
-          setMachineList([]);
-        }
-
-      } catch (error) {
-        console.error("Error fetching initial data:", error);
-        setMachineList([]);
-        toast({
-            variant: "destructive",
-            title: "Error de Conexión",
-            description: "No se pudo cargar la configuración inicial del servidor.",
-        });
-      } finally {
-        setLoading(false);
-      }
+  const handleScanFace = async () => {
+    if (!codigoEmpleado) {
+      toast({
+        title: "Advertencia",
+        description: (
+          <div className="flex items-center gap-2">
+            <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ? process.env.NEXT_PUBLIC_BASE_PATH + '/img/Chaide.svg' : '/img/Chaide.svg'}`} alt="Chaide Logo" className="w-6 h-6" />
+            <span>Ingrese su Código de Empleado</span>
+          </div>
+        ),
+        variant: "default",
+      });
+      return;
     }
-    fetchInitialData();
-  }, [toast]);
-
-  // 2. Definición de IDs
-  const machineId = (
-    typeof searchParams.get('machine') === 'string' && machineList.some(m => m.id === searchParams.get('machine'))
-      ? searchParams.get('machine')
-      : undefined
-  ) as MachineId | undefined;
-
-  const componentId = typeof searchParams.get('component') === 'string' ? searchParams.get('component') : undefined;
-
-  // 3. Parseo de Fechas
-  const fromDateString = searchParams.get('from');
-  const toDateString = searchParams.get('to');
-  
-  const { fromDate, toDate } = useMemo(() => {
-    try {
-        const to = toDateString ? parseISO(toDateString) : new Date();
-        // Default to last 30 days if no 'from' is present
-        const from = fromDateString ? parseISO(fromDateString) : subDays(to, 29);
-        return { fromDate: from, toDate: to };
-    } catch (e) {
-      return { fromDate: subDays(new Date(), 29), toDate: new Date() };
-    }
-  }, [fromDateString, toDateString]);
-
-  const displayRange: DateRange | undefined = useMemo(() => {
-    if (!fromDate || !toDate) return undefined;
-    return { from: fromDate, to: toDate };
-  }, [fromDate, toDate]);
-
-  // 4. Cache Key
-  const currentCacheKey = useMemo(() => {
-    if (!machineId || !componentId || !displayRange?.from || !displayRange?.to) return null;
-    
-    // Si la fecha final es HOY, usamos un formato que cambia con el tiempo (HH-mm)
-    const isToday = isSameDay(displayRange.to, new Date());
-    const dateFormat = isToday ? 'yyyy-MM-dd-HH-mm' : 'yyyy-MM-dd';
-    
-    return `${machineId}-${componentId}-${format(displayRange.from, 'yyyy-MM-dd')}-${format(displayRange.to, dateFormat)}`;
-  }, [machineId, componentId, displayRange]);
-
-
-  const handleRefresh = () => {
-    if (currentCacheKey) {
-        const { [currentCacheKey]: _, ...rest } = cachedData;
-        setCachedData(rest);
-    }
-    setRefreshKey(prev => prev + 1);
+    // Guardar el código en sessionStorage al abrir el modal
+    sessionStorage.setItem("usuario_codigo", codigoEmpleado);
+    setModalOpen(true);
+    setError("");
   };
 
-  // 5. Fetch componentes
-  useEffect(() => {
-    async function fetchComponents() {
-      if (!machineId) {
-        setComponentList([]);
-        return;
-      };
-      try {
-        const response = await calculosCorrientesDatosMantenimientoService.getComponentsByMachine({ maquina: machineId });
-        if (response.data && Array.isArray(response.data)) {
-          const nameMappingForMachine = componentNameMapping[machineId] || {};
-          
-          const transformedComponents = response.data
-            .filter((c: any) => c.COMPONENTE)
-            .map((c: any) => {
-              const originalName = c.COMPONENTE.toString();
-              const correctedName = nameMappingForMachine[originalName] || originalName;
+  const handleTakePhoto = async () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          setLoading(true);
+          let shouldCloseModal = true;
+          let respuesta;
+          try {
+            // Importar servicios dinámicamente para SSR
+            const { authUsersService } = await import(
+              "@/services/authUsers.service"
+            );
+            const { menuService } = await import("@/services/menu.service");
+            const res = (respuesta = await authUsersService.getAuthUser(
+              codigoEmpleado,
+              blob
+            ));
+            // Permitir objeto o array
+            const userData = Array.isArray(res.data) ? res.data[0] : res.data;
+            if (res.success && userData && userData.CODIGO) {
+              //console.log("Usuario autenticado:", userData);
+              // Guardar datos en sessionStorage
+              sessionStorage.setItem("usuario_nombre", userData.NOMBRE);
+              sessionStorage.setItem("usuario_codigo", userData.CODIGO);
+              sessionStorage.setItem(
+                "usuario_departamento",
+                userData.DEPARTAMENTO
+              );
+              sessionStorage.setItem(
+                "usuario_grupo_departamento",
+                userData.GRUPO_DEPARTAMENTO
+              );
+              sessionStorage.setItem("usuario_localidad", userData.LOCALIDAD);
+              // Establecer timestamp de actividad inicial
+              sessionStorage.setItem("lastActivity", Date.now().toString());
+    
 
-              return {
-                id: correctedName.toLowerCase().replace(/ /g, '_').replace(/\//g, '_'),
-                name: correctedName,
-                originalName: originalName,
-              };
-            });
-
-          const uniqueComponents = Array.from(new Map(transformedComponents.map(c => [c.id, c])).values());
-          setComponentList(uniqueComponents);
-        } else {
-          console.error("Formato de respuesta inesperado para componentes:", response);
-          setComponentList([]);
-        }
-      } catch (error) {
-        console.error("Error fetching components:", error);
-        setComponentList([]);
-      }
-    }
-    fetchComponents();
-  }, [machineId]);
-  
-  // 6. Carga de datos
-  useEffect(() => {
-    async function loadChartData() {
-      setNoDataAvailable(false);
-      setLoadingProgress(0);
-      
-      if (!machineId || !componentId || !displayRange || !displayRange.from || !displayRange.to || !currentCacheKey) {
-        return;
-      }
-      
-      if (cachedData[currentCacheKey]) {
-          return;
-      }
-
-      const selectedComp = componentList.find(c => c.id === componentId);
-      if (!selectedComp) {
-        return;
-      }
-
-      setChartLoading(true);
-      try {
-        if (!displayRange.from || !displayRange.to) {
-          setChartLoading(false);
-          return;
-        }
-
-        const dateDiff = differenceInDays(displayRange.to, displayRange.from);
-        const projectionDays = dateDiff <= 31 ? 30 : 90;
-
-        const result = await useRealMaintenanceData(
-          machineId,
-          selectedComp,
-          displayRange,
-          calculosCorrientesDatosMantenimientoService,
-          projectionDays,
-          (partialData, progress) => {
-            setLoadingProgress(progress);
+              // Recuperar menú
+              //await menuService.getMenuCodigoAplicacion(userData.CODIGO, environment.nombreAplicacion);
+              // Redirigir al dashboard
+              router.push(`/dashboard`);
+            } else {
+              // Mostrar toast rojo con el mensaje de error del backend
+              //console.log("Error de autenticación:", res);
+              toast({
+                title: "Error de autenticación",
+                description: res.error || "No se pudo identificar al usuario",
+                variant: "destructive",
+              });
+              // Mantener el modal abierto para reintentar
+              shouldCloseModal = true;
+              setLoading(false);
+              return;
+            }
+          } catch (e: any) {
+            // Imprime el mensaje real del backend si existe
+            const backendMsg =
+              `No se pudo identificar al usuario (${codigoEmpleado})`;
+            if (e?.response?.status === 403) {
+              toast({
+                title: "Error en la Autenticación",
+                description: backendMsg,
+                variant: "destructive",
+              });
+              return;
+            }
+            setError(backendMsg);
+          } finally {
+            setLoading(false);
+            if (shouldCloseModal) {
+              setModalOpen(false);
+              // Detener la cámara
+              if (video.srcObject) {
+                (video.srcObject as MediaStream)
+                  .getTracks()
+                  .forEach((track) => track.stop());
+              }
+            }
           }
-        );
-        
-        if (result.data.length > 0) {
-          setCachedData(prev => ({ ...prev, [currentCacheKey]: result }));
-          setNoDataAvailable(false);
-        } else {
-          setCachedData(prev => ({ ...prev, [currentCacheKey]: { data: [], aggregationLevel: 'hour' } }));
-          setNoDataAvailable(true);
         }
-        setLoadingProgress(100);
-      } catch (error: any) {
-        console.error("Error loading chart data:", error);
-        setCachedData(prev => ({ ...prev, [currentCacheKey]: { data: [], aggregationLevel: 'hour' } }));
-        setNoDataAvailable(true);
-        setLoadingProgress(0);
-        toast({
-            variant: "destructive",
-            title: "Error al Cargar Datos",
-            description: error.message || "No se pudo obtener la información del servidor.",
-        });
-      } finally {
-        setChartLoading(false);
-      }
+      }, "image/jpeg");
     }
+  };
 
-    loadChartData();
-  }, [machineId, componentId, fromDate, toDate, componentList, toast, refreshKey, currentCacheKey]);
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    if (videoRef.current && videoRef.current.srcObject) {
+      (videoRef.current.srcObject as MediaStream)
+        .getTracks()
+        .forEach((track) => track.stop());
+    }
+  };
 
-  const chartInfo = currentCacheKey ? cachedData[currentCacheKey] : { data: [], aggregationLevel: 'hour' };
-  const chartData = chartInfo?.data || [];
-  const aggregationLevel = chartInfo?.aggregationLevel || 'hour';
-
-  // Renderizado
-  if (loading) {
-    return (
-      <SidebarProvider>
-        <Sidebar collapsible="icon" side="left" className="border-r-0">
-          <div className="flex flex-col justify-between h-full">
-            <div>
-              <SidebarHeader className="border-b border-sidebar-border">
-                <div className="flex h-16 items-center gap-3 px-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Bot className="size-6" />
-                  </div>
-                </div>
-              </SidebarHeader>
-            </div>
-          </div>
-        </Sidebar>
-        <SidebarInset className="bg-slate-50">
-          <DashboardHeader title="Cargando..." />
-          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-            <LoadingState progress={0} />
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
-    );
-  }
-
-  const selectedComponent = componentId ? componentList.find(c => c.id === componentId) : undefined;
-  const machine = machineList.find(m => m.id === machineId);
-  const headerTitle = selectedComponent ? `${machine?.name} > ${selectedComponent.name}` : machine?.name || 'Dashboard';
-  
   return (
-    <SidebarProvider>
-      <Sidebar collapsible="icon" side="left" className="border-r-0">
-        <div className="flex flex-col justify-between h-full">
-            <div>
-                <SidebarHeader className="border-b border-sidebar-border">
-                <div className="flex h-16 items-center gap-3 px-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Bot className="size-6" />
-                    </div>
-                    <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                      <h2 className="font-bold text-xl text-sidebar-foreground">Gemelo Digital</h2>
-                      <p className="text-xs text-blue-200">Mantenimiento Predictivo</p>
-                    </div>
-                </div>
-                </SidebarHeader>
-                <SidebarContent>
-                    <SidebarNav machines={machineList} components={componentList} />
-                </SidebarContent>
+    <>
+      <NoProfileToast />
+      <div className="flex min-h-screen w-full">
+  <div className="hidden lg:flex lg:w-1/2 bg-primary flex-col items-center justify-center p-10 text-white cursor-pointer" onClick={() => router.push('/dashboard')}>
+        <Image
+          src={`${process.env.NEXT_PUBLIC_BASE_PATH ? process.env.NEXT_PUBLIC_BASE_PATH + '/img/logo_chaide.svg' : '/img/logo_chaide.svg'}`}
+          alt="Chaide Logo"
+          width={300}
+          height={300}
+          priority
+        />
+      </div>
+      <div className="flex w-full lg:w-1/2 items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader className="text-center">
+            <div className="mb-4 flex justify-center items-center gap-4">
+              <Image
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH ? process.env.NEXT_PUBLIC_BASE_PATH + '/img/Chaide.svg' : '/img/Chaide.svg'}`}
+                alt="Chaide App Icon"
+                width={40}
+                height={40}
+                className="h-10 w-10"
+              />
+              <CardTitle className="text-2xl font-headline">
+                Módulo de Mantenimiento Predictivo
+              </CardTitle>
             </div>
-            <SidebarFooter className="p-2 border-t border-sidebar-border group-data-[collapsible=icon]:hidden">
-            </SidebarFooter>
-        </div>
-      </Sidebar>
-      <SidebarInset className="bg-slate-50">
-        <DashboardHeader 
-          title={headerTitle} 
-          onRefresh={handleRefresh}
-          showRefreshButton={!!selectedComponent}
-        >
-            <DateRangePicker initialDate={displayRange} />
-        </DashboardHeader>
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          {!selectedComponent || !machineId || !displayRange ? (
-            <EmptyState />
-          ) : noDataAvailable && !chartLoading ? (
-            <NoDataState />
-          ) : chartLoading && chartData.length === 0 ? (
-            <LoadingState progress={loadingProgress} />
-          ) : (
-            <div className="relative">
-              {chartLoading && chartData.length > 0 && (
-                <div className="absolute top-0 left-0 right-0 z-10 bg-slate-50/80 backdrop-blur-sm h-full flex items-center justify-center">
-                    <div className="text-center">
-                          <Loader className="mx-auto h-12 w-12 animate-spin text-primary" />
-                          <p className="mt-2 text-sm font-semibold text-slate-600">Recalculando Proyección...</p>
-                    </div>
-                </div>
-              )}
-              <div className={chartLoading ? "opacity-30" : ""}>
-                <DashboardClient
-                  key={currentCacheKey || 'dashboard-client'} 
-                  machineComponents={selectedComponent ? [selectedComponent] : []}
-                  data={chartData}
-                  aggregationLevel={aggregationLevel}
+            <CardDescription>Inicio de Sesión</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 pt-4">
+              <div className="grid gap-2 text-left">
+                <Label htmlFor="codigo">Código Empleado</Label>
+                <Input
+                  id="codigo"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Ingrese su código de empleado"
+                  value={codigoEmpleado}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, "");
+                    setCodigoEmpleado(value);
+                  }}
+                  required
                 />
               </div>
+              <button
+                className={`w-full flex items-center justify-center gap-2 py-2 rounded ${
+                  hasCamera
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-red-600 cursor-not-allowed"
+                }`}
+                disabled={!hasCamera || loading}
+                onClick={handleScanFace}
+                type="button"
+              >
+                {/* Ludice React ScanFace icon (puedes cambiar por el icono real si lo tienes) */}
+                <ScanFace size={32} color="#fff" />
+              </button>
+              {error && (
+                <div className="text-red-500 text-sm text-center">{error}</div>
+              )}
             </div>
-          )}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+            {/* Modal flotante para la cámara */}
+            {modalOpen && (
+              <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+                {loading ? (
+                  <div
+                    className="bg-white rounded-lg shadow-lg flex flex-col items-center justify-center relative"
+                    style={{
+                      width: "55vw",
+                      height: "55vh",
+                      maxWidth: "95vw",
+                      maxHeight: "95vh",
+                      minWidth: "300px",
+                      minHeight: "300px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div className="flex flex-col items-center justify-center h-full w-full">
+                      <div className="relative flex items-center justify-center mb-4">
+                        <img
+                          src={`${process.env.NEXT_PUBLIC_BASE_PATH ? process.env.NEXT_PUBLIC_BASE_PATH + '/img/Chaide.svg' : '/img/Chaide.svg'}`}
+                          alt="Chaide Logo"
+                          className="w-20 h-20"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <span className="animate-spin rounded-full border-4 border-blue-400 border-t-transparent w-24 h-24"></span>
+                        </span>
+                      </div>
+                      <span className="text-lg font-semibold text-blue-700">
+                        Verificando identidad...
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="bg-white rounded-lg shadow-lg flex flex-col items-center justify-center relative"
+                    style={{
+                      width: "55vw",
+                      height: "55vh",
+                      maxWidth: "95vw",
+                      maxHeight: "95vh",
+                      minWidth: "300px",
+                      minHeight: "300px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="absolute top-0 left-0 w-full h-full object-cover rounded"
+                      style={{ zIndex: 1, transform: "scaleX(-1)" }}
+                    />
+                    {/* Logo Chaide en esquina superior izquierda */}
+                    <div
+                      className="absolute top-4 left-4"
+                      style={{ zIndex: 10 }}
+                    >
+                      <img
+                        src={`${process.env.NEXT_PUBLIC_BASE_PATH ? process.env.NEXT_PUBLIC_BASE_PATH + '/img/Chaide.svg' : '/img/Chaide.svg'}`}
+                        alt="Chaide Logo"
+                        style={{ width: 48, height: 48 }}
+                      />
+                    </div>
+                    {/* Botón cancelar en esquina superior derecha */}
+                    <div
+                      className="absolute top-4 right-4 flex items-center justify-center"
+                      style={{ zIndex: 10 }}
+                    >
+                      <div
+                        className="w-12 h-12 flex items-center justify-center rounded-full"
+                        style={{
+                          background: "rgba(255,255,255,0.6)",
+                          backdropFilter: "blur(6px)",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                          cursor: "pointer",
+                        }}
+                        onClick={handleCloseModal}
+                      >
+                        <XIcon size={28} color="#333" />
+                      </div>
+                    </div>
+                    {/* Círculo guía con animación de progreso */}
+                    <div
+                      className="absolute pointer-events-none"
+                      style={{
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        width: "290px",
+                        height: "290px",
+                        zIndex: 3,
+                      }}
+                    >
+                      <svg width="290" height="290" viewBox="0 0 290 290">
+                        <circle
+                          cx="145"
+                          cy="145"
+                          r="135"
+                          stroke="#fff"
+                          strokeWidth="8"
+                          fill="none"
+                          opacity="0.8"
+                        />
+                        <circle
+                          cx="145"
+                          cy="145"
+                          r="135"
+                          stroke={progressColor}
+                          strokeWidth="10"
+                          fill="none"
+                          strokeDasharray={2 * Math.PI * 135}
+                          strokeDashoffset={
+                            2 * Math.PI * 135 * (1 - progress / 100)
+                          }
+                          style={{
+                            transition: "stroke-dashoffset 1s linear",
+                            filter: `drop-shadow(0 0 8px ${progressColor})`,
+                          }}
+                        />
+                      </svg>
+                    </div>
+                    {/* Contador regresivo: centro del círculo en móvil, debajo en desktop */}
+                    {videoReady &&
+                      (typeof window !== "undefined" &&
+                      window.innerWidth < 768 ? (
+                        <div
+                          className="absolute left-1/2"
+                          style={{
+                            bottom: "18px",
+                            transform: "translateX(-50%)",
+                            zIndex: 4,
+                            width: "220px",
+                            display: "flex",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <span
+                            className="text-3xl font-extrabold px-6 py-2 rounded-full shadow"
+                            style={{
+                              background: "rgba(0, 85, 184, 0.85)",
+                              color: "#fff",
+                              letterSpacing: "1px",
+                              textShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                            }}
+                          >
+                            {counter > 0 ? `${counter}s` : "¡Listo!"}
+                          </span>
+                        </div>
+                      ) : (
+                        <div
+                          className="absolute left-1/2"
+                          style={{
+                            top: "calc(50% + 150px)",
+                            transform: "translateX(-50%)",
+                            zIndex: 4,
+                          }}
+                        >
+                          <span
+                            className="text-2xl font-bold px-6 py-2 rounded-lg shadow"
+                            style={{
+                              background: "rgba(0, 85, 184, 0.85)",
+                              color: "#fff",
+                              letterSpacing: "0.5px",
+                              textShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                            }}
+                          >
+                            {counter > 0
+                              ? `Foto en ${counter}s`
+                              : "Procesando..."}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Contador debajo del círculo en móvil */}
+            {/* El contador móvil ahora está centrado en el círculo, no debajo */}
+            {/* Modal para seleccionar turno de producción */}
+            {showTurnoModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100]">
+                <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col items-center gap-6 min-w-[320px] max-w-[90vw]">
+                  <h2 className="text-xl font-bold mb-2">
+                    Selecciona tu jornada
+                  </h2>
+                  <p className="text-sm text-gray-600 text-center mb-4">
+                    Eres usuario de producción. Por favor selecciona tu jornada
+                    de trabajo:
+                  </p>
+                  <div className="flex flex-col gap-4 w-full">
+                    <label className="flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="radio"
+                        name="turno"
+                        value="diurno"
+                        checked={turno === "diurno"}
+                        onChange={() => setTurno("diurno")}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <div className="flex items-center gap-3">
+                        {/* Icono sol */}
+                        <svg
+                          width="32"
+                          height="32"
+                          viewBox="0 0 32 32"
+                          fill="none"
+                        >
+                          <circle cx="16" cy="16" r="6" fill="#FFD700" />
+                          <g
+                            stroke="#FFD700"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          >
+                            <line x1="16" y1="3" x2="16" y2="6" />
+                            <line x1="16" y1="26" x2="16" y2="29" />
+                            <line x1="3" y1="16" x2="6" y2="16" />
+                            <line x1="26" y1="16" x2="29" y2="16" />
+                            <line x1="6.34" y1="6.34" x2="8.46" y2="8.46" />
+                            <line x1="23.54" y1="23.54" x2="25.66" y2="25.66" />
+                            <line x1="6.34" y1="25.66" x2="8.46" y2="23.54" />
+                            <line x1="23.54" y1="8.46" x2="25.66" y2="6.34" />
+                          </g>
+                        </svg>
+                        <span className="text-base font-medium">
+                          Jornada Diurna
+                        </span>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="radio"
+                        name="turno"
+                        value="nocturno"
+                        checked={turno === "nocturno"}
+                        onChange={() => setTurno("nocturno")}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <div className="flex items-center gap-3">
+                        {/* Icono luna */}
+                        <svg
+                          width="32"
+                          height="32"
+                          viewBox="0 0 32 32"
+                          fill="none"
+                        >
+                          <path
+                            d="M22 16c0 4.418-3.582 8-8 8a8 8 0 0 1 0-16c.34 0 .677.02 1.01.06A10 10 0 1 0 22 16Z"
+                            fill="#4A5568"
+                          />
+                          <circle cx="24" cy="10" r="1.5" fill="#4A5568" />
+                          <circle cx="26" cy="12" r="0.8" fill="#4A5568" />
+                        </svg>
+                        <span className="text-base font-medium">
+                          Jornada Nocturna
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                  <button
+                    className="mt-6 px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+                    disabled={!turno}
+                    onClick={() => {
+                      if (turno) {
+                        // Guardar turno en sessionStorage
+                        sessionStorage.setItem("usuario_turno", turno);
+                        // Actualizar timestamp de actividad
+                        sessionStorage.setItem(
+                          "lastActivity",
+                          Date.now().toString()
+                        );
+                        setShowTurnoModal(false);
+                        // Redirigir al dashboard
+                        router.push(`/dashboard/reservar-actualizar`);
+                      }
+                    }}
+                  >
+                    Continuar
+                  </button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      </div>
+    </>
   );
 }
-
-    
