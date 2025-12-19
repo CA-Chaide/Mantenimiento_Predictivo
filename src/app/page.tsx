@@ -238,7 +238,11 @@ export default function LoginPage() {
     <>
       <NoProfileToast />
       <div className="flex min-h-screen w-full">
-  <div className="hidden lg:flex lg:w-1/2 bg-primary flex-col items-center justify-center p-10 text-white cursor-pointer" onClick={() => router.push('/dashboard')}>
+  <div className="hidden lg:flex lg:w-1/2 bg-primary flex-col items-center justify-center p-10 text-white cursor-pointer" onClick={() => toast({
+        title: "Gestión Inteligente de Mantenimiento Predictivo",
+        description: "Desarrollado por Chaide - Tecnología",
+        variant: "default",
+      })}>
         <Image
           src={`${process.env.NEXT_PUBLIC_BASE_PATH ? process.env.NEXT_PUBLIC_BASE_PATH + '/img/logo_chaide.svg' : '/img/logo_chaide.svg'}`}
           alt="Chaide Logo"

@@ -32,6 +32,10 @@ const toastVariants = cva(
         default: "border bg-background text-foreground",
         destructive:
           "destructive group border-destructive bg-destructive text-destructive-foreground",
+        success:
+          "success group border-green-400 bg-green-100 text-green-900",
+        warning:
+          "warning group border-yellow-400 bg-yellow-100 text-yellow-900",
       },
     },
     defaultVariants: {
@@ -40,19 +44,30 @@ const toastVariants = cva(
   }
 )
 
+import { CheckCircle, AlertTriangle, XCircle, Info } from "lucide-react";
+
 const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
     VariantProps<typeof toastVariants>
->(({ className, variant, ...props }, ref) => {
+>(({ className, variant, children, ...props }, ref) => {
+  let Icon = null;
+  if (variant === "success") Icon = <CheckCircle className="h-5 w-5 text-green-600 mr-2" />;
+  else if (variant === "destructive") Icon = <XCircle className="h-5 w-5 text-red-600 mr-2" />;
+  else if (variant === "warning") Icon = <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />;
+  else Icon = <Info className="h-5 w-5 text-blue-600 mr-2" />;
+
   return (
     <ToastPrimitives.Root
       ref={ref}
-      className={cn(toastVariants({ variant }), className)}
+      className={cn(toastVariants({ variant }), className, "flex-row items-start")}
       {...props}
-    />
-  )
-})
+    >
+      <span className="flex items-center pt-1">{Icon}</span>
+      <div className="flex-1">{children}</div>
+    </ToastPrimitives.Root>
+  );
+});
 Toast.displayName = ToastPrimitives.Root.displayName
 
 const ToastAction = React.forwardRef<

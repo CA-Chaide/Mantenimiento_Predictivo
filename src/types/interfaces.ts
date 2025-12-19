@@ -279,3 +279,62 @@ export interface EtiquetaPistoleadaItem {
   impresionExitosa: boolean;
   logGuardado: boolean;
 }
+
+//////////////////////Elementos del Componente de Monitoreo//////////////////////
+
+export interface TipoEvento {
+  codigo_tipo_evento: string;
+  nombre_evento: string;
+  estado: string;
+}
+
+export interface Referencia {
+  codigo_referencia: string;
+  codigo_componente: string;
+  fecha_inicio_referencia: Date | string;
+  fecha_fin_referencia: Date | string;
+  estado: string;
+}
+
+export interface Limites {
+  codigo_limite: string;
+  codigo_componente: string;
+  corriente_limite_sup: number;
+  corriente_limite_inf: number;
+  desbalance_limite_sup: number;
+  desbalance_limite_inf: number;
+  factor_carga_limite_sup: number;
+  factor_carga_limite_inf: number;
+  estado: string;
+}
+
+export interface Historial {
+  codigo_historial: string;
+  codigo_componente: string;
+  codigo_tipo_evento: string;
+  fecha_evento: Date | string;
+  descripcion_evento: string;
+  params: Text;
+  estado: string;
+}
+
+export interface Equipo {
+  codigo_equipo: string; 
+  codigo_area: string;
+  nombre_equipo: string;
+  estado: string;
+}
+
+export interface Componente {
+  codigo_componente: string;
+  codigo_equipo: string;
+  nombre_componente: string;
+  estado: string;
+}
+
+export interface Area {
+  codigo_area: string;
+  nombre_area: string;
+  estado: string;
+}
+
