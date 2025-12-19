@@ -1,5 +1,7 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useDashboardData } from "@/app/dashboard/DashboardDataContext";
+import { useEffect } from "react";
 import { environment } from "@/environments/environments.prod";
 import {
   SidebarMenu,
@@ -21,6 +23,16 @@ import router, { useRouter } from "next/navigation";
 
 function toRecursiveItems(nodes: MenuNode[]): any[] {
   return nodes.map((n) => {
+    // Normalize path: if backend returned an absolute URL, extract its pathname
+    let normalizedPath = n.path;
+    try {
+      if (typeof normalizedPath === 'string' && /^(https?:)?\/\//.test(normalizedPath)) {
+        const u = new URL(normalizedPath, typeof window !== 'undefined' ? window.location.origin : undefined);
+        normalizedPath = u.pathname + (u.search || '') + (u.hash || '');
+      }
+    } catch (err) {
+      // ignore malformed URLs and keep original path
+    }
     // Buscar el icono por nombre en LucideIcons
     const IconComp =
       (LucideIcons as Record<string, any>)[n.icono] ||
@@ -31,13 +43,13 @@ function toRecursiveItems(nodes: MenuNode[]): any[] {
     // Los elementos raíz y branch también pueden ser navegables si tienen un path válido
     // Solo excluir de navegación si el path está vacío o es undefined
     const isNavigable =
-      !!n.path && n.path !== "" && n.path !== "." && n.path !== "|";
+      !!normalizedPath && normalizedPath !== "" && normalizedPath !== "." && normalizedPath !== "|";
     const children = hasChildren ? toRecursiveItems(n.children!) : undefined;
 
     return {
       label: n.nombre,
       icon: IconComp,
-      path: isNavigable ? n.path : undefined,
+      path: isNavigable ? normalizedPath : undefined,
       children,
       // Incluir información adicional para debugging
       codigo_menu: n.codigo_menu,
@@ -200,125 +212,24 @@ function combineMenus(menus: MenuNode[]): MenuNode[] {
 }
 
 export function DynamicSidebarMenu() {
-  // Initialize required states
-  const [menuItems, setMenuItems] = useState<any[]>([]);
-  const [menuLoading, setMenuLoading] = useState<boolean>(true);
-  const [menuError, setMenuError] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<any | null>(null);
-  const [showNoProfileToast, setShowNoProfileToast] = useState<boolean>(false);
   const router = useRouter();
+  let menuLoading = true;
+  let menuItems: any[] = [];
+  let menuError: string | null = null;
 
-  useEffect(() => {
-    const usuarioCodigo =
-      typeof window !== "undefined"
-        ? sessionStorage.getItem("usuario_codigo")
-        : null;
-    const codigoAplicacion = environment.nombreAplicacion || "APP_MENU_RESERVA";
-
-    async function cargarMenu() {
-      let menuMostrado: any[] = [];
-      let huboError = false;
-      setMenuLoading(true);
-      setMenuError(null);
-      // console.log(
-      //   "Cargando menú para usuario:",
-      //   usuarioCodigo,
-      //   "y aplicación:",
-      //   codigoAplicacion
-      // );
-
-      if (usuarioCodigo && codigoAplicacion) {
-        try {
-          //console.log("Solicitando perfiles de usuario...");
-          const profileRes = await menuService.getUserProfiles(usuarioCodigo);
-          setUserProfile(profileRes);
-          //console.log("Respuesta perfiles usuario:", profileRes);
-          const tipoUsuarioObj =
-            (profileRes?.data as { Tipo_usuario?: any })?.Tipo_usuario || {};
-          const usuarioPerfiles = Object.values(tipoUsuarioObj).map(
-            (tu: any) => tu.codigo_tipo_usuario
-          );
-          //console.log("Perfiles del usuario:", usuarioPerfiles);
-          //console.log("Solicitando perfiles de aplicación...");
-          const appProfilesRes = await menuService.getAplicationProfiles(
-            codigoAplicacion
-          );
-          //console.log("Respuesta perfiles aplicación:", appProfilesRes);
-          const appPerfiles = (appProfilesRes?.data || []).map(
-            (ap: any) => ap.codigo_tipo_usuario
-          );
-          //console.log("Perfiles de la aplicación:", appPerfiles);
-          const perfilesMatch = usuarioPerfiles.filter((codigo: any) =>
-            appPerfiles.includes(codigo)
-          );
-          //console.log("Perfiles que hacen match:", perfilesMatch);
-          //console.log("Solicitando menús para perfiles match...");
-          const menusRes = await Promise.all(
-            perfilesMatch.map((codigoTipoUsuario: any) =>
-              menuService.getMenuByCodigoTipoUsuario(codigoTipoUsuario)
-            )
-          );
-          //console.log("Respuestas de menús por perfil:", menusRes);
-          let allMenus: MenuNode[] = [];
-          menusRes.forEach((res) => {
-            if (res.data) {
-              allMenus.push(res.data as MenuNode);
-            } else if (
-              res &&
-              typeof res === "object" &&
-              (res as any).codigo_menu
-            ) {
-              allMenus.push(res as any);
-            }
-          });
-          //console.log("Menús combinados antes de filtrar:", allMenus);
-          const combinedMenus = combineMenus(allMenus);
-          //console.log("Menús combinados:", combinedMenus);
-          const activeMenus = filterActive(combinedMenus);
-          //console.log("Menús activos:", activeMenus);
-          const recursiveMenus = toRecursiveItems(activeMenus);
-          //console.log("Menú recursivo final:", recursiveMenus);
-          if (recursiveMenus.length > 0) {
-            menuMostrado = recursiveMenus;
-          }
-        } catch (err) {
-          console.error("Error en recuperación de menú propio:", err);
-          huboError = true;
-        }
-      }
-
-      // Si no hay menú propio, intentar cargar el de super-admin
-      if (menuMostrado.length === 0) {
-        try {
-          if (typeof window !== "undefined") {
-            sessionStorage.setItem("showNoProfileToast", "1");
-          }
-          router.push("/");
-        } catch (err) {
-          console.error("Error en recuperación de menú super-admin:", err);
-          huboError = true;
-        }
-      }
-
-      setMenuItems(menuMostrado);
-      setMenuLoading(false);
-      // Control de acceso: si no hay menú, bloquear y mostrar toast
-      try {
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem(
-            "menu_has_items",
-            menuMostrado && menuMostrado.length > 0 ? "true" : "false"
-          );
-          window.dispatchEvent(new Event("menu-items-updated"));
-        }
-      } catch {}
-      if (menuMostrado.length === 0 || huboError) {
-        setMenuError("No tienes acceso a esta aplicación.");
-        setShowNoProfileToast(true);
-      }
-    }
-    cargarMenu();
-  }, []);
+  try {
+    const ctx = useDashboardData();
+    menuLoading = ctx.menuLoading;
+    menuItems = ctx.menuItems ? toRecursiveItems(ctx.menuItems as any) : [];
+    menuError = ctx.menuError;
+  } catch (err) {
+    // If context isn't available, fall back to local loading (no-op here)
+    // but avoid throwing — show an error UI instructing to wrap layout with provider
+    menuLoading = false;
+    menuItems = [];
+    menuError = "Menu provider not available";
+    console.warn("DynamicSidebarMenu: DashboardDataProvider not found. Wrap layout with DashboardDataProvider.");
+  }
 
   useEffect(() => {
     if (!menuLoading && menuItems.length === 0 && !menuError) {

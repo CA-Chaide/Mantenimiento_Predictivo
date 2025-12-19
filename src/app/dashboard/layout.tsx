@@ -41,6 +41,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar-new";
 import { SidebarLogo } from "@/components/sidebar-logo";
+import { DashboardDataProvider } from "./DashboardDataContext";
 
 export const metadata: Metadata = {
   title: "Gestión Inteligente de Certificados de Calidad",
@@ -54,24 +55,26 @@ export default function DashboardLayout({
 }>) {
 
   return (
-    <div className="h-screen flex w-full overflow-hidden">
-      <Sidebar>
-        <SidebarHeader>
-          <SidebarLogo />
-        </SidebarHeader>
-        <SidebarContent>
-          <DynamicSidebarMenu />
-        </SidebarContent>
-         <SidebarFooter className="p-4" >
-           <DashboardUserInfo />
-         </SidebarFooter>
-      </Sidebar>
-      <div className="flex-1 flex flex-col overflow-hidden p-0">
-        {/* <MainHeader /> */}
-        <main className="flex-1 p-0 sm:p-0 lg:p-2 overflow-y-auto">
-          {children}
-        </main>
+    <DashboardDataProvider>
+      <div className="h-screen flex w-full overflow-hidden">
+        <Sidebar>
+          <SidebarHeader>
+            <SidebarLogo />
+          </SidebarHeader>
+          <SidebarContent>
+            <DynamicSidebarMenu />
+          </SidebarContent>
+           <SidebarFooter className="p-4" >
+             <DashboardUserInfo />
+           </SidebarFooter>
+        </Sidebar>
+        <div className="flex-1 flex flex-col overflow-hidden p-0">
+          {/* <MainHeader /> */}
+          <main className="flex-1 p-0 sm:p-0 lg:p-2 overflow-y-auto">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </DashboardDataProvider>
   );
 }

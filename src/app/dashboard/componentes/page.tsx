@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import ReferenciasModal from "@/components/dashboard/referencias-modal";
+import LimitesModal from "@/components/dashboard/limites-modal";
 import { componenteService } from "@/services/componente.service";
 import { equipoService } from "@/services/equipo.service";
 import type { Componente, Equipo } from "@/types/interfaces";
@@ -40,6 +42,11 @@ export default function ComponentePage() {
   const [showForm, setShowForm] = useState(false);
   const { toast }:
     { toast: (args: { title: string; description?: string; variant?: "default" | "destructive" | "success" | "warning" }) => void } = useToast();
+
+  const [showReferenciasModal, setShowReferenciasModal] = useState(false);
+  const [showLimitesModal, setShowLimitesModal] = useState(false);
+  const [modalComponenteId, setModalComponenteId] = useState<string | null>(null);
+  const [modalComponenteName, setModalComponenteName] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true); setError(null);
@@ -266,6 +273,12 @@ export default function ComponentePage() {
                           <DropdownMenuItem onClick={() => { startEdit(comp); setShowForm(true); }}>
                             ✏️ Editar
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setModalComponenteId(String(comp.codigo_componente)); setModalComponenteName(comp.nombre_componente); setShowReferenciasModal(true); }}>
+                            📎 Referencias
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setModalComponenteId(String(comp.codigo_componente)); setModalComponenteName(comp.nombre_componente); setShowLimitesModal(true); }}>
+                            📏 Límites
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDelete(comp.codigo_componente)}
                             disabled={deletingId === comp.codigo_componente}
@@ -335,6 +348,13 @@ export default function ComponentePage() {
           )}
         </CardContent>
       </Card>
+
+      {modalComponenteId && (
+        <>
+          <ReferenciasModal isOpen={showReferenciasModal} onClose={() => setShowReferenciasModal(false)} componenteId={modalComponenteId} componenteNombre={modalComponenteName ?? undefined} />
+          <LimitesModal isOpen={showLimitesModal} onClose={() => setShowLimitesModal(false)} componenteId={modalComponenteId} componenteNombre={modalComponenteName ?? undefined} />
+        </>
+      )}
 
       {error && (
         <Alert variant="destructive" className="max-w-md">

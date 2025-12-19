@@ -2,6 +2,7 @@
 'use client';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, PanelLeft } from 'lucide-react';
 
@@ -127,29 +128,39 @@ export const SidebarMenuButton = React.forwardRef<
     href: string;
     active?: boolean;
   }
->(({ className, children, active = false, ...props }, ref) => {
+>(({ className, children, active = false, href, ...props }, ref) => {
     const { isCollapsed } = useSidebar();
     const childrenArray = React.Children.toArray(children);
     const icon = childrenArray[0];
     const label = childrenArray[1];
 
-  return (
-    <a
-      ref={ref}
-      className={cn(
-        'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-        active
-          ? 'bg-primary-foreground/10 text-green-300 hover:text-green-200 hover:bg-primary-foreground/15'
-          : 'text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground',
-        isCollapsed && 'justify-center',
-        className
-      )}
-      {...props}
-    >
-      {icon}
-      {!isCollapsed && label}
-    </a>
-  );
+    const classNames = cn(
+      'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+      active
+        ? 'bg-primary-foreground/10 text-green-300 hover:text-green-200 hover:bg-primary-foreground/15'
+        : 'text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground',
+      isCollapsed && 'justify-center',
+      className
+    );
+
+    const isExternal = typeof href === 'string' && /^(https?:)?\/\//.test(href);
+
+    if (isExternal) {
+      return (
+        <a ref={ref} className={classNames} href={href} {...props}>
+          {icon}
+          {!isCollapsed && label}
+        </a>
+      );
+    }
+
+    // Internal link: use Next.js Link for client-side navigation
+    return (
+      <Link href={href || '#'} className={classNames} {...(props as any)}>
+        {icon}
+        {!isCollapsed && label}
+      </Link>
+    );
 });
 SidebarMenuButton.displayName = 'SidebarMenuButton';
 

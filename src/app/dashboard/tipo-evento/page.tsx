@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { tipoEventoService } from "@/services/tipoEvento.service";
 import type { TipoEvento } from "@/types/interfaces";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,7 @@ export default function TipoEventoPage() {
   const [form, setForm] = useState<FormState>({ mode: "new", data: emptyTipoEvento });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const loadingRef = useRef(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +39,8 @@ export default function TipoEventoPage() {
     { toast: (args: { title: string; description?: string; variant?: "default" | "destructive" | "success" | "warning" }) => void } = useToast();
 
   const load = async () => {
+    if (loadingRef.current) return; // prevent concurrent loads
+    loadingRef.current = true;
     setLoading(true); setError(null);
     try {
       const resp = await tipoEventoService.getAll();
@@ -47,8 +50,13 @@ export default function TipoEventoPage() {
         setShowForm(true);
       }
     } catch (e: any) {
-      setError(e?.message || "Error cargando tipos de evento");
-    } finally { setLoading(false); }
+      const errorMsg = e?.message || "Error cargando tipos de evento";
+      console.error("❌ Error en load():", errorMsg, e);
+      setError(errorMsg);
+    } finally { 
+      setLoading(false);
+      loadingRef.current = false;
+    }
   };
 
   useEffect(() => { load(); }, []);

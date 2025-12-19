@@ -303,6 +303,7 @@ export interface Limites {
   corriente_limite_inf: number;
   desbalance_limite_sup: number;
   desbalance_limite_inf: number;
+  sigma_limite: number;
   factor_carga_limite_sup: number;
   factor_carga_limite_inf: number;
   estado: string;
