@@ -15,9 +15,10 @@ interface DashboardClientProps {
   machineComponents: Component[];
   data: ChartDataPoint[];
   aggregationLevel: 'minute' | 'hour' | 'month';
+  machine?: string;
 }
 
-export function DashboardClient({ machineComponents, data, aggregationLevel }: DashboardClientProps) {
+export function DashboardClient({ machineComponents, data, aggregationLevel, machine }: DashboardClientProps) {
   const [modalStatus, setModalStatus] = React.useState<ComponentStatus | null>(null);
 
   const handleStatusClick = (status: ComponentStatus) => {
@@ -27,6 +28,16 @@ export function DashboardClient({ machineComponents, data, aggregationLevel }: D
   const closeModal = () => {
     setModalStatus(null);
   };
+
+  // Listen to global event to close the classification panel if other components request it
+  React.useEffect(() => {
+    const handler = () => {
+      // if Analysis modal or others rely on this, close them; for now close status modal
+      setModalStatus(null);
+    };
+    window.addEventListener('close-classification-panel', handler as EventListener);
+    return () => window.removeEventListener('close-classification-panel', handler as EventListener);
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -70,6 +81,7 @@ export function DashboardClient({ machineComponents, data, aggregationLevel }: D
                   predictionOptimisticKey="proyeccion_corriente_optimista"
                   yAxisLabel="Amperios"
                   componentId={component.id}
+                  machine={machine}
                   metric="current"
                 />
               </CardContent>
@@ -104,6 +116,7 @@ export function DashboardClient({ machineComponents, data, aggregationLevel }: D
                   predictionOptimisticKey="proyeccion_desbalance_optimista"
                   yAxisLabel="%"
                   componentId={component.id}
+                  machine={machine}
                   metric="unbalance"
                 />
               </CardContent>
@@ -138,6 +151,7 @@ export function DashboardClient({ machineComponents, data, aggregationLevel }: D
                   predictionOptimisticKey="proyeccion_factor_carga_optimista"
                   yAxisLabel="Factor"
                   componentId={component.id}
+                  machine={machine}
                   metric="load_factor"
                 />
               </CardContent>

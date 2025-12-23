@@ -410,6 +410,7 @@ export default function DashboardPage() {
                   machineComponents={selectedComponent ? [selectedComponent] : []}
                   data={chartData}
                   aggregationLevel={aggregationLevel}
+                  machine={machineId}
                 />
               </div>
             </div>

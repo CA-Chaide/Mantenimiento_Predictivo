@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { tipoEventoService } from "@/services/tipoEvento.service";
-import type { TipoEvento } from "@/types/interfaces";
+import { categoriaEventoService } from "@/services/categoriaEvento.service";
+import type { TipoEvento, CategoriaEvento } from "@/types/interfaces";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,14 @@ export default function TipoEventoPage() {
   const [form, setForm] = useState<FormState>({ mode: "new", data: emptyTipoEvento });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [categoriesMap, setCategoriesMap] = useState<Record<string, CategoriaEvento[]>>({});
+  const [categoriesLoadingMap, setCategoriesLoadingMap] = useState<Record<string, boolean>>({});
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  const [selectedTipo, setSelectedTipo] = useState<TipoEvento | null>(null);
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const [newCategoryDesc, setNewCategoryDesc] = useState("");
+  const [newCategoryEstado, setNewCategoryEstado] = useState("A");
+  const [savingCategory, setSavingCategory] = useState(false);
   const loadingRef = useRef(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -86,6 +95,78 @@ export default function TipoEventoPage() {
   const startNew = () => setForm({ mode: "new", data: { ...emptyTipoEvento } });
   const startEdit = (c: TipoEvento) => setForm({ mode: "edit", data: { ...c } });
   const cancelEdit = () => startNew();
+
+  const loadCategories = async (tipo: TipoEvento) => {
+    const id = String(tipo.codigo_tipo_evento);
+    setSelectedTipo(tipo);
+    setCategoriesLoadingMap(prev => ({ ...prev, [id]: true }));
+    try {
+      const resp = await categoriaEventoService.getAll();
+      const data = Array.isArray(resp.data) ? resp.data : [];
+      const filtered = data.filter(c => String(c.codigo_tipo_evento) === id);
+      setCategoriesMap(prev => ({ ...prev, [id]: filtered }));
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Error cargando categorias';
+      console.error('❌ Error en loadCategories():', msg, e);
+      toast({ title: 'Error al cargar categorias', description: msg, variant: 'destructive' });
+    } finally {
+      setCategoriesLoadingMap(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const toggleExpand = (tipo: TipoEvento) => {
+    const id = String(tipo.codigo_tipo_evento);
+    setExpandedIds(prev => {
+      const exists = prev.includes(id);
+      if (exists) {
+        return prev.filter(x => x !== id);
+      }
+      // expand: load categories for this tipo then add id
+      loadCategories(tipo).catch(() => {});
+      return [...prev, id];
+    });
+  };
+
+  const closeCategoriesModal = () => {
+    setShowCategoriesModal(false);
+    if (selectedTipo) {
+      const id = String(selectedTipo.codigo_tipo_evento);
+      setCategoriesMap(prev => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+    }
+    setSelectedTipo(null);
+    setNewCategoryDesc('');
+    setNewCategoryEstado('A');
+  };
+
+  const handleAddCategory = async () => {
+    if (!selectedTipo) return;
+    if (!newCategoryDesc) return toast({ title: 'Descripción requerida', variant: 'warning' });
+    setSavingCategory(true);
+    try {
+      const payload: CategoriaEvento = {
+        codigo_categoria_evento: '0',
+        codigo_tipo_evento: String(selectedTipo.codigo_tipo_evento),
+        descripcion: newCategoryDesc.trim(),
+        estado: newCategoryEstado || 'A',
+      };
+      const resp = await categoriaEventoService.save(payload);
+      const saved = resp.data;
+      const id = String(selectedTipo.codigo_tipo_evento);
+      setCategoriesMap(prev => ({ ...prev, [id]: [saved, ...(prev[id] || [])] }));
+      setNewCategoryDesc(''); setNewCategoryEstado('A');
+      toast({ title: 'Categoria agregada', description: `Categoria ${saved.descripcion} creada.`, variant: 'success' });
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Error guardando categoria';
+      console.error('❌ Error en handleAddCategory():', msg, e);
+      toast({ title: 'Error al agregar categoria', description: msg, variant: 'destructive' });
+    } finally {
+      setSavingCategory(false);
+    }
+  };
 
   const onChangeField = (field: keyof TipoEvento, value: string) => {
     setForm(prev => ({ ...prev, data: { ...prev.data, [field]: value } }));
@@ -209,38 +290,72 @@ export default function TipoEventoPage() {
                   {!loading && paginatedItems.length === 0 && (
                     <tr><td colSpan={4} className="px-3 py-6 text-center text-gray-400">Sin resultados</td></tr>
                   )}
-                  {!loading && paginatedItems.map(tipo => (
-                    <tr key={tipo.codigo_tipo_evento} className="transition-colors bg-white hover:bg-gray-100">
-                      <td className="px-3 py-2 font-mono text-xs align-middle">{tipo.codigo_tipo_evento}</td>
-                      <td className="px-3 py-2 align-middle">{tipo.nombre_evento}</td>
-                      <td className="px-3 py-2 align-middle">
-                        <span className="inline-block rounded-full bg-green-600 text-white px-3 py-0.5 text-xs font-semibold">
-                          Activo
-                        </span>
-                      </td>
-                      <td className="px-3 py-1 text-center align-middle">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <EllipsisVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => { startEdit(tipo); setShowForm(true); }}>
-                              ✏️ Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(tipo.codigo_tipo_evento)}
-                              disabled={deletingId === tipo.codigo_tipo_evento}
-                              className="text-red-600"
-                            >
-                              🗑️ Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
+                  {!loading && paginatedItems.map(tipo => {
+                    const id = String(tipo.codigo_tipo_evento);
+                    const isExpanded = expandedIds.includes(id);
+                    const cats = categoriesMap[id] || [];
+                    const loadingCats = !!categoriesLoadingMap[id];
+                    return (
+                      <>
+                        <tr key={id} className="transition-colors bg-white hover:bg-gray-100">
+                          <td className="px-3 py-2 font-mono text-xs align-middle">{tipo.codigo_tipo_evento}</td>
+                          <td onClick={() => toggleExpand(tipo)} className="px-3 py-2 align-middle cursor-pointer hover:underline">{tipo.nombre_evento}</td>
+                          <td className="px-3 py-2 align-middle">
+                            <span className="inline-block rounded-full bg-green-600 text-white px-3 py-0.5 text-xs font-semibold">
+                              Activo
+                            </span>
+                          </td>
+                          <td className="px-3 py-1 text-center align-middle">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <EllipsisVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setSelectedTipo(tipo); setShowCategoriesModal(true); }}>
+                                  ➕ Agregar Categoria
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { startEdit(tipo); setShowForm(true); }}>
+                                  ✏️ Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDelete(tipo.codigo_tipo_evento)}
+                                  disabled={deletingId === tipo.codigo_tipo_evento}
+                                  className="text-red-600"
+                                >
+                                  🗑️ Eliminar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+
+                        {isExpanded && (
+                          <tr key={id + '-exp'} className="bg-gray-50">
+                            <td colSpan={4} className="p-3">
+                              <div className="text-sm">
+                                {loadingCats && <div className="text-gray-500">Cargando categorias...</div>}
+                                {!loadingCats && cats.length === 0 && <div className="text-gray-500">Sin categorias para este tipo</div>}
+                                {!loadingCats && cats.length > 0 && (
+                                  <div className="grid grid-cols-1 gap-2">
+                                    {cats.map(cat => (
+                                      <div key={cat.codigo_categoria_evento} className="p-2 bg-white border rounded flex items-center justify-between">
+                                        <div>
+                                          <div className="font-medium">{cat.descripcion}</div>
+                                          <div className="text-xs text-gray-500">Estado: {cat.estado}</div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })}
                 </tbody>
               </table>
               </div>
@@ -298,6 +413,40 @@ export default function TipoEventoPage() {
           )}
         </CardContent>
       </Card>
+
+      {showCategoriesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Categorias para: {selectedTipo?.nombre_evento}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="ghost" onClick={closeCategoriesModal}><X className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <div className="mb-3">
+                    <Label>Agregar Categoria</Label>
+                    <div className="flex gap-2 mt-2">
+                      <Input value={newCategoryDesc} onChange={e => setNewCategoryDesc(e.target.value)} placeholder="Descripción" />
+                      <select value={newCategoryEstado} onChange={e => setNewCategoryEstado(e.target.value)} className="border rounded px-2">
+                        <option value="A">Activo</option>
+                        <option value="I">Inactivo</option>
+                      </select>
+                      <Button onClick={handleAddCategory} disabled={savingCategory} className="bg-blue-500 text-white">{savingCategory ? 'Guardando...' : 'Agregar'}</Button>
+                    </div>
+                  </div>
+
+                  {/* El modal se usa solo para agregar nuevas categorias. El listado se muestra en el expansion panel. */}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       {error && (
         <Alert variant="destructive" className="max-w-md">

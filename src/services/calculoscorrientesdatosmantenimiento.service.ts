@@ -61,6 +61,15 @@ interface GetAllParams {
   limit?: number;
 }
 
+interface GetDataCrudaByDateRangeParamsAndComponent {
+  Maquina: string;
+  Componente: string;
+  FechaInicio: string;
+  FechaFin: string;
+  page?: number;
+  limit?: number;
+}
+
 /**
  * Objeto que centraliza todas las funciones para interactuar con la API de mantenimiento.
  * Cada función corresponde a un endpoint específico de la API.
@@ -310,6 +319,61 @@ export const calculosCorrientesDatosMantenimientoService = {
     };
 
     const response = await fetch(API_URL + '/getDeviations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKEN}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({ message: 'Error desconocido en el servidor' }));
+      throw new Error(errorBody.message || `Error ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+
+
+
+    async getTodosRegistrosDataCruda(params: GetDataCrudaByDateRangeParamsAndComponent): Promise<BodyListResponse<any>> {
+    const requestBody = {
+      Maquina: params.Maquina,
+      Componente: params.Componente,
+      FechaInicio: params.FechaInicio,
+      FechaFin: params.FechaFin,
+      page: params.page || 1,
+      limit: params.limit || 1000,
+    };
+
+    const response = await fetch(API_URL + '/dataRawByMachineComponentAndDates', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKEN}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({ message: 'Error desconocido en el servidor' }));
+      throw new Error(errorBody.message || `Error ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+    async getTotalDataCrudaPorFechaComponenteEquipo(params: GetDeviationsyMachineParams): Promise<BodyListResponse<any>> {
+    const requestBody = {
+      Maquina: params.Maquina,
+      Componente: params.Componente,
+      FechaInicio: params.FechaInicio,
+      FechaFin: params.FechaFin,
+    };
+
+    const response = await fetch(API_URL + '/totalDataRawByMachineComponentAndDates', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

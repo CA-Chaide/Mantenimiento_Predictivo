@@ -312,7 +312,7 @@ export interface Limites {
 export interface Historial {
   codigo_historial: string;
   codigo_componente: string;
-  codigo_tipo_evento: string;
+  codigo_categoria_evento: string;
   fecha_evento: Date | string;
   descripcion_evento: string;
   params: Text;
@@ -336,6 +336,13 @@ export interface Componente {
 export interface Area {
   codigo_area: string;
   nombre_area: string;
+  estado: string;
+}
+
+export interface CategoriaEvento { 
+  codigo_categoria_evento: string;
+  codigo_tipo_evento: string;
+  descripcion: string;
   estado: string;
 }
 
